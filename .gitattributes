@@ -3,3 +3,7 @@ localization_20200530173557.record.00000.csv filter=lfs diff=lfs merge=lfs -text
 routng_20200530173557.record.00000.csv filter=lfs diff=lfs merge=lfs -text
 t12b-10r0_recorded.csv filter=lfs diff=lfs merge=lfs -text
 temp_result.csv filter=lfs diff=lfs merge=lfs -text
+*params filter=lfs diff=lfs merge=lfs -text
+demo_3.5.record filter=lfs diff=lfs merge=lfs -text
+*.pt filter=lfs diff=lfs merge=lfs -text
+*.caffemodel filter=lfs diff=lfs merge=lfs -text
