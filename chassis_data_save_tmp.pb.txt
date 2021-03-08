@@ -1,0 +1,11 @@
+engine_started: true
+speed_mps: 0.8
+throttle_percentage: 0
+brake_percentage: 0
+driving_mode: COMPLETE_AUTO_DRIVE
+gear_location: GEAR_DRIVE
+header {
+  timestamp_sec: 1593343017.9961584
+  module_name: "SimControl"
+  sequence_num: 1387416
+}

@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+package apollo.guardian;
+
+message GuardianConf {
+  optional bool guardian_enable = 1 [default = false];
+  optional double guardian_cmd_emergency_stop_percentage = 2 [default = 50];
+  optional double guardian_cmd_soft_stop_percentage = 3 [default = 25];
+  optional double miss_aeb_message_time = 4 [default = 1.0];
+  optional double miss_auto_message_time = 5 [default = 0.03];
+  optional double miss_manu_message_time = 6 [default = 0.12];
+  optional double miss_remote_message_time = 7 [default = 0.03];
+  optional double miss_monitor_time = 8[default = 3.0];
+}

@@ -1,0 +1,12 @@
+# Define all coms in DAG streaming.
+module_config {
+  module_library : "/apollo/bazel-bin/modules/tmc/lib_tmc_component.so"
+    timer_components {
+    class_name: "tmcComponent"
+    config {
+      name: "tmc"
+      config_file_path: "/apollo/modules/tmc/conf/tmc_conf.pb.txt"
+      interval: 25
+    }
+  }
+}

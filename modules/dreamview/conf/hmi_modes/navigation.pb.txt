@@ -1,0 +1,181 @@
+# Should specify camera module after dag is ready
+cyber_modules {
+  key: "Camera"
+  value: {
+    dag_files: "/apollo/modules/drivers/camera/dag/camera.dag"
+  }
+}
+# Should specify perception module after dag is ready
+cyber_modules {
+  key: "Perception"
+  value: {
+    dag_files: "/apollo/modules/perception/production/dag/dag_streaming_perception_camera.dag"
+  }
+}
+cyber_modules {
+  key: "Canbus"
+  value: {
+    dag_files: "/apollo/modules/canbus/dag/canbus.dag"
+  }
+}
+cyber_modules {
+  key: "GPS"
+  value: {
+    dag_files: "/apollo/modules/drivers/gnss/dag/gnss.dag"
+  }
+}
+cyber_modules {
+  key: "RoRadar"
+  value: {
+   # dag_files: "/apollo/modules/drivers/radar/conti_radar/dag/conti_radar.dag"
+     dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_all.dag"   
+ #   dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_front.dag" 
+ #   dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_left.dag"
+ #   dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_right.dag"
+    #dag_files: "/apollo/modules/drivers/radar/uhnder_radar/dag/uhnder_all.dag"
+  }
+}
+cyber_modules {
+  key: "Radar"
+  value: {
+   # dag_files: "/apollo/modules/drivers/radar/conti_radar/dag/conti_radar.dag"
+    
+    #dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_front.dag"
+    dag_files: "/apollo/modules/drivers/radar/uhnder_radar/dag/uhnder_all.dag"
+    dag_files: "/apollo/modules/drivers/radar/ultrasonic_radar/dag/ultrasonic_radar.dag"
+  }
+}
+cyber_modules {
+  key: "Localization"
+  value: {
+    dag_files: "/apollo/modules/localization/dag/dag_streaming_msf_localization.dag"
+   # dag_files: "/apollo/modules/localization/dag/dag_streaming_foo_localization.dag"
+  }
+}
+cyber_modules {
+  key: "Relative Map"
+  value: {
+    dag_files: "/apollo/modules/map/relative_map/dag/relative_map.dag"
+  }
+}
+cyber_modules {
+  key: "Planning"
+  value: {
+    dag_files: "/apollo/modules/planning/dag/planning_navi.dag"
+  }
+}
+cyber_modules {
+  key: "Prediction"
+  value: {
+   # dag_files: "/apollo/modules/prediction/dag/prediction_navi.dag"
+    dag_files: "/apollo/modules/prediction/dag/prediction.dag"
+  }
+}
+#add by shzhw
+cyber_modules {
+  key: "AEBS"
+  value: {
+    dag_files: "/apollo/modules/urgencystop/dag/urgency.dag"
+  }
+}
+cyber_modules {
+  key: "ManuCtl"
+  value: {
+    dag_files: "/apollo/modules/manuctrl/dag/manuctrl.dag"
+    dag_files: "/apollo/modules/tmc/dag/tmc.dag"
+  }
+}
+
+cyber_modules {
+  key: "TPS"
+  value: {
+    dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_top.dag"
+    dag_files: "/apollo/modules/position_est/dag/position_est.dag"
+  }
+}
+#---------------------------------------------------------------
+# Should specify control module after dag is ready
+cyber_modules {
+  key: "Control"
+  value: {
+    dag_files: "/apollo/modules/control/dag/control.dag"
+  }
+}
+cyber_modules {
+  key: "Guardian"
+  value: {
+    dag_files: "/apollo/modules/guardian/dag/guardian.dag"
+  }
+}
+modules {
+  key: "Recorder"
+  value: {
+    start_command: "/apollo/scripts/record_bag.py --start"
+    stop_command: "/apollo/scripts/record_bag.py --stop"
+    process_monitor_config {
+      command_keywords: "cyber_recorder record"
+    }
+  }
+}
+monitored_components {
+  key: "Recorder"
+  value: {
+    process {
+      command_keywords: "cyber_recorder record"
+    }
+    resource {
+      disk_spaces {
+        # For logs.
+        path: "/apollo/data"
+        insufficient_space_warning: 8
+        insufficient_space_error: 2
+      }
+      disk_spaces {
+        # For records.
+        path: "/media/apollo/internal_nvme"
+        insufficient_space_warning: 128
+        insufficient_space_error: 32
+      }
+      cpu_usages {
+        # For records.
+        #process_dag_path: ""
+        high_cpu_usage_warning: 11.2
+        high_cpu_usage_error: 62.2
+      }
+      memory_usages {
+        # For records.
+        #process_dag_path: ""
+        high_memory_usage_warning: 6
+        high_memory_usage_error: 60
+      }
+      disk_load_usages {
+        # For records.
+        #process_dag_path: ""
+        high_disk_load_warning: 9
+        high_disk_load_error: 10
+      }
+    }
+  }
+}
+monitored_components {
+  key: "Socket"
+  value: {
+    # SocketMonitor.
+  }
+}
+monitored_components {
+  key: "GPS"
+  value: {
+    process {
+      command_keywords: "mainboard"
+      command_keywords: "/apollo/modules/drivers/gnss/dag/gnss.dag"
+    }
+    # We also have a special GPSMonitor to check message status.
+  }
+}
+monitored_components {
+  key: "ESD-CAN"
+  value: {
+    # Special EsdCanMonitor.
+  }
+}

@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+package apollo.manuctrl;
+
+import "modules/common/proto/header.proto";
+import "modules/control/proto/control_cmd.proto";
+
+message manuctrlMsg {
+    optional apollo.common.Header header = 1;
+    optional apollo.control.ControlCommand control_command = 2;
+    optional bool flag = 3 [default = false];
+    optional uint32 rc_voltage = 4;
+}

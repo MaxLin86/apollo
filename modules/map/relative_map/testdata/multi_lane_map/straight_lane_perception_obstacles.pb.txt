@@ -1,0 +1,30 @@
+perception_obstacle {
+
+}
+header {
+  timestamp_sec: 1520552697.5661659
+  module_name: "third_party_perception"
+  sequence_num: 21973
+}
+lane_marker {
+  left_lane_marker {
+    lane_type: DOTTED_YELLOW
+    quality: 0.5
+    model_degree: 3
+    c0_position: 1.0578125
+    c1_heading_angle: 0.073563
+    c2_curvature: -0.0
+    c3_curvature_derivative: 0.0
+    view_range: 25.76953125
+  }
+  right_lane_marker {
+    lane_type: SOLID_YELLOW
+    quality: 0.5
+    model_degree: 3
+    c0_position: -1.6578125
+    c1_heading_angle: 0.074564
+    c2_curvature: 0.0
+    c3_curvature_derivative: 0.0
+    view_range: 28.62109375
+  }
+}

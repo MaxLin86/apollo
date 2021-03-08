@@ -1,0 +1,3 @@
+rc_udp_port: 10000
+ctrl_tcp_port:10001
+ctrl_tcp_addr: "10.28.76.221"

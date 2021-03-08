@@ -1,0 +1,8 @@
+guardian_enable: true
+guardian_cmd_emergency_stop_percentage: 50.0
+guardian_cmd_soft_stop_percentage: 65.0
+miss_aeb_message_time: 1.0
+miss_auto_message_time: 0.05
+miss_manu_message_time: 0.12
+miss_remote_message_time: 0.1
+miss_monitor_time: 200000.0

@@ -1,0 +1,14 @@
+# Define all coms in DAG streaming.
+module_config {
+  module_library : "/apollo/bazel-bin/modules/position_est/lib_position_est_component.so"
+    components {
+    class_name: "PositionEst"
+    config {
+      name: "PositionEst"
+      config_file_path: "/apollo/modules/position_est/conf/position_est_conf.pb.txt"
+      readers {
+          channel: "/apollo/sensor/radar/top"
+      } 
+    }
+  }
+}

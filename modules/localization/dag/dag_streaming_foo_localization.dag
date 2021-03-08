@@ -1,0 +1,22 @@
+# Define all coms in DAG streaming.
+module_config {
+    module_library : "/apollo/bazel-bin/modules/localization/foo/libfoo_localization_component.so"
+
+    components {
+      class_name : "FooLocalizationComponent"
+      config {
+        name : "foo_localization"
+        config_file_path : "/apollo/modules/localization/conf/foo_localization.pb.txt"
+        readers: [
+          {
+            channel: "/apollo/sensor/gnss/imu"
+            #channel: "/apollo/canbus/chassis"
+            qos_profile: {
+              depth : 10
+            }
+            pending_queue_size: 50
+          }
+        ]
+      }
+    }
+}

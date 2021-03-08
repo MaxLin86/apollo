@@ -1,0 +1,12 @@
+
+radar_channel: "/apollo/sensor/radar/front"
+radar_id: "middle"
+radar_ip: "192.168.95.12"
+install_angle : 0.5
+install_pos_x: 4.92
+install_pos_y: 0.0
+install_pos_z: 0.8
+threshold: LOW
+scan_type: Type_VP15f
+scan_delay_offset_us:0
+positive: -1.0

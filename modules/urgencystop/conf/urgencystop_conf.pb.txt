@@ -1,0 +1,24 @@
+dist_to_origin: 4.92
+safety_zone_left: 1.35
+safety_zone_right: -1.35
+safety_distance: 10.0
+turn_radius: 1000.0
+check_frame: 3
+match_size: 0.75
+miss_time: 0.2
+
+veh_speed: 5.0
+veh_speed: 10.0
+veh_speed: 15.0
+veh_speed: 20.0
+veh_speed: 25.0
+veh_speed: 30.0
+veh_speed: 35.0
+
+stop_dis: 3.0
+stop_dis: 5.0
+stop_dis: 8.0
+stop_dis: 10.0
+stop_dis: 12.0
+stop_dis: 15.0
+stop_dis: 20.0

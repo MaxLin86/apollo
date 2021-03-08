@@ -1,0 +1,9 @@
+header {
+  timestamp_sec: 1591181034.6536407
+  module_name: "perception_obstacle"
+  sequence_num: 1611
+  lidar_timestamp: 0
+  camera_timestamp: 0
+  radar_timestamp: 0
+}
+error_code: OK

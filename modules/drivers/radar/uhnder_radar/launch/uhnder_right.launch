@@ -1,0 +1,7 @@
+<cyber>
+    <module>
+        <name>uhnder_radar_right</name>
+        <dag_conf>/apollo/modules/drivers/radar/uhnder_radar/dag/uhnder_right.dag</dag_conf>
+        <process_name>uhnder_radar_right</process_name>
+    </module>
+</cyber>

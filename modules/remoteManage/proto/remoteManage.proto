@@ -1,0 +1,18 @@
+syntax = "proto2";
+
+package apollo.remoteManage;
+
+import "modules/common/proto/header.proto";
+import "modules/common/proto/geometry.proto";
+
+message actNet_conf {
+    optional string str_Tmc_Addr = 1 [default = "192.168.43.162"];
+    optional uint32 str_Tmc_Port = 2 [default = 6002];
+}
+
+message actTask{
+	optional apollo.common.Header header = 1;
+	repeated apollo.common.Point2D task_coord = 2;
+}
+
+

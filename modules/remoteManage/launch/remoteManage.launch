@@ -1,0 +1,8 @@
+<cyber>
+    <module>
+        <name>remoteManage</name>
+        <dag_conf>/apollo/modules/remoteManage/dag/remoteManage.dag</dag_conf>
+        <process_name>remoteManage</process_name>
+    </module>
+
+</cyber>

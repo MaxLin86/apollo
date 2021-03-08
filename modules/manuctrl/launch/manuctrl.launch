@@ -1,0 +1,8 @@
+<cyber>
+    <module>
+        <name>manuctrl</name>
+        <dag_conf>/apollo/modules/manuctrl/dag/manuctrl.dag</dag_conf>
+        <process_name>manuctrl</process_name>
+    </module>
+
+</cyber>

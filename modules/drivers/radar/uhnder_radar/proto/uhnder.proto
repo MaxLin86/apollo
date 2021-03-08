@@ -1,0 +1,58 @@
+syntax = "proto2";
+
+package apollo.drivers.uhnder_radar;
+
+import "modules/common/proto/header.proto";
+
+enum ThresholdPreset
+{
+    LOW = 0;  
+    MID = 1;  
+    HIGH = 2; 
+    NUM_RESETS = 3;
+};
+
+enum RDC_Scan_Type
+{
+    Type_VP1a = 0;
+    Type_VP1as = 1;
+    Type_VP1b = 2;
+    Type_VP1bb = 3;
+    Type_VP1c = 4;
+    Type_VP4 = 5;
+    Type_VP8 = 6;
+    Type_VP9 = 7;
+    Type_VP9f = 8;
+    Type_VP11 = 9;
+    Type_VP12 = 10;
+    Type_VP13 = 11;
+    Type_VP14 = 12;
+    Type_VP14f = 13;
+    Type_VP14ff = 14;
+    Type_VP15f = 15;
+    Type_VP15m = 16;
+    Type_VP15s = 17;
+    Type_VP16 = 18;
+    Type_CP1a = 19;
+    Type_CP1as = 20;
+    Type_CP1b = 21;
+    Type_CP1bb = 22;
+    Type_CP1c = 23;
+    Type_CP2 = 24;
+    Type_NUM_PRESETS = 25;
+};
+
+message UhnderRadarConf {
+  optional string radar_channel = 1;
+  optional string stop_channel = 2;
+  optional string radar_id = 3;
+  optional string radar_ip = 4;
+  optional double install_angle = 5;
+  optional double install_pos_x = 6;
+  optional double install_pos_y = 7;
+  optional double install_pos_z = 8;
+  optional ThresholdPreset threshold = 9  [default = LOW];
+  optional RDC_Scan_Type scan_type = 10 [default = Type_VP1a];
+  optional uint32  scan_delay_offset_us = 11;
+  optional double positive = 12 [default = 1.0];
+}

@@ -1,0 +1,15 @@
+
+syntax = "proto2";
+
+package apollo.drivers;
+
+import "modules/common/proto/header.proto";
+import "modules/drivers/proto/conti_radar.proto";
+import "modules/drivers/proto/ultrasonic_radar.proto";
+
+
+message Ultra_Radar{
+    optional apollo.common.Header header = 1;
+    optional apollo.drivers.ContiRadar  radarobs = 2;
+    optional apollo.drivers.Ultrasonic  ultrasonic_obs = 3;
+}

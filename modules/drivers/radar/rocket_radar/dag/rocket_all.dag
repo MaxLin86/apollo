@@ -1,0 +1,27 @@
+# Define all coms in DAG streaming.
+    module_config {
+    module_library : "/apollo/bazel-bin/modules/drivers/radar/rocket_radar/librocket_radar_component.so"
+    components {
+        class_name : "RocketRadarComponent"
+        config {
+            name: "radar_front"
+            config_file_path:  "/apollo/modules/drivers/radar/rocket_radar/conf/radar_front_conf.pb.txt"
+        }
+      }
+    
+    components {
+        class_name : "RocketRadarComponent"
+        config {
+            name: "radar_left"
+            config_file_path:  "/apollo/modules/drivers/radar/rocket_radar/conf/radar_front_left_conf.pb.txt"
+        }
+      }
+      
+    components {
+        class_name : "RocketRadarComponent"
+        config {
+            name: "radar_right"
+            config_file_path:  "/apollo/modules/drivers/radar/rocket_radar/conf/radar_front_right_conf.pb.txt"
+        }
+      }
+    }

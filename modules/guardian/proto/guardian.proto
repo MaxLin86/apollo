@@ -1,0 +1,21 @@
+syntax = "proto2";
+package apollo.guardian;
+
+import "modules/common/proto/header.proto";
+import "modules/control/proto/control_cmd.proto";
+
+
+enum SOURCE {
+  MONITOR = 0;
+  AEBS = 1;
+  MANU_CTRL = 2;
+  REMOTE_CTRL = 3;
+  AUTO_DRIVING = 4;
+  MISS_MESSAGE = 5;
+}
+
+message GuardianCommand {
+  optional apollo.common.Header header = 1;
+  optional SOURCE command_from = 2 [default = MONITOR];
+  optional apollo.control.ControlCommand control_command = 3;
+}

@@ -1,0 +1,8 @@
+<cyber>
+    <module>
+        <name>tmc</name>
+        <dag_conf>/apollo/modules/tmc/dag/tmc.dag</dag_conf>
+        <process_name>tmc</process_name>
+    </module>
+
+</cyber>

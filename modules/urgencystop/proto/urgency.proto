@@ -1,0 +1,15 @@
+syntax = "proto2";
+
+message safeStopConf {
+    optional double dist_to_origin = 1;
+    optional double safety_zone_left = 2;
+    optional double safety_zone_right = 3;
+    optional double safety_distance = 4;
+    optional double turn_radius = 5;
+    optional uint32 check_frame = 6;
+    optional double match_size = 7;
+    optional string output_channel = 8;
+    optional double miss_time = 9;
+    repeated double veh_speed = 10;
+    repeated double stop_dis = 11; 
+}

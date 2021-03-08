@@ -1,0 +1,95 @@
+# Define all coms in DAG streaming.
+module_config {
+    module_library : "/apollo/bazel-bin/modules/drivers/camera/libcamera_component.so"
+    components {
+      class_name : "CameraComponent"
+      config {
+        name : "camera_front_6mm_1"
+        config_file_path : "/apollo/modules/drivers/camera/conf/camera_front_6mm_1.pb.txt"
+      }
+    }
+   # components {
+   #   class_name : "CompressComponent"
+   #   config {
+    #    name : "camera_front_6mm_1_compress"
+    #    config_file_path : "/apollo/modules/drivers/camera/conf/camera_front_6mm_1.pb.txt"
+    #    readers {
+    #      channel: "/apollo/sensor/camera/front_6mm_1/image"
+    #      pending_queue_size: 10
+    #    }
+   #   }
+   # }    
+   #components {
+    #  class_name : "CameraComponent"
+    #  config {
+    #    name : "camera_front_6mm_2"
+    #    config_file_path : "/apollo/modules/drivers/camera/conf/camera_front_6mm_2.pb.txt"
+    #  }
+   # }
+    #components {
+     # class_name : "CompressComponent"
+    #  config {
+    #    name : "camera_front_6mm_2_compress"
+    #    config_file_path : "/apollo/modules/drivers/camera/conf/camera_front_6mm_2.pb.txt"
+     #   readers {
+     #     channel: "/apollo/sensor/camera/front_6mm_2/image"
+     #     pending_queue_size: 10
+     #   }
+     # }
+    #}
+    components {
+      class_name : "CameraComponent"
+      config {
+        name : "camera_front_6mm_3"
+        config_file_path : "/apollo/modules/drivers/camera/conf/camera_front_6mm_3.pb.txt"
+      }
+    }
+    components {
+      class_name : "CompressComponent"
+      config {
+        name : "camera_front_6mm_3_compress"
+        config_file_path : "/apollo/modules/drivers/camera/conf/camera_front_6mm_3.pb.txt"
+        readers {
+          channel: "/apollo/sensor/camera/front_6mm_3/image"
+          pending_queue_size: 10
+        }
+      }
+    }
+   # components {
+    #  class_name : "CameraComponent"
+   #   config {
+    #    name : "camera_side_left_front"
+    #    config_file_path : "/apollo/modules/drivers/camera/conf/camera_side_left_front.pb.txt"
+   #   }
+   # }
+  #  components {
+   #   class_name : "CompressComponent"
+   #   config {
+    #    name : "camera_side_left_front_compress"
+   #     config_file_path : "/apollo/modules/drivers/camera/conf/camera_side_left_front.pb.txt"
+    #    readers {
+    #      channel: "/apollo/sensor/camera/side_left_front/image"
+    #      pending_queue_size: 10
+    #    }
+    #  }
+  #  }
+   # components {
+   #   class_name : "CameraComponent"
+   #   config {
+   #     name : "camera_side_right_front"
+   #     config_file_path : "/apollo/modules/drivers/camera/conf/camera_side_right_front.pb.txt"
+   #   }
+   # }
+   # components {
+    #  class_name : "CompressComponent"
+   #   config {
+  #      name : "camera_side_right_front_compress"
+   #     config_file_path : "/apollo/modules/drivers/camera/conf/camera_side_right_front.pb.txt"
+   #     readers {
+   #       channel: "/apollo/sensor/camera/side_right_front/image"
+  #        pending_queue_size: 10
+   #     }
+   #   }
+  #  }
+}
+

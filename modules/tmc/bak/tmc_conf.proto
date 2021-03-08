@@ -1,0 +1,10 @@
+syntax = "proto2";
+
+package apollo.tmc;
+
+message TmcConf {
+    optional int32 rc_udp_port = 1  [default = 10000];
+    optional double rc_signal_timeout_sec = 2 [default = 0.5];
+    optional int32 ctrl_tcp_port = 3 [default = 10001];
+}
+  

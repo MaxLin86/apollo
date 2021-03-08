@@ -1,0 +1,27 @@
+header {
+  timestamp_sec: 1522096299.304265
+  module_name: "routing"
+  sequence_num: 1
+}
+
+routing_request {
+  header {
+    timestamp_sec: 1522096299.2993808
+    module_name: "routing"
+    sequence_num: 1
+  }  
+  is_use_guidepost: false
+  waypoint {
+    id: "1422_1_-3"
+    s:5.0000004451479272423931
+    pose {
+      x: 5.5
+      y: 0.31
+    }
+  }
+}
+map_version: "1.500000"
+status {
+  error_code: OK
+  msg: "Success!"
+}

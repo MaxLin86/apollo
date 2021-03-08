@@ -1,0 +1,12 @@
+
+radar_channel: "/apollo/sensor/radar/rear"
+radar_id: "rear"
+radar_ip: "192.168.95.15"
+install_angle : 0.0
+install_pos_x: -1.02
+install_pos_y: 0.0
+install_pos_z: 0.8
+threshold: LOW
+scan_type: Type_VP1a
+scan_delay_offset_us:0
+positive: -1.0

@@ -1,0 +1,20 @@
+syntax = "proto2";
+package apollo.urgency;
+
+import "modules/common/proto/header.proto";
+import "modules/control/proto/control_cmd.proto";
+
+message AEBCommand {
+  optional apollo.common.Header header = 1;
+  optional apollo.control.ControlCommand control_command = 2;
+  optional uint32 miss_radar = 3;
+
+  optional double stop_px = 4;
+  optional double stop_py = 5;
+  optional double stop_pz = 6;
+  optional double ttc = 7;
+  optional double thw = 8;
+  optional double ratio = 9;
+  optional double dy = 10;
+
+}

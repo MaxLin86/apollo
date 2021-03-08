@@ -1,0 +1,1 @@
+//DEFINE_RPC(RPC_NAME)

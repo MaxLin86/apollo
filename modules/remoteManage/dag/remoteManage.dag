@@ -1,0 +1,12 @@
+# Define all coms in DAG streaming.
+module_config {
+  module_library : "/apollo/bazel-bin/modules/remoteManage/lib_remoteManage.so"
+    timer_components {
+        class_name : "remoteManage"
+        config {
+            name : "timer"
+            config_file_path: "/apollo/modules/remoteManage/conf/tmc_net_conf.pb.txt"
+            interval : 10
+        }
+  }
+}

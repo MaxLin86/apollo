@@ -1,0 +1,8 @@
+<cyber>
+    <module>
+        <name>positionEst</name>
+        <dag_conf>/apollo/modules/position_est/dag/position_est.dag</dag_conf>
+        <process_name>positionEst</process_name>
+    </module>
+
+</cyber>

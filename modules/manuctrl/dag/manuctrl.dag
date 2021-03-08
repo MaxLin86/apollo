@@ -1,0 +1,12 @@
+# Define all coms in DAG streaming.
+module_config {
+  module_library : "/apollo/bazel-bin/modules/manuctrl/lib_manuctrl_component.so"
+    timer_components {
+    class_name: "manuctrlComponent"
+    config {
+      name: "manuctrl"
+      config_file_path: "/apollo/modules/manuctrl/conf/manuctrl_conf.pb.txt"
+      interval: 100
+    }
+  }
+}

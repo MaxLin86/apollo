@@ -1,0 +1,18 @@
+header {
+  timestamp_sec: 1591181034.653451
+  module_name: "perception_camera"
+  sequence_num: 1611
+  lidar_timestamp: 1591010298841437952
+  camera_timestamp: 1591010298841437952
+}
+error_code: OK
+lane_marker {
+  left_lane_marker {
+  }
+  right_lane_marker {
+  }
+  next_left_lane_marker {
+  }
+  next_right_lane_marker {
+  }
+}

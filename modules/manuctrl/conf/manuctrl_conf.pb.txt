@@ -1,0 +1,6 @@
+serial_port {
+  device: "/dev/joystick1"
+  baud_rate: 115200
+}
+
+radio_timeout_sec: 0.1

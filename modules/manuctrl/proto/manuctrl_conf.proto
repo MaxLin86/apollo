@@ -1,0 +1,16 @@
+syntax = "proto2";
+
+package apollo.manuctrl;
+
+message SerialPort {
+  optional bytes device = 1;  // Something like "/dev/ttyXXX".
+  optional int32 baud_rate = 2 [default = 9600];
+  // In general, we assumes no parity, 8 data bits, 1 stop bit, no
+  // handshaking, break detection enabled. If not, add more fields here.
+}
+
+message ManuctrlConf {
+  optional SerialPort serial_port = 1;
+  optional double radio_timeout_sec = 2 [default = 0.1];
+  optional double exit_ad_delay_sec = 3 [default = 0.5];
+}

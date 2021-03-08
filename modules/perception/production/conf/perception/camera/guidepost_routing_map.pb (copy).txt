@@ -1,0 +1,443 @@
+routing_pt{
+  guidepost_seq:1
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:2
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:3
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:4
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:5
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:6
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:7
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:8
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:9
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:10
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:11
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:12
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:13
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:14
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:15
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:16
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:17
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:18
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:19
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:20
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:21
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:22
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:23
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:24
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:25
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:26
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:27
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:28
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:29
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:30
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:31
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:32
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:33
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:34
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:35
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:36
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:37
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:38
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:39
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:40
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:41
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:42
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:43
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:44
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:45
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:46
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:47
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:48
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:49
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:50
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:51
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:52
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:53
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:54
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:55
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:56
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:57
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:58
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:59
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:60
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:61
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:62
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:63
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:64
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:65
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:66
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:67
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:68
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:69
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:70
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:71
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:72
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:73
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:74
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:75
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:76
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:77
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:78
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:79
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:80
+  lan_type:curve
+}routing_pt{
+  guidepost_seq:81
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:82
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:83
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:84
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:85
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:86
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:87
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:88
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:89
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:90
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:91
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:92
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:93
+  lan_type:curve
+}
+routing_pt{
+  guidepost_seq:94
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:95
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:96
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:97
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:98
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:99
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:100
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:101
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:102
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:103
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:104
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:105
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:106
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:107
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:108
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:109
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:110
+  lan_type:straight
+}
+routing_pt{
+  guidepost_seq:111
+  lan_type:straight
+}

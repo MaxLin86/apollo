@@ -1,0 +1,13 @@
+# Define all coms in DAG streaming.
+    module_config {
+    module_library : "/apollo/bazel-bin/modules/drivers/radar/uhnder_radar/libuhnder_radar_component.so"
+
+      components {
+        class_name : "UhnderRadarComponent"
+        config {
+            name: "radar_right"
+            config_file_path:  "/apollo/modules/drivers/radar/uhnder_radar/conf/radar_front_right_conf.pb.txt"
+        }
+      }
+
+    }

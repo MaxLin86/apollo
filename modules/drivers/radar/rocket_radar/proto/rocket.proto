@@ -1,0 +1,16 @@
+syntax = "proto2";
+
+package apollo.drivers.uhnder_radar;
+
+
+message RocketRadarConf {
+  optional string radar_channel = 1;
+  optional string stop_channel = 2;
+  optional string radar_id = 3;
+  optional string radar_ip = 4;
+  optional double install_angle = 5;
+  optional double install_pos_x = 6;
+  optional double install_pos_y = 7;
+  optional double install_pos_z = 8;
+  optional double positive = 9 [default = 1.0];
+}

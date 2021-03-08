@@ -1,0 +1,11 @@
+output_channel: "/apollo/positioin_est"
+dist2radar: -3.2073
+radar_height : 0.0
+target_height : 13.3555 
+px_diff : 0.15
+py_diff : 2.0 
+snr_min : 45.0
+sigma : 0.2
+min_range: 6.99
+snr_diff: 5.0
+offset: 0.20

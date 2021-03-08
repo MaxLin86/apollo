@@ -1,0 +1,34 @@
+module_config {
+  module_library : "/apollo/bazel-bin/modules/perception/onboard/component/libperception_component_lidar.so"
+
+  components {
+    class_name: "FusionComponent"
+    config {
+      name: "SensorFusion"
+      config_file_path: "/apollo/modules/perception/production/conf/perception/fusion/fusion_component_conf.pb.txt"
+      flag_file_path: "/apollo/modules/perception/production/conf/perception/perception_common.flag"
+      readers {
+          channel: "/perception/inner/PrefusedObjects"
+          pending_queue_size: 10
+        }
+    }
+  }
+  components {
+    class_name: "RadarDetectionComponent"
+    config {
+      name: "FrontRadarDetection"
+      config_file_path: "/apollo/modules/perception/production/conf/perception/radar/front_radar_component_conf.pb.txt"
+      readers {
+          channel: "/apollo/sensor/radar/front"
+        }
+    }
+  }
+  components {
+    class_name : "FusionCameraDetectionComponent"
+    config {
+      name: "FusionCameraComponent"
+      config_file_path: "/apollo/modules/perception/production/conf/perception/camera/fusion_camera_detection_component.pb.txt"
+      flag_file_path: "/apollo/modules/perception/production/conf/perception/perception_common.flag"
+    }
+  }
+}

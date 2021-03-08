@@ -1,0 +1,8 @@
+<cyber>
+    <module>
+        <name>urgencystop</name>
+        <dag_conf>/apollo/modules/urgencystop/dag/urgency.dag</dag_conf>
+        <process_name>urgencystop</process_name>
+    </module>
+
+</cyber>
