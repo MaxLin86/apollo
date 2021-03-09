@@ -29,12 +29,12 @@ srcpoints:
 
 dstpoints:
   x:
-    leftup: 192
-    leftdown: 192
-    rightup: 608
-    rightdown: 608
+    leftup: 68
+    leftdown: 68
+    rightup: 484
+    rightdown: 484
   y:
-    leftup: 305
-    leftdown: 355
-    rightup: 305
-    rightdown: 355
+    leftup: 255
+    leftdown: 305
+    rightup: 255
+    rightdown: 305

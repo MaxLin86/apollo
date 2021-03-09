@@ -1,5 +1,5 @@
 img_capability: 14
-lost_age: 10
+lost_age: 5
 reserve_age: 10
 weight_same_camera {
     appearance: 0.45
@@ -30,9 +30,9 @@ target_param {
         process_variance: 4
     }
     image_center {
-        init_variance: 1000.0
-        measure_variance: 100.0
-        process_variance: 100.0
+        init_variance: 2500.0
+        measure_variance: 60.0
+        process_variance: 400.0
     }
     image_wh_update_rate : 0.6
     world_lhw_history: 15

@@ -75,9 +75,9 @@ bool ObstacleCameraPerception::Init(
         std::pair<std::string, std::shared_ptr<BaseObstacleDetector>>(
             detector_param.camera_name(), detector_ptr));
     CHECK(name_detector_map_.at(detector_param.camera_name()) != nullptr);
-   // CHECK(name_detector_map_.at(detector_param.camera_name())
-    //         ->Init(detector_init_options))
-    //   << "Failed to init: " << plugin_param.name();
+    CHECK(name_detector_map_.at(detector_param.camera_name())
+             ->Init(detector_init_options))
+       << "Failed to init: " << plugin_param.name();
   }
 
   // Init tracker

@@ -44,8 +44,6 @@ struct Target {
 
   void Update2D(CameraFrame *frame);
 
-  // void Update3D(CameraFrame *frame);
-
   void UpdateType(CameraFrame *frame);
 
   int Size() const;
@@ -62,22 +60,10 @@ struct Target {
   // FirstOrderRCLowPassFilter direction;
   TrackObjectPtr latest_object = nullptr;
   base::ObjectSubType type = base::ObjectSubType::MAX_OBJECT_TYPE;
-  // KalmanFilterConstVelocity world_center;
-  // MeanFilter world_center_for_unmovable;
 
-  // constant position kalman state
-  // KalmanFilterConstState<2> world_center_const;
-
-  // displacement theta
-  // MeanFilter displacement_theta;
-
-  // MaxNMeanFilter world_lwh;
-  // MeanFilter world_lwh_for_unmovable;
-  // MeanFilter world_velocity;
-  // std::vector<float> type_probs;
   omt::TargetParam target_param_;
 
-  MeanFilter image_wh;//FirstOrderRCLowPassFilter
+  FirstOrderRCLowPassFilter image_wh;//
   KalmanFilterConstVelocity image_center;
 
   TrackObjectPtrs tracked_objects;
@@ -89,9 +75,6 @@ struct Target {
 
  private:
   static int global_track_id;
-  // clapping unreasonable velocities by strategy
-  // void ClappingTrackVelocity(const base::ObjectPtr &obj);
-  // bool CheckStatic();
 
   boost::circular_buffer<base::Object> history_world_states_;
 

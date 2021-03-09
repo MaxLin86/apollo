@@ -39,7 +39,6 @@ bool KalmanFilter::Init(const Eigen::VectorXd &initial_belief_states,
     AERROR << "the rows of state should be equal to state_num";
     return false;
   }
-
   global_states_ = initial_belief_states;
   global_uncertainty_ = initial_uncertainty;
   prior_global_states_ = global_states_;

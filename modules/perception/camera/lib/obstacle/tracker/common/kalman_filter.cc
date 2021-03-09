@@ -16,6 +16,7 @@
 #include "modules/perception/camera/lib/obstacle/tracker/common/kalman_filter.h"
 
 #include <algorithm>
+#include <iostream>
 
 #include "Eigen/LU"
 #include "cyber/common/log.h"
@@ -62,10 +63,10 @@ void KalmanFilterConstVelocity::Correct(const Eigen::VectorXd &z) {
     Eigen::Matrix2d cov =
         measure_matrix_ * variance_ * measure_matrix_.transpose() +
         measure_noise_;
-
     kalman_gain_ = variance_ * measure_matrix_.transpose() * cov.inverse();
     variance_ = variance_ - kalman_gain_ * measure_matrix_ * variance_;
     state_ = state_ + kalman_gain_ * (measure - measure_matrix_ * state_);
+
     // compute likelihood
     auto residual = measure - predict_state_.head(2);
     likelihood_ =

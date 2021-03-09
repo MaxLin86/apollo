@@ -303,8 +303,6 @@ bool OMTObstacleTracker::Predict(const ObstacleTrackerOptions &options,
                                  CameraFrame *frame) {
   for (auto &target : targets_) {
     target.Predict(frame);
-    //auto obj = target.latest_object;
-    //frame->proposed_objects.push_back(obj->object);
   }
   return true;
 }
@@ -358,13 +356,12 @@ bool OMTObstacleTracker::Associate2D(const ObstacleTrackerOptions &options,
                                      CameraFrame *frame) {
   inference::CudaUtil::set_device_id(gpu_id_);
   frame_list_.Add(frame);
-   for (int t = 0; t < frame_list_.Size(); t++) {
+  for (int t = 0; t < frame_list_.Size(); t++) {
     int frame1 = frame_list_[t]->frame_id;
-     int frame2 = frame_list_[-1]->frame_id;
-     similar_->Calc(frame_list_[frame1], frame_list_[frame2],
-                    similar_map_.get(frame1, frame2).get());
-    
-   }
+    int frame2 = frame_list_[-1]->frame_id;
+    similar_->Calc(frame_list_[frame1], frame_list_[frame2],
+                   similar_map_.get(frame1, frame2).get());
+  }
 
   for (auto &target : targets_) {
     target.RemoveOld(frame_list_.OldestFrameId());
@@ -373,8 +370,12 @@ bool OMTObstacleTracker::Associate2D(const ObstacleTrackerOptions &options,
   TrackObjectPtrs track_objects;
   for (size_t i = 0; i < frame->detected_objects.size(); ++i) {
     // delete far object(gqs)
-    auto box = frame->detected_objects[i]->camera_supplement.box;
-    if(box.ymax < 600 || ((box.ymax - box.ymin) < 30)){
+    auto det_obj = frame->detected_objects[i];
+    auto box = det_obj->camera_supplement.box;
+    if(box.ymax < 600 || ((box.ymax - box.ymin) < 30)
+    || (det_obj->type == base::ObjectType::UNKNOWN) 
+    || (det_obj->type == base::ObjectType::UNKNOWN_MOVABLE)
+    || (det_obj->type == base::ObjectType::UNKNOWN_UNMOVABLE)){
       continue;
     }
     // TODO(gaohan): use pool
@@ -391,7 +392,7 @@ bool OMTObstacleTracker::Associate2D(const ObstacleTrackerOptions &options,
                frame->project_matrix, &(track_ptr->projected_box));
     track_objects.push_back(track_ptr);
   }
-  reference_.CorrectSize(frame);//(gqs)
+  //reference_.CorrectSize(frame);//(gqs)
   used_.clear();
   used_.resize(frame->detected_objects.size(), false);
   GenerateHypothesis(track_objects);
@@ -407,6 +408,7 @@ bool OMTObstacleTracker::Associate2D(const ObstacleTrackerOptions &options,
       target.Update2D(frame);
     }
   }                       
+
   CombineDuplicateTargets();
   ClearTargets();
 
@@ -414,11 +416,12 @@ bool OMTObstacleTracker::Associate2D(const ObstacleTrackerOptions &options,
   Eigen::Matrix3d inverse_project = frame->project_matrix.inverse();
   frame->tracked_objects.clear();
   for (auto &target : targets_) {
-    if (target.lost_age < omt_param_.lost_age()) {//!target.isLost()
+    if ((target.lost_age < omt_param_.lost_age())) {//!target.isLost()
       ProjectBox(target[-1]->projected_box, inverse_project,
                  &(target[-1]->object->camera_supplement.box));
       RefineBox(target[-1]->object->camera_supplement.box, width_, height_,
                 &(target[-1]->object->camera_supplement.box));
+      target[-1]->object->sub_type = target.latest_object->object->sub_type;
       frame->tracked_objects.push_back(target[-1]->object);
     }
   }

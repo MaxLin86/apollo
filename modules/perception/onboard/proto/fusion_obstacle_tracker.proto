@@ -1,0 +1,16 @@
+syntax = "proto2";
+
+package apollo.perception.fusion;
+
+message KalmanParam {
+  optional float init_variance = 1;
+  optional float process_variance = 2;
+  optional float measure_variance = 3;
+}
+
+message TrackParam {
+  optional int32 lost_age = 1 [default = 5];
+  optional int32 reserve_age = 2 [default = 10];
+  optional KalmanParam init_imgkf = 3;
+  optional KalmanParam init_poskf = 4;
+}

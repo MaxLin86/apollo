@@ -1,0 +1,12 @@
+lost_age : 5
+reserve_age : 10
+init_imgkf {
+  init_variance: 2500.0
+  measure_variance: 60.0
+  process_variance: 400.0
+}
+init_poskf {
+  init_variance: 50
+  measure_variance: 20
+  process_variance: 30
+}

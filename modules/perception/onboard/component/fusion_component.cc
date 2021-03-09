@@ -14,7 +14,6 @@
  * limitations under the License.
  *****************************************************************************/
 #include "modules/perception/onboard/component/fusion_component.h"
-
 #include "modules/common/time/time.h"
 #include "modules/perception/base/object_pool_types.h"
 #include "modules/perception/lib/utils/perf.h"
@@ -22,10 +21,14 @@
 #include "modules/perception/onboard/msg_serializer/msg_serializer.h"
 #include "yaml-cpp/yaml.h"//add by xuefeng
 #include "modules/perception/common/sensor_manager/sensor_manager.h"//add by xuefeng
+#include <opencv2/core/eigen.hpp>
+#include <opencv2/calib3d.hpp>
+#include <iostream>
+#include <fstream>
 namespace apollo {
 namespace perception {
 namespace onboard {
-
+// using apollo::perception::camera;
 using namespace cv;
 uint32_t FusionComponent::s_seq_num_ = 0;
 std::mutex FusionComponent::s_mutex_;
@@ -84,6 +87,50 @@ static bool LoadExtrinsics(const std::string &yaml_file,
   (*camera_extrinsic)(3, 3) = 1;
   return true;
 }
+
+// @description: load src img's intrinsic and distort
+static bool LoadCameraIntrinsicAndDistort(const std::string &yaml_file,
+                              Eigen::Matrix3f &intrinsic_matrix,
+                              Eigen::Matrix<double,4,1> &distortion_coeffs) {
+  if (!apollo::cyber::common::PathExists(yaml_file)) {
+    return false;
+  }
+
+  YAML::Node node = YAML::LoadFile(yaml_file);
+  if (node.IsNull()) {
+    AINFO << "Load " << yaml_file << " failed! please check!";
+    return false;
+  }
+  try {
+    intrinsic_matrix(0,0) = node["K_src"][0].as<float>();
+    intrinsic_matrix(0,1) = node["K_src"][1].as<float>();
+    intrinsic_matrix(0,2) = node["K_src"][2].as<float>();
+    intrinsic_matrix(1,0) = node["K_src"][3].as<float>();
+    intrinsic_matrix(1,1) = node["K_src"][4].as<float>();
+    intrinsic_matrix(1,2) = node["K_src"][5].as<float>();
+    intrinsic_matrix(2,0) = node["K_src"][6].as<float>();
+    intrinsic_matrix(2,1) = node["K_src"][7].as<float>();
+    intrinsic_matrix(2,2) = node["K_src"][8].as<float>();
+
+    distortion_coeffs(0) = node["D_src"][0].as<float>();
+    distortion_coeffs(1) = node["D_src"][1].as<float>();
+    distortion_coeffs(2) = node["D_src"][2].as<float>();
+    distortion_coeffs(3) = node["D_src"][3].as<float>();
+
+    // distortion_coeffs[0] = node["D_src"][0].as<float>();
+    // distortion_coeffs[1] = node["D_src"][1].as<float>();
+    // distortion_coeffs[2] = node["D_src"][2].as<float>();
+    // distortion_coeffs[3] = node["D_src"][3].as<float>();
+  } catch (YAML::Exception &e) {
+    AERROR << "load camera intrisic file " << yaml_file
+           << " with error, YAML exception: " << e.what();
+    return false;
+  }
+
+  return true;
+}
+
+
 bool FusionComponent::Init() {
   FusionComponentConfig comp_config;
   if (!GetProtoConfig(&comp_config)) {
@@ -103,6 +150,8 @@ bool FusionComponent::Init() {
       comp_config.output_obstacles_channel_name());
   inner_writer_ = node_->CreateWriter<SensorFrameMessage>(
       comp_config.output_viz_fused_content_channel_name());
+
+  FusionTracker.Init(comp_config.fused_obstacle_tracker_conf_dir());
   //add by xuefeng
   //init extrinsic/intrinsic
   Eigen::Matrix4d ex_lidar2imu;
@@ -123,7 +172,16 @@ bool FusionComponent::Init() {
         common::SensorManager::Instance()->GetUndistortCameraModel(camera_name);
     auto pinhole = static_cast<base::PinholeCameraModel *>(model.get());
     Eigen::Matrix3f intrinsic = pinhole->get_intrinsic_params();
-    intrinsic_map_[camera_name] = intrinsic.cast<double>();
+    intrinsic_map_[camera_name] = intrinsic.cast<float>();
+
+    Eigen::Matrix3f intrinsic_src;
+    Eigen::Matrix<double,4,1> distortion_coeffs;
+    LoadCameraIntrinsicAndDistort(FLAGS_obs_sensor_intrinsic_path + "/"
+                  + camera_name + "_intrinsics.yaml",
+                  intrinsic_src, distortion_coeffs);
+    distort_coeffs_map_[camera_name] = distortion_coeffs;
+    intrinsic_src_map_[camera_name] = intrinsic_src;
+
     Eigen::Matrix4d extrinsic;
     LoadExtrinsics(FLAGS_obs_sensor_intrinsic_path + "/" + camera_name +
                        "_extrinsics.yaml",
@@ -133,6 +191,20 @@ bool FusionComponent::Init() {
     ex_camera2car_map_[camera_name] = ex_imu2car_ * ex_camera2imu_;
     ex_car2camera_map_[camera_name] = ex_camera2car_map_[camera_name].inverse();
   }
+
+  double pitch_adj_degree = 0.0;
+  double yaw_adj_degree = 0.0;
+  double roll_adj_degree = 0.0;
+  int image_height = 1080;
+  int image_width = 1920;
+  visual_camera_ = "front_6mm_1";
+  CHECK(visualize_.Init_all_info_single_camera(
+      camera_names_, visual_camera_, intrinsic_map_, extrinsic_map_,
+      ex_lidar2imu, pitch_adj_degree, yaw_adj_degree, roll_adj_degree,
+      image_height, image_width));
+
+  homography_im2car_ = visualize_.homography_im2car(visual_camera_);
+
   cv::Mat output_image_temp(770, 1400, CV_8UC3, Scalar(160, 160, 160));
   output_image = output_image_temp.clone();
   return true;
@@ -147,7 +219,7 @@ bool FusionComponent::Proc(const std::shared_ptr<SensorFrameMessage>& message) {
   std::shared_ptr<SensorFrameMessage> viz_message(new (std::nothrow)
                                                       SensorFrameMessage);
   bool status = InternalProc(message, out_message, viz_message);
-    
+
   if (status) {
     // TODO(conver sensor id)
     if (0){//message->sensor_id_ != fusion_main_sensor_) {
@@ -180,7 +252,7 @@ bool FusionComponent::InitAlgorithmPlugin() {
     CHECK(hdmap_input_->Init()) << "Failed to init hdmap input.";
   }
   AINFO << "Init algorithm successfully, onboard fusion: " << fusion_method_;
-  
+
   return true;
 }
 bool FusionComponent::DrawCoor(cv::Mat img, int x_step,int x_num, int y_step, int y_num, int dis_per_step, int cor_origin_pos)
@@ -194,7 +266,7 @@ bool FusionComponent::DrawCoor(cv::Mat img, int x_step,int x_num, int y_step, in
   cv::Point lcr_fov_left_end_pt; //left corner radar
   cv::Point fr_fov_left_end_pt; //front radar
   cv::Point rcr_fov_left_end_pt; //left corner radar
-  
+
   cv::Point lcr_fov_right_start_pt; //left corner radar
   cv::Point fr_fov_right_start_pt; //front radar
   cv::Point rcr_fov_right_start_pt; //left corner radar
@@ -211,7 +283,7 @@ bool FusionComponent::DrawCoor(cv::Mat img, int x_step,int x_num, int y_step, in
   float pix_per_meter = x_step * 1.0 / dis_per_step;
   cor_origin_pos_img.x = cor_origin_pos + x_step * (x_num / 2);
 
-  
+
   cv::Scalar color, color1, color2;
   cv::Point start_pt = cv::Point(cor_origin_pos, img.rows - cor_origin_pos);
   color1 = cv::Scalar(0, 0, 0);
@@ -219,19 +291,19 @@ bool FusionComponent::DrawCoor(cv::Mat img, int x_step,int x_num, int y_step, in
   int x_end = start_pt.x + x_step * (x_num-1);
   int y_end = start_pt.y + y_step * (y_num-1);
   char dis_str[4];
- 
+
   cor_origin_pos_img.y = img.rows - cor_origin_pos + y_cor_num * y_step;
   //left_corner_radar_fov
   lcr_fov_left_start_pt.x = static_cast<int>(cor_origin_pos_img.x + pix_per_meter * left_corner_radar_pos.x + 0.5);
   lcr_fov_left_start_pt.y = static_cast<int>(cor_origin_pos_img.y - pix_per_meter * left_corner_radar_pos.y + 0.5);
   lcr_fov_left_end_pt.x = cor_origin_pos;
-  lcr_fov_left_end_pt.y = static_cast<int>(tan(M_PI_2 - lef_corner_radar_angle - corner_radar_rotate_angle) 
+  lcr_fov_left_end_pt.y = static_cast<int>(tan(M_PI_2 - lef_corner_radar_angle - corner_radar_rotate_angle)
                           * (lcr_fov_left_end_pt.x - lcr_fov_left_start_pt.x) + lcr_fov_left_start_pt.y + 0.5);
   lcr_fov_right_start_pt.x = lcr_fov_left_start_pt.x;
   lcr_fov_right_start_pt.y = lcr_fov_left_start_pt.y;
   lcr_fov_right_end_pt.x = x_end;
   lcr_fov_right_end_pt.y = static_cast<int>(-tan(M_PI_2 - lef_corner_radar_angle + corner_radar_rotate_angle)
-                          * (lcr_fov_right_end_pt.x - lcr_fov_right_start_pt.x) 
+                          * (lcr_fov_right_end_pt.x - lcr_fov_right_start_pt.x)
                           + lcr_fov_right_start_pt.y + 0.5);
   //cv::line(img, lcr_fov_left_start_pt, lcr_fov_left_end_pt, cv::Scalar(255, 0, 0), 1, CV_AA);
   //cv::line(img, lcr_fov_right_start_pt,lcr_fov_right_end_pt, cv::Scalar(255, 0, 0), 1, CV_AA);
@@ -239,13 +311,13 @@ bool FusionComponent::DrawCoor(cv::Mat img, int x_step,int x_num, int y_step, in
   fr_fov_left_start_pt.x = static_cast<int>(cor_origin_pos_img.x + pix_per_meter * front_radar_pos.x + 0.5);
   fr_fov_left_start_pt.y = static_cast<int>(cor_origin_pos_img.y - pix_per_meter * front_radar_pos.y + 0.5);
   fr_fov_left_end_pt.x = cor_origin_pos;
-  fr_fov_left_end_pt.y = static_cast<int>(tan(M_PI_2 - front_radar_angle) 
+  fr_fov_left_end_pt.y = static_cast<int>(tan(M_PI_2 - front_radar_angle)
                           * (fr_fov_left_end_pt.x - fr_fov_left_start_pt.x) + fr_fov_left_start_pt.y + 0.5);
   fr_fov_right_start_pt.x = fr_fov_left_start_pt.x;
   fr_fov_right_start_pt.y = fr_fov_left_start_pt.y;
   fr_fov_right_end_pt.x = x_end;
   fr_fov_right_end_pt.y = static_cast<int>(-tan(M_PI_2 - front_radar_angle)
-                          * (fr_fov_right_end_pt.x - fr_fov_right_start_pt.x) 
+                          * (fr_fov_right_end_pt.x - fr_fov_right_start_pt.x)
                           + fr_fov_right_start_pt.y + 0.5);
   //cv::line(img, fr_fov_left_start_pt, fr_fov_left_end_pt, cv::Scalar(0, 255, 0), 1, CV_AA);
   //cv::line(img, fr_fov_right_start_pt,fr_fov_right_end_pt, cv::Scalar(0, 255, 0), 1, CV_AA);
@@ -253,13 +325,13 @@ bool FusionComponent::DrawCoor(cv::Mat img, int x_step,int x_num, int y_step, in
   rcr_fov_left_start_pt.x = static_cast<int>(cor_origin_pos_img.x + pix_per_meter * right_corner_radar_pos.x + 0.5);
   rcr_fov_left_start_pt.y = static_cast<int>(cor_origin_pos_img.y - pix_per_meter * right_corner_radar_pos.y + 0.5);
   rcr_fov_left_end_pt.x = cor_origin_pos;
-  rcr_fov_left_end_pt.y = static_cast<int>(tan(M_PI_2 - right_corner_radar_angle + corner_radar_rotate_angle) 
+  rcr_fov_left_end_pt.y = static_cast<int>(tan(M_PI_2 - right_corner_radar_angle + corner_radar_rotate_angle)
                           * (rcr_fov_left_end_pt.x - rcr_fov_left_start_pt.x) + rcr_fov_left_start_pt.y + 0.5);
   rcr_fov_right_start_pt.x = rcr_fov_left_start_pt.x;
   rcr_fov_right_start_pt.y = rcr_fov_left_start_pt.y;
   rcr_fov_right_end_pt.x = x_end;
   rcr_fov_right_end_pt.y = static_cast<int>(-tan(M_PI_2 - right_corner_radar_angle - corner_radar_rotate_angle)
-                          *(rcr_fov_right_end_pt.x - rcr_fov_right_start_pt.x) 
+                          *(rcr_fov_right_end_pt.x - rcr_fov_right_start_pt.x)
                           + rcr_fov_right_start_pt.y + 0.5);
   //cv::line(img, rcr_fov_left_start_pt, rcr_fov_left_end_pt, cv::Scalar(0, 0, 255), 1, CV_AA);
   //cv::line(img, rcr_fov_right_start_pt,rcr_fov_right_end_pt, cv::Scalar(0, 0, 255), 1, CV_AA);
@@ -312,6 +384,203 @@ bool FusionComponent::DrawCoor(cv::Mat img, int x_step,int x_num, int y_step, in
   // cv::putText(img, "right_radar", cv::Point(530, 740), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0), 1, CV_AA);
   return true;
 }
+
+void FusionComponent::undistortPoints(cv::Point2f& distorted, cv::Point2f& undistorted, Eigen::Matrix3f intrinsic_src,
+                    Eigen::Matrix<double,4,1> distortion_coeffs, Eigen::Matrix3f intrinsic) {
+  Eigen::Vector2f wPt((distorted.x - intrinsic_src(0,2)) / intrinsic_src(0,0),
+        (distorted.y - intrinsic_src(1,2)) / intrinsic_src(1,1));
+
+  double scale = 1.0;
+  double theta_d = sqrt(wPt(0) * wPt(0) + wPt(1) * wPt(1));
+
+  theta_d = min(max(-CV_PI/2., theta_d), CV_PI/2.);
+
+  if (theta_d > 1e-8) {
+      // compensate distortion iteratively
+      double theta = theta_d;
+      const double EPS = 1e-8; // or std::numeric_limits<double>::epsilon();
+      for (int j = 0; j < 10; j++) {
+          double theta2 = theta*theta, theta4 = theta2*theta2, theta6 = theta4*theta2, theta8 = theta6*theta2;
+          double k0_theta2 = distortion_coeffs(0) * theta2;
+          double k1_theta4 = distortion_coeffs(1) * theta4;
+          double k2_theta6 = distortion_coeffs(2) * theta6;
+          double k3_theta8 = distortion_coeffs(3) * theta8;
+          /* new_theta = theta - theta_fix, theta_fix = f0(theta) / f0'(theta) */
+          double theta_fix = (theta * (1 + k0_theta2 + k1_theta4 + k2_theta6 + k3_theta8) - theta_d) /
+                             (1 + 3*k0_theta2 + 5*k1_theta4 + 7*k2_theta6 + 9*k3_theta8);
+          theta = theta - theta_fix;
+          if (fabs(theta_fix) < EPS)
+              break;
+      }
+      scale = std::tan(theta) / theta_d;
+  }
+  Eigen::Vector2f uPt = wPt * scale; //undistorted point
+  Eigen::Vector3f rPt = intrinsic * (Eigen::Vector3f(uPt(0), uPt(1), 1.0f));
+  undistorted.x = rPt(0) / rPt(2);
+  undistorted.y = rPt(1) / rPt(2);
+}
+
+void FusionComponent::FusionProc(const std::shared_ptr<SensorFrameMessage const>& in_message,
+      std::vector<base::ObjectPtr> &fused_objects) {
+  base::FramePtr frame = in_message->frame_;
+  static int frame_cnt = 0;
+  Eigen::Matrix<double, 3, 4> ex_car2camera;
+  std::vector<bool> camera_obj_is_match;
+  std::vector<bool> radar_obj_is_match;
+  int img_w = 1920;
+  int img_h = 1080;
+  int margin_h = 0;// 20
+  int margin_v = 0;
+  if(in_message->sensor_id_ != "front_6mm_1" && in_message->sensor_id_ != "front_6mm_2") {
+    frame_cnt = 0;
+    base::FramePtr &radar_frame = frame;
+    radar_objects_ = radar_frame->objects;
+    // for (auto obj : radar_objects_){
+      // obj->fusion_mode_ = 2; //only radar
+      // obj->size = Eigen::Vector3f(1.0, 1.0, 1.0);//only radar, can set 3*3*3 to apart from camera
+      // obj->type = base::ObjectType::UNKNOWN;
+      // if(obj->center[0] < 50.0 && fabs(obj->center[1]) < 2.0){
+        // fused_objects.push_back(obj);
+      // }
+    // }
+  }
+
+  if(in_message->sensor_id_ == "front_6mm_1" || in_message->sensor_id_ == "front_6mm_2") {
+    if(frame_cnt > 10){
+      radar_objects_.clear();
+    }
+    frame_cnt++;
+    camera_obj_is_match.resize(frame->objects.size(), false);
+    ex_car2camera = ex_car2camera_map_[in_message->sensor_id_].block(0,0,3,4);
+    base::FramePtr &camera_frame = frame;
+
+    int radar_obj_cnt = 0;
+    radar_obj_is_match.resize(radar_objects_.size(), false);
+    // std::vector<cv::Point> vectemp;
+    // vectemp.resize(radar_objects_.size(), cv::Point(0,0));
+    // radar_pt_in_camera_.swap(vectemp);
+    radar_pt_in_camera_.assign(radar_objects_.size(), cv::Point(0,0));
+    Eigen::Matrix3f intrinsic = intrinsic_map_[in_message->sensor_id_];
+    Eigen::Matrix3f intrinsic_src = intrinsic_src_map_[in_message->sensor_id_];
+    Eigen::Matrix<double,4,1> distortion_coeffs = distort_coeffs_map_[in_message->sensor_id_];
+    for (auto obj : radar_objects_){
+      if(obj->center(2) < 0) {
+        continue;
+      }
+      Eigen::Vector4d obstacle_radar_pt;
+      obstacle_radar_pt(0) = obj->center(0);
+      obstacle_radar_pt(1) = obj->center(1);
+      obstacle_radar_pt(2) = obj->center(2);//obj->center(2)+0.82
+      obstacle_radar_pt(3) = 1.0;
+      Eigen::Vector3d obstacle_radar_camera_pt = ex_car2camera * obstacle_radar_pt;
+      Eigen::Vector3d obstacle_radar_img_pt = intrinsic.cast<double>() * obstacle_radar_camera_pt;
+
+      // undistort point
+      double tmp_x = (obstacle_radar_img_pt(0) / obstacle_radar_img_pt(2));
+      double tmp_y = (obstacle_radar_img_pt(1) / obstacle_radar_img_pt(2));
+
+      // convert to distort point
+      tmp_x = (tmp_x - intrinsic(0,2))/intrinsic(0,0);
+      tmp_y = (tmp_y - intrinsic(1,2))/intrinsic(1,1);
+      double r = sqrt(tmp_x * tmp_x + tmp_y * tmp_y);
+      double theta = atan(r);
+      double theta1 = theta*(1 + distortion_coeffs(0) * pow(theta, 2)
+              + distortion_coeffs(1) * pow(theta, 4) + distortion_coeffs(2) * pow(theta, 6)
+              + distortion_coeffs(3) * pow(theta, 8));
+      tmp_y = (theta1 / r) * tmp_y;
+      tmp_x = (theta1 / r) * tmp_x;
+      int x = static_cast<int>(tmp_x * intrinsic_src(0,0) + intrinsic_src(0,2));
+      int y = static_cast<int>(tmp_y * intrinsic_src(1,1) + intrinsic_src(1,2));    
+      
+      if(x > 0 && x < img_w && y > 0 && y < img_h){
+        radar_pt_in_camera_[radar_obj_cnt] = cv::Point(x,y);
+        obj->camera_supplement.local_center = Eigen::Vector3f(x,y,0.0f);
+      }
+      radar_obj_cnt++;
+    }
+    // Get radar points in camera box
+    int camera_obj_cnt = 0;
+    std::map<int, std::vector<int>> camera_radar_obj_match;
+    for (auto obj : camera_frame->objects) { 
+      auto &box = obj->camera_supplement.box;
+      radar_obj_cnt = 0;
+      for (auto obj : radar_objects_){
+        int x = radar_pt_in_camera_[radar_obj_cnt].x;
+        int y = radar_pt_in_camera_[radar_obj_cnt].y;
+        if((x > box.xmin - margin_h) && (x < box.xmax + margin_h)
+          && (y > box.ymin - margin_v) && (y < box.ymax + margin_v)){
+          radar_obj_is_match[radar_obj_cnt] = true;
+          camera_obj_is_match[camera_obj_cnt] = true;
+          camera_radar_obj_match[camera_obj_cnt].push_back(radar_obj_cnt);
+        }
+        radar_obj_cnt++;
+      }
+      camera_obj_cnt++;
+    }
+    camera_obj_cnt = 0;
+    for (auto obj : camera_frame->objects) {
+      base::ObjectPtr fused_obj = nullptr;
+      // convert ImgPt to car coordinate
+      auto &box = obj->camera_supplement.box;
+      cv::Point2f ImgPt(box.xmin + (box.xmax - box.xmin) / 2, box.ymax);
+      cv::Point2f undistortImgPt;
+      undistortPoints(ImgPt, undistortImgPt, intrinsic_src, distortion_coeffs,
+      intrinsic);
+      Eigen::Vector3d undistImgPt(undistortImgPt.x, undistortImgPt.y, 1.0f);
+      Eigen::Vector3d GroundPt;
+      GroundPt = homography_im2car_ * undistImgPt;
+      float camera_disx = GroundPt(0)/GroundPt(2);
+      float camera_disy = GroundPt(1)/GroundPt(2);
+
+      fused_obj.reset(new base::Object);
+      if(camera_obj_is_match[camera_obj_cnt]) {
+        float dis_min = 1000000.0;
+        float dis_temp = 0.0;
+        int dis_min_index = 0;
+        int size_temp = static_cast<int>(camera_radar_obj_match[camera_obj_cnt].size());
+        for(auto i = 0; i < size_temp; i++){
+          int index = camera_radar_obj_match[camera_obj_cnt][i];
+          dis_temp = radar_objects_[index]->center[0];
+          if(dis_temp < dis_min){
+            dis_min = dis_temp;
+            dis_min_index = index;
+          }
+        }
+        float match_radar_disx = radar_objects_[dis_min_index]->center[0];
+        // float match_radar_disy = radar_objects_[dis_min_index]->center[1];
+        if(fabs(match_radar_disx - camera_disx) < match_radar_disx * 0.2){
+          fused_obj->raw_radar_detid_ = radar_objects_[dis_min_index]->track_id;
+          fused_obj->raw_camera_detid_ = obj->track_id;
+          fused_obj->center = radar_objects_[dis_min_index]->center;
+          fused_obj->velocity = radar_objects_[dis_min_index]->velocity;
+          fused_obj->camera_supplement.box = obj->camera_supplement.box;
+          fused_obj->size = Eigen::Vector3f(1.0, 1.0, 1.0);
+          fused_obj->type = obj->type;
+          fused_obj->fusion_mode_ = 3; //camera and radar
+        } else {
+          fused_obj->raw_camera_detid_ = obj->track_id;
+          fused_obj->center = Eigen::Vector3d(camera_disx, camera_disy, 0.8f);
+          fused_obj->camera_supplement.box = obj->camera_supplement.box;
+          fused_obj->size = Eigen::Vector3f(1.0, 1.0, 1.0);
+          fused_obj->type = obj->type;
+          fused_obj->fusion_mode_ = 1;// only camera
+        }
+      } else {
+        fused_obj->raw_camera_detid_ = obj->track_id;
+        fused_obj->center = Eigen::Vector3d(camera_disx, camera_disy, 0.8f);
+        fused_obj->camera_supplement.box = obj->camera_supplement.box;
+        fused_obj->size = Eigen::Vector3f(1.0, 1.0, 1.0);
+        fused_obj->type = obj->type;
+        fused_obj->fusion_mode_ = 1;// only camera
+      }
+      if(fused_obj->center[0] < 50.0){// && fabs(fused_obj->center[1]) < 2.0
+        fused_objects.push_back(fused_obj);
+      }
+      camera_obj_cnt++;
+    }
+  }
+}
+
 bool FusionComponent::InternalProc(
     const std::shared_ptr<SensorFrameMessage const>& in_message,
     std::shared_ptr<PerceptionObstacles> out_message,
@@ -320,7 +589,7 @@ bool FusionComponent::InternalProc(
     std::unique_lock<std::mutex> lock(s_mutex_);
     s_seq_num_++;
   }
-  static int obj_track_id = 0;///////////////
+  // static int obj_track_id = 0;
 
   PERCEPTION_PERF_BLOCK_START();
   const double timestamp = in_message->timestamp_;
@@ -341,46 +610,39 @@ bool FusionComponent::InternalProc(
     return true;
   }
   base::FramePtr frame = in_message->frame_;
+  #if 0
   std::vector<bool> camera_obj_is_match;
   std::vector<bool> radar_obj_is_match;
   std::vector<cv::Point> radar_pt_in_camera;
   std::map<int, std::vector<int>> camera_radar_obj_match;
   Eigen::Matrix<double, 3, 4> ex_car2camera;
+  #endif
   frame->timestamp = in_message->timestamp_;
-  
-  
-   //add by xuefeng
-  //Eigen::Matrix3d ex_car2camera_3 = ex_car2camera_.block(0,0,3,4);
-  // if(FLAGS_debug_display){
-    
-  // }
-  int margin_h = 20;
-  int margin_v = 20;
-  int radar_pt_in_camera_size = 50;
-  int img_w = 1920;
-  int img_h = 1080;
-  static int frame_cnt = 0;
+
+  // int margin_h = 0;//20
+  // int margin_v = 0;
+  // // int radar_pt_in_camera_size = 50;
+  // int img_w = 1920;
+  // int img_h = 1080;
+  // static int frame_cnt = 0;
   std::vector<base::ObjectPtr> fused_objects;
-  if(in_message->sensor_id_ != "front_6mm_1" && in_message->sensor_id_ != "front_6mm_2")
-  {
+  FusionProc(in_message, fused_objects);
+  #if 0
+  if(in_message->sensor_id_ != "front_6mm_1" && in_message->sensor_id_ != "front_6mm_2") {
     frame_cnt = 0;
     base::FramePtr &radar_frame = frame;
     radar_objects_ = radar_frame->objects;
     for (auto obj : radar_objects_){
-      //fused_obj->center = obj->center;
-      if(obj_track_id > 1000){
-        obj_track_id = 0;
-      }
-      obj->track_id = obj_track_id;
-      obj->fusion_mode = 2; //only radar
+      obj->fusion_mode_ = 2; //only radar
       obj->size = Eigen::Vector3f(1.0, 1.0, 1.0);//only radar, can set 3*3*3 to apart from camera
       obj->type = base::ObjectType::UNKNOWN;
       if(obj->center[0] < 50.0 && fabs(obj->center[1]) < 2.0){
         fused_objects.push_back(obj);
       }
-      obj_track_id++;
+      // obj_track_id++;
     }
   }
+
   if(in_message->sensor_id_ == "front_6mm_1" || in_message->sensor_id_ == "front_6mm_2")
   {
     if(frame_cnt > 10){
@@ -404,7 +666,8 @@ bool FusionComponent::InternalProc(
     Mat radar_top_view(radar_top_view_size, radar_top_view_size, CV_8UC3, Scalar(255, 255, 255));
     Rect radar_ROI_rect = Rect(10, 10, radar_top_view_size, radar_top_view_size);
     Mat radar_ROI_img = output_image(radar_ROI_rect);
-    cv::Mat img_front_ROI; 
+    cv::Mat img_front_ROI;
+
     if(FLAGS_fusion_debug_display){
       int step_num = 11;
       int cor_pos = 50;
@@ -418,12 +681,11 @@ bool FusionComponent::InternalProc(
       DrawCoor(radar_top_view, pix_per_step, step_num, -pix_per_step, step_num, dis_per_step, cor_pos);
       cv::putText(output_image, "Left camera", left_camera_pix_pos, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
       cv::putText(output_image, "Right camera", right_camera_pix_pos, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
-      
+
       //
       Point obstacle_pt_top_view;
       std::shared_ptr<base::Object> radar_obj1;
       radar_obj1.reset(new base::Object);
-
       // radar_objects_.clear();
       // radar_obj1->center[0] = 6.0;
       // radar_obj1->center[1] = 2.0;
@@ -447,6 +709,7 @@ bool FusionComponent::InternalProc(
       // radar_objects_.push_back(radar_obj4);
       // AERROR<<radar_objects_.size();
       //
+
       if(in_message->sensor_id_ == "front_6mm_1"){
         cv::Mat img_front_left_src(1080, 1920, CV_8UC3,
                         cv::Scalar(250, 0, 0));
@@ -473,19 +736,40 @@ bool FusionComponent::InternalProc(
     radar_pt_in_camera.resize(radar_objects_.size());
     for (auto obj : radar_objects_){
       Eigen::Vector4d obstacle_radar_pt;
-      Eigen::Matrix3d intrinsic = intrinsic_map_[in_message->sensor_id_];
+      Eigen::Matrix3f intrinsic = intrinsic_map_[in_message->sensor_id_];
+      Eigen::Matrix3d intrinsic_src = intrinsic_src_map_[in_message->sensor_id_];
+      Eigen::Matrix<double,4,1> distortion_coeffs = distort_coeffs_map_[in_message->sensor_id_];
       cv::Scalar tl_color;
       tl_color = cv::Scalar(255, 255, 255);
+      if(obj->center(2) < 0) {
+        continue;
+      }
       obstacle_radar_pt(0) = obj->center(0);
       obstacle_radar_pt(1) = obj->center(1);
-      obstacle_radar_pt(2) = obj->center(2)+0.82;
+      obstacle_radar_pt(2) = obj->center(2);//obj->center(2)+0.82
       obstacle_radar_pt(3) = 1.0;
-      
+      // printf("radar x: %f, y: %f, z: %f\r\n", 
+      // obstacle_radar_pt(0),obstacle_radar_pt(1), obstacle_radar_pt(2));
       Eigen::Vector3d obstacle_radar_camera_pt = ex_car2camera * obstacle_radar_pt;
       Eigen::Vector3d obstacle_radar_img_pt = intrinsic * obstacle_radar_camera_pt;
-      AERROR<<obstacle_radar_img_pt(0)<<","<<obstacle_radar_img_pt(1)<<","<<obstacle_radar_img_pt(2);
-      int x = static_cast<int>(obstacle_radar_img_pt(0) / obstacle_radar_img_pt(2));
-      int y = static_cast<int>(obstacle_radar_img_pt(1) / obstacle_radar_img_pt(2));
+      // AERROR<<obstacle_radar_img_pt(0)<<","<<obstacle_radar_img_pt(1)<<","<<obstacle_radar_img_pt(2);
+      // undistort point
+      double tmp_x = (obstacle_radar_img_pt(0) / obstacle_radar_img_pt(2));
+      double tmp_y = (obstacle_radar_img_pt(1) / obstacle_radar_img_pt(2));
+      // AERROR << tmp_x << ","<< tmp_y;
+      // convert to distort point
+      tmp_x = (tmp_x - intrinsic(0,2))/intrinsic(0,0);
+      tmp_y = (tmp_y - intrinsic(1,2))/intrinsic(1,1);
+      double r = sqrt(tmp_x * tmp_x + tmp_y * tmp_y);
+      double theta = atan(r);
+      double theta1 = theta*(1 + distortion_coeffs(0) * pow(theta, 2)
+              + distortion_coeffs(1) * pow(theta, 4) + distortion_coeffs(2) * pow(theta, 6)
+              + distortion_coeffs(3) * pow(theta, 8));
+      tmp_y = (theta1 / r) * tmp_y;
+      tmp_x = (theta1 / r) * tmp_x;
+      int x = static_cast<int>(tmp_x * intrinsic_src(0,0) + intrinsic_src(0,2));
+      int y = static_cast<int>(tmp_y * intrinsic_src(1,1) + intrinsic_src(1,2));    
+
       if(FLAGS_fusion_debug_display){
         obstacle_pt_top_view.x = cor_origin_pos_img.x + static_cast<int>(pix_per_meter * obstacle_radar_pt(1));
         obstacle_pt_top_view.y = cor_origin_pos_img.y - static_cast<int>(pix_per_meter * obstacle_radar_pt(0));
@@ -506,6 +790,30 @@ bool FusionComponent::InternalProc(
       // AERROR<<x<<","<<y;
       radar_obj_cnt++;
     }
+    #if 0
+    if(in_message->sensor_id_ == "front_6mm_1"){
+      cv::Mat imgtest(1080, 1920, CV_8UC3,
+                cv::Scalar(250, 0, 0));
+      base::Image8UPtr out_image;
+      out_image = camera_frame->camera_frame_supplement.image_ptr;
+      memcpy(imgtest.data, out_image->cpu_data(),
+      out_image->total() * sizeof(uint8_t));
+      for(auto object:camera_frame->objects){
+        auto &box = object->camera_supplement.box;
+        cv::Rect rect(box.xmin, box.ymin, (box.xmax-box.xmin), (box.ymax - box.ymin));
+        cv::rectangle(imgtest, rect, cv::Scalar(255, 0, 0), 2);
+      }
+      for(size_t i = 0; i < radar_pt_in_camera.size(); i++){
+        cv::circle(imgtest, radar_pt_in_camera[i],2,cv::Scalar(0,255,0),2);
+      }
+
+      cv::namedWindow("test", CV_WINDOW_NORMAL);
+      cv::resizeWindow("test", 640, 480);
+      cv::imshow("test", imgtest);
+      //cv::imwrite("test.jpg", img_front_src);
+      cvWaitKey(1);
+    }
+    #endif
     int camera_obj_cnt = 0;
     for (auto obj : camera_frame->objects) {
       auto &box = obj->camera_supplement.box;
@@ -513,21 +821,21 @@ bool FusionComponent::InternalProc(
       for (auto obj : radar_objects_){
         int x = radar_pt_in_camera[radar_obj_cnt].x;
         int y = radar_pt_in_camera[radar_obj_cnt].y;
-        if((x > box.xmin - margin_h) && (x < box.xmax + margin_h) 
+        if((x > box.xmin - margin_h) && (x < box.xmax + margin_h)
           && (y > box.ymin - margin_v) && (y < box.ymax + margin_v)){
           radar_obj_is_match[radar_obj_cnt] = true;
           camera_obj_is_match[camera_obj_cnt] = true;
           camera_radar_obj_match[camera_obj_cnt].push_back(radar_obj_cnt);
         }
         radar_obj_cnt++;
-      } 
+      }
       camera_obj_cnt++;
     }
     camera_obj_cnt = 0;
     for (auto obj : camera_frame->objects) {
       base::ObjectPtr fused_obj = nullptr;
       fused_obj.reset(new base::Object);
-      if(camera_obj_is_match[camera_obj_cnt]){
+      if(camera_obj_is_match[camera_obj_cnt]) {
         float dis_min = 1000000.0;
         float dis_temp = 0.0;
         int dis_min_index = 0;
@@ -540,39 +848,43 @@ bool FusionComponent::InternalProc(
             dis_min_index = index;
           }
         }
-        if(obj_track_id > 1000){
-          obj_track_id = 0;
-        }
-        fused_obj->track_id = obj_track_id;
+        // if(obj_track_id > 1000){
+          // obj_track_id = 0;
+        // }
+        // fused_obj->track_id = obj_track_id;
+        fused_obj->raw_radar_detid_ = radar_objects_[dis_min_index]->track_id;
+        fused_obj->raw_camera_detid_ = obj->track_id;
         fused_obj->center = radar_objects_[dis_min_index]->center;
         fused_obj->velocity = radar_objects_[dis_min_index]->velocity;
         fused_obj->camera_supplement.box = obj->camera_supplement.box;
         fused_obj->size = Eigen::Vector3f(1.0, 1.0, 1.0);
         fused_obj->type = obj->type;
-        fused_obj->fusion_mode = 3; //camera and radar
-        obj_track_id++;
-      }
-      else{
+        fused_obj->fusion_mode_ = 3; //camera and radar
+        // obj_track_id++;
+      } else {
         fused_obj->center = obj->center;
         fused_obj->camera_supplement.box = obj->camera_supplement.box;
         float obj_img_h = obj->camera_supplement.box.ymax-obj->camera_supplement.box.ymin;
         float obj_world_h = obj->size[2];
         float dis_y = obj_world_h * 2000 / obj_img_h;
-        if(obj_track_id > 1000){
-          obj_track_id = 0;
-        }
+        // if(obj_track_id > 1000){
+          // obj_track_id = 0;
+        // }
         fused_obj->track_id = obj_track_id;
+        fused_obj->raw_camera_detid_ = obj->track_id;
         fused_obj->center[1] = dis_y;
         fused_obj->size = Eigen::Vector3f(1.0, 1.0, 1.0);
         fused_obj->type = obj->type;
-        fused_obj->fusion_mode = 1; //only camera
-        obj_track_id++;
+        fused_obj->fusion_mode_ = 1; //only camera
+        // obj_track_id++;
       }
-      if(fused_obj->center[0] < 50.0 && fabs(fused_obj->center[1]) < 2.0){
+      if(fused_obj->center[0] < 50.0){// && fabs(fused_obj->center[1]) < 2.0
           fused_objects.push_back(fused_obj);
-        }
+      }
       camera_obj_cnt++;
     }
+    #if 0
+    // only radar object
     radar_obj_cnt = 0;
     for (auto obj : radar_objects_){
       base::ObjectPtr fused_obj = nullptr;
@@ -588,25 +900,31 @@ bool FusionComponent::InternalProc(
           fused_obj->camera_supplement.box.xmax = xmax;
           fused_obj->camera_supplement.box.ymin = ymin;
           fused_obj->camera_supplement.box.ymax = ymax;
-          
+        } else {
+          // if(fused_obj->center[0] < 50.0 && fabs(fused_obj->center[1]) < 2.0){
+            // printf("*************box zero idx: %d************\r\n", radar_obj_cnt);
+          // } 
         }
-        if(obj_track_id > 1000){
-          obj_track_id = 0;
-        }
-        fused_obj->track_id = obj_track_id;
-        fused_obj->fusion_mode = 2; //only radar
+        // if(obj_track_id > 1000){
+          // obj_track_id = 0;
+        // }
+        // fused_obj->track_id = obj_track_id;
+        fused_obj->raw_radar_detid_ = radar_objects_[radar_obj_cnt]->track_id;
+        fused_obj->fusion_mode_ = 2; //only radar
         fused_obj->size = Eigen::Vector3f(1.0, 1.0, 1.0);
         fused_obj->type = base::ObjectType::UNKNOWN;
-        if(fused_obj->center[0] < 50.0 && fabs(fused_obj->center[1]) < 2.0){
+        if(fused_obj->center[0] < 50.0 && fabs(fused_obj->center[1]) < 2.0
+        && (fused_obj->camera_supplement.box.xmin != 0)){
           fused_objects.push_back(fused_obj);
         }
-        obj_track_id++;
+        // obj_track_id++;
       }
       radar_obj_cnt++;
     }
-    
+    #endif
     AERROR<<"fused_objects"<<fused_objects.size();
-    if(FLAGS_fusion_debug_display){
+
+    if(FLAGS_fusion_debug_display){//
       for (auto obj : fused_objects) {
         auto &box = obj->camera_supplement.box;
         if (box.xmin < box.xmax && box.ymin < box.ymax) {
@@ -614,41 +932,35 @@ bool FusionComponent::InternalProc(
           const cv::Rect rectified_rect(box.xmin, box.ymin,
                                       box.xmax-box.xmin, box.ymax-box.ymin);
           cv::Scalar tl_color;
-          if(obj->fusion_mode == 1){
+          if(obj->fusion_mode_ == 1){
             tl_color = cv::Scalar(0, 255, 0);
           }
-          if(obj->fusion_mode == 2){
+          if(obj->fusion_mode_ == 2){
             tl_color = cv::Scalar(255, 0, 0);
           }
-          if(obj->fusion_mode == 3){
+          if(obj->fusion_mode_ == 3){
             tl_color = cv::Scalar(0, 0, 255);
           }
           std::string obj_name;
-          switch (int(obj->type)) {
-            case 0:
+          switch (int(obj->sub_type)) {
+            case 0:case 1:case 2:
               obj_name = "unknown";
               break;
-            case 1:
-              obj_name = "unknown_movable";
+            case 3: case 4: case 5:case 6:
+              obj_name = "veh";
               break;
-            case 2:
-              obj_name = "unknown_unmovable";
+            case 7:case 8:case 9:
+              obj_name = "cyclist";
               break;
-            case 3:
-              obj_name = "pedestrian";
+            case 10:
+              obj_name = "ped";
               break;
-            case 4:
-              obj_name = "bicycle";
-              break;
-            case 5:
-              obj_name = "vehicle";
+            case 11:
+              obj_name = "trafficcone";
               break;
             default:
               obj_name = "error";
-          break;
-          }
-          if(obj_name == "pedestrian"){
-            //continue;
+            break;
           }
           // float obj_img_h = box.ymax-box.ymin;
           // float obj_world_h = obj->size[2];
@@ -680,11 +992,84 @@ bool FusionComponent::InternalProc(
         cvWaitKey(1);
       }
     }
-    
+    #if 0
+    cv::Mat imgtest(1080, 1920, CV_8UC3,
+          cv::Scalar(250, 0, 0));
+    base::Image8UPtr out_image;
+    out_image = camera_frame->camera_frame_supplement.image_ptr;
+    memcpy(imgtest.data, out_image->cpu_data(),
+    out_image->total() * sizeof(uint8_t));
+    for (auto obj : fused_objects) {
+      // base::RectF rect(obj->camera_supplement.box);
+      // base::Point2DF center = rect.Center();
+      // if((center.x == 0) && (center.y == 0)) {
+        // printf("*************fusion_mode : %d **********\r\n", obj->fusion_mode_);
+      // }
+      auto &box = obj->camera_supplement.box;
+      if (box.xmin < box.xmax && box.ymin < box.ymax) {
+        //add by houxuefeng
+        const cv::Rect rectified_rect(box.xmin, box.ymin,
+                                box.xmax-box.xmin, box.ymax-box.ymin);
+        cv::Scalar tl_color;
+        if(obj->fusion_mode_ == 1){
+          tl_color = cv::Scalar(0, 255, 0);
+        }
+        if(obj->fusion_mode_ == 2){
+          tl_color = cv::Scalar(255, 0, 0);
+        }
+        if(obj->fusion_mode_ == 3){
+          tl_color = cv::Scalar(0, 0, 255);
+        }
+        std::string obj_name;
+        switch (int(obj->sub_type)) {
+          case 0:case 1:case 2:
+          obj_name = "unknown";
+          break;
+          case 3: case 4: case 5:case 6:
+            obj_name = "veh";
+            break;
+          case 7:case 8:case 9:
+            obj_name = "cyclist";
+            break;
+          case 10:
+            obj_name = "ped";
+            break;
+          case 11:
+            obj_name = "trafficcone";
+            break;
+          default:
+            obj_name = "error";
+          break;
+        }
+        // float obj_img_h = box.ymax-box.ymin;
+        // float obj_world_h = obj->size[2];
+        // float dis = obj_world_h * 2000 / obj_img_h;
+        float dis_x = obj->center[0];
+        float dis_y = obj->center[1];
+        std::string res;
+        char dis_x_str[4];
+        char dis_y_str[4];
+        snprintf(dis_x_str, 4, "%3f", dis_x);
+        snprintf(dis_y_str, 4, "%3f", dis_y);
+        res = res + dis_x_str;
+        res = res + ",";
+        res = res + dis_y_str;
+        cv::putText(imgtest, res, cv::Point(box.xmin, box.ymin),
+                cv::FONT_HERSHEY_DUPLEX, 2.0, tl_color, 2);
+        cv::rectangle(imgtest, rectified_rect, tl_color, 2);
+        //add by houxuefeng
+      }
+    }
+    cv::namedWindow("test", CV_WINDOW_NORMAL);
+    cv::resizeWindow("test", 640, 480);
+    cv::imshow("test", imgtest);
+    //cv::imwrite("test.jpg", img_front_src);
+    cvWaitKey(1);
+    #endif
   }
 
-  
-  AERROR<<"fusion module:"<<fused_objects.size();
+  #endif
+  // AERROR<<"fusion module:"<<fused_objects.size();
   // if (!fusion_->Process(frame, &fused_objects)) {
   //   AERROR << "Failed to call fusion plugin.";
   //   return false;
@@ -696,7 +1081,65 @@ bool FusionComponent::InternalProc(
   //   return true;
   // }
 
-  Eigen::Matrix4d sensor2world_pose = 
+  // base::RectF rect(fused_objects[1]->camera_supplement.box);
+  // base::Point2DF center = rect.Center();
+  // printf("**********raw center x: %f; y: %f***********\r\n", center.x, center.y);
+  
+  if(in_message->sensor_id_ == "front_6mm_1") {   
+    FusionTracker.TrackProc(fused_objects, frame, valid_objects, radar_pt_in_camera_);
+    AERROR<<"fusion module:"<<valid_objects.size();
+    cv::Mat testimg(1080, 1920, CV_8UC3, cv::Scalar(255,0,0));
+    base::Image8UPtr out_image;
+    base::FramePtr &camera_frame = frame;
+    out_image = camera_frame->camera_frame_supplement.image_ptr;
+    memcpy(testimg.data, out_image->cpu_data(),
+    out_image->total() * sizeof(uint8_t));
+    
+    for(auto object:valid_objects) {
+      auto &box = object->camera_supplement.box;
+      const cv::Rect rectified_rect(box.xmin, box.ymin,
+                        box.xmax-box.xmin, box.ymax-box.ymin);
+      cv::Scalar tl_color;
+      if(object->fusion_mode_ == 1){
+        tl_color = cv::Scalar(0, 255, 0);
+      }
+      if(object->fusion_mode_ == 2){
+        tl_color = cv::Scalar(255, 0, 0);
+      }
+      if(object->fusion_mode_ == 3){
+        tl_color = cv::Scalar(0, 0, 255);
+      }
+      float dis_x = object->center[0];
+      float dis_y = object->center[1];
+      std::string res;
+      char dis_x_str[10];
+      char dis_y_str[10];
+      snprintf(dis_x_str, 10, "%.2f", dis_x);
+      snprintf(dis_y_str, 10, "%.2f", dis_y);
+      res = res + dis_x_str;
+      res = res + ",";
+      res = res + dis_y_str;
+      cv::putText(testimg, res, cv::Point(box.xmax, box.ymin),
+              cv::FONT_HERSHEY_DUPLEX, 1.0, tl_color, 1);
+      cv::putText(testimg, std::to_string(object->track_id), cv::Point(box.xmin,box.ymin),
+      cv::FONT_HERSHEY_DUPLEX, 1.0, cv::Scalar(0,0,255), 3);
+      cv::putText(testimg, std::to_string(object->fusion_mode_), cv::Point(box.xmin, box.ymax),
+      cv::FONT_HERSHEY_DUPLEX, 1.0, cv::Scalar(255, 0, 0), 3);
+      cv::rectangle(testimg, rectified_rect, tl_color, 2);
+    }
+
+    for(auto pt:radar_pt_in_camera_){
+      cv::circle(testimg, pt, 5, cv::Scalar(0, 255, 0), 1);
+    }
+    cv::namedWindow("test", CV_WINDOW_NORMAL);
+    cv::resizeWindow("test", 640, 480);
+    cv::imshow("test", testimg);
+    //cv::imwrite("test.jpg", img_front_src);
+    cvWaitKey(1);
+  }
+  
+
+  Eigen::Matrix4d sensor2world_pose =
       in_message->frame_->sensor2world_pose.matrix();
   if (object_in_roi_check_ && FLAGS_obs_enable_hdmap_input) {
     // get hdmap

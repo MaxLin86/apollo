@@ -35,7 +35,14 @@ struct alignas(16) Object {
   Object();
   std::string ToString() const;
   void Reset();
-  int fusion_mode = 0; //add by xuefeng
+  /* @brief fusion_mode_:
+     1: only camera;
+     2: only radar;
+     3: camera and radar;
+  */
+  int fusion_mode_ = 0; //add by xuefeng
+  int raw_radar_detid_ = -1;
+  int raw_camera_detid_ = -1;
   // @brief object id per frame, required
   int id = -1;
 

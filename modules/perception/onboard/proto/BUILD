@@ -86,4 +86,16 @@ proto_library(
     srcs = ["lidar_component_config.proto"],
 )
 
+cc_proto_library(
+    name = "fusion_obstacle_tracker_proto",
+    deps = [
+        ":fusion_obstacle_tracker_proto_lib",
+    ],
+)
+
+proto_library(
+    name = "fusion_obstacle_tracker_proto_lib",
+    srcs = ["fusion_obstacle_tracker.proto"],
+)
+
 cpplint()

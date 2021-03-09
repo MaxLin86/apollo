@@ -387,25 +387,14 @@ bool FusionCameraDetectionComponent::Init() {
   camera_debug_writer_ =
       node_->CreateWriter<apollo::perception::camera::CameraDebug>(
           camera_debug_channel_name_);
-  pad_message_writer_ = 
-      node_->CreateWriter<apollo::control::PadMessage>(
-          FLAGS_pad_topic);
-
   cyber::ReaderConfig chassis_reader_config;
   chassis_reader_config.channel_name = FLAGS_chassis_topic;
   chassis_reader_config.pending_queue_size = 10;
 
   chassis_reader_ =
       node_->CreateReader<apollo::canbus::Chassis>(chassis_reader_config, nullptr);
+
   CHECK(chassis_reader_ != nullptr);
-
-  gps_reader_ = node_->CreateReader<drivers::gnss::GnssBestPose>(
-      FLAGS_gnss_best_pose_topic, [this](const std::shared_ptr<drivers::gnss::GnssBestPose>& gnss_bestpos) {
-        std::lock_guard<std::mutex> lock(gnss_bestpos_mutex_);
-        gnss_bestpos_.CopyFrom(*gnss_bestpos.get());
-      });
-  CHECK(gps_reader_ != nullptr);
-
   if (InitSensorInfo() != cyber::SUCC) {
     AERROR << "InitSensorInfo() failed.";
     return false;
@@ -462,8 +451,8 @@ bool FusionCameraDetectionComponent::Init() {
 
   cv::Point2f src_points[4];
   cv::Point2f dst_points[4];
-  LoadSrcAndDstPt(FLAGS_obs_sensor_intrinsic_path + "/" + lane_detect_camera_ +
-                     "_extrinsics.yaml", src_points, dst_points);
+  LoadSrcAndDstPt(FLAGS_obs_sensor_intrinsic_path + "/" +
+                     "front_6mm_3_extrinsics.yaml", src_points, dst_points);
   AERROR<<src_points[0];
   AERROR<<dst_points[0];
   m_perspective_.create(3, 3, CV_32FC1);
@@ -582,13 +571,16 @@ void FusionCameraDetectionComponent::OnReceiveImage(
     }
     return;
   }
-  bool send_sensorframe_ret = sensorframe_writer_->Write(prefused_message);
-  AINFO << "send out prefused msg, ts: " << msg_timestamp
-        << "ret: " << send_sensorframe_ret;
+  if(camera_name != lane_detect_camera_) {
+    bool send_sensorframe_ret = sensorframe_writer_->Write(prefused_message);
+    AINFO << "send out prefused msg, ts: " << msg_timestamp
+      << "ret: " << send_sensorframe_ret;
+  }
+  
   // Send output msg
   if (output_final_obstacles_) {
     writer_->Write(out_message);
-    cyber::common::SetProtoToASCIIFile(*out_message, "lane_test.proto");
+    // cyber::common::SetProtoToASCIIFile(*out_message, "lane_test.proto");
   }
   // for e2e lantency statistics
   {
@@ -678,7 +670,6 @@ int FusionCameraDetectionComponent::InitConfig() {
   debug_level_ = static_cast<int>(fusion_camera_detection_param.debug_level());
   enable_cipv_ = fusion_camera_detection_param.enable_cipv();
   lane_detect_camera_ = fusion_camera_detection_param.lane_detect_camera();
-  guide_post_detect_camera_ = fusion_camera_detection_param.guide_post_detect_camera();
   std::string format_str = R"(
       FusionCameraDetectionComponent InitConfig success
       camera_names:    %s, %s
@@ -830,6 +821,11 @@ int FusionCameraDetectionComponent::InitCameraFrames() {
     camera_height_map_[camera_name] = height;
   }
 
+  // Init frame id
+  for(const auto &camera_name : camera_names_) {
+    frame_id_map_[camera_name] = 0;
+  }
+
   for (auto &frame : camera_frames_) {
     frame.track_feature_blob.reset(new base::Blob<float>());
     frame.lane_detected_blob.reset(new base::Blob<float>());
@@ -939,36 +935,19 @@ bool FusionCameraDetectionComponent::DetectGuidePost(cv::Mat img, std::vector<cv
   if (img.empty()) {
     return false;
   }
-  if(grd_pt.size() == 1){
-    AERROR<<"aighwaige";
-  }
-  cv::Rect rect_roi = cv::Rect(0, 500, 1920, 350);//start pt and width 、height
+  cv::Rect rect_roi = cv::Rect(0, 350, 1920, 600);
   cv::Mat ImageRoi = img(rect_roi);
   cv::Mat img_pt(3, 1, CV_64FC1);
-
-  std::vector<cv::Point> img_pt_vec;
+  
   cv::Mat grayImage, binaryImage, edgeImage;
   binaryImage = cv::Mat(ImageRoi.rows, ImageRoi.cols, CV_8UC1);
   std::vector<cv::Mat> channels;
   split(ImageRoi, channels);
-  //识别蓝色
   //threshold(channels[0], binaryImage, 100, 255, CV_THRESH_OTSU);
  // binaryImage = 2* channels[0] - channels[1] - channels[2];
-  // for (int i = 0; i < ImageRoi.rows; i++) {
-  //   for (int j = 0; j < ImageRoi.cols; j++) {
-  //     if (channels[1].at<uchar>(i, j) *1.0 / channels[0].at<uchar>(i, j) < 0.8) {
-  //       binaryImage.at<uchar>(i, j) = 255;
-  //     }
-  //     else {
-  //       binaryImage.at<uchar>(i, j) = 0;
-  //     }
-  //   }
-  // }
-  //识别橙色
   for (int i = 0; i < ImageRoi.rows; i++) {
     for (int j = 0; j < ImageRoi.cols; j++) {
-      if (channels[2].at<uchar>(i, j) *1.0 - channels[1].at<uchar>(i, j) > 15
-         && channels[2].at<uchar>(i, j) *1.0 - channels[0].at<uchar>(i, j) > 15) {
+      if (channels[1].at<uchar>(i, j) *1.0 / channels[0].at<uchar>(i, j) < 0.8) {
         binaryImage.at<uchar>(i, j) = 255;
       }
       else {
@@ -987,7 +966,7 @@ bool FusionCameraDetectionComponent::DetectGuidePost(cv::Mat img, std::vector<cv
   std::vector<cv::Moments>mu(contours.size());
   std::vector<cv::Point2f>mc(contours.size());
   for (unsigned int i = 0; i < contours.size(); i++) {
-    approxPolyDP(contours[i], contours_ploy[i], 5, true);
+    approxPolyDP(contours[i], contours_ploy[i], 20, true);
     mu[i] = moments(contours_ploy[i], false);
     mc[i] = cv::Point2f(mu[i].m10 / mu[i].m00, mu[i].m01 / mu[i].m00);
     int corners = contours_ploy[i].size();
@@ -1008,7 +987,7 @@ bool FusionCameraDetectionComponent::DetectGuidePost(cv::Mat img, std::vector<cv
     //   corner_pt.push_back(P[j]);
     // }
     // sort(corner_pt.begin(), corner_pt.end(), cmp_y);
-    if (corners != 4){
+    if (corners != 3){
       continue;
     }
     std::vector<cv::Point2f> corners_grd_pt;
@@ -1023,69 +1002,65 @@ bool FusionCameraDetectionComponent::DetectGuidePost(cv::Mat img, std::vector<cv
       grd_pt_temp.y = temp.at<double>(1, 0) / temp.at<double>(2, 0);
       corners_grd_pt.push_back(grd_pt_temp);
     }
-    float side_len[4];
+    float side_len[3];
     side_len[0] = sqrt(pow(corners_grd_pt[0].x - corners_grd_pt[1].x,2)+pow(corners_grd_pt[0].y - corners_grd_pt[1].y,2));
     side_len[1] = sqrt(pow(corners_grd_pt[1].x - corners_grd_pt[2].x,2)+pow(corners_grd_pt[1].y - corners_grd_pt[2].y,2));
-    side_len[2] = sqrt(pow(corners_grd_pt[2].x - corners_grd_pt[3].x,2)+pow(corners_grd_pt[2].y - corners_grd_pt[3].y,2));
-    side_len[3] = sqrt(pow(corners_grd_pt[3].x - corners_grd_pt[0].x,2)+pow(corners_grd_pt[3].y - corners_grd_pt[0].y,2));
-    //AERROR<<corners_grd_pt[0]<<","<<corners_grd_pt[1]<<","<<corners_grd_pt[2]<<","<<corners_grd_pt[3];
-    
-    if(fabs(side_len[0] - side_len[1]) > 0.05){
+    side_len[2] = sqrt(pow(corners_grd_pt[2].x - corners_grd_pt[0].x,2)+pow(corners_grd_pt[2].y - corners_grd_pt[0].y,2));
+    //AERROR<<"side_len[0]:"<<side_len[0];
+    //AERROR<<"side_len[1]:"<<side_len[1];
+    //AERROR<<"side_len[2]:"<<side_len[2];
+    if(fabs(side_len[0] - side_len[1]) > 0.15){
       continue;
     }
-    if(fabs(side_len[1] - side_len[2]) > 0.05){
+    if(fabs(side_len[1] - side_len[2]) > 0.15){
       continue;
     }
-    if(fabs(side_len[2] - side_len[3]) > 0.05){
+    if(fabs(side_len[0] - side_len[2]) > 0.15){
       continue;
     }
-    if(fabs(side_len[3] - side_len[0]) > 0.05){
-      continue;
-    }
-    if(side_len[0] < 0.06 || side_len[0] > 0.15)
+    if(side_len[0] < 0.10 || side_len[0] > 0.35)
     {
       continue;
     }
-    if(side_len[1] < 0.06 || side_len[1] > 0.15)
+    if(side_len[1] < 0.10 || side_len[1] > 0.35)
     {
       continue;
     }
-    if(side_len[2] < 0.06 || side_len[2] > 0.15)
+    if(side_len[2] < 0.10 || side_len[2] > 0.35)
     {
       continue;
     }
-    if(side_len[3] < 0.06 || side_len[3] > 0.15)
-    {
-      continue;
+    img_pt.at<double>(0, 0) = mc[i].x + rect_roi.x;
+    img_pt.at<double>(1, 0) = mc[i].y + rect_roi.y;
+    img_pt.at<double>(2, 0) = 1.0;
+    temp = mat_homography_im2car_ * img_pt;
+    grd_pt_temp.x = temp.at<double>(0, 0) / temp.at<double>(2, 0);
+    grd_pt_temp.y = temp.at<double>(1, 0) / temp.at<double>(2, 0);
+    if(grd_pt_temp.x < 5.2 && fabs(grd_pt_temp.y) > 1.2){
+      continue;//消除图像左下角、右下角的遮挡误检
     }
-    grd_pt_temp.x = (corners_grd_pt[0].x + corners_grd_pt[1].x + corners_grd_pt[2].x + corners_grd_pt[3].x) / 4;
-    grd_pt_temp.y = (corners_grd_pt[0].y + corners_grd_pt[1].y + corners_grd_pt[2].y + corners_grd_pt[3].y) / 4;
-    // img_pt.at<double>(0, 0) = mc[i].x + rect_roi.x;
-    // img_pt.at<double>(1, 0) = mc[i].y + rect_roi.y;
-    // img_pt.at<double>(2, 0) = 1.0;
-    // temp = mat_homography_im2car_ * img_pt;
-    // grd_pt_temp.x = temp.at<double>(0, 0) / temp.at<double>(2, 0);
-    // grd_pt_temp.y = temp.at<double>(1, 0) / temp.at<double>(2, 0);
-    
-    if(fabs(grd_pt_temp.y) > 1.2){
+    if(fabs(grd_pt_temp.y) > 4.0){
       continue;
     }
     grd_pt.push_back(grd_pt_temp);
-    img_pt_vec.push_back(cv::Point(img_pt.at<double>(0, 0), img_pt.at<double>(1, 0)));
+    // if (FLAGS_guide_post_debug_display) {
+    //   cv::circle(img, cv::Point(img_pt.at<double>(0, 0), img_pt.at<double>(1, 0)), 5, cv::Scalar(255, 255, 255), 5);
+    // }
   }
-  if(grd_pt.size() > 1){
+  if(grd_pt.size() != 1){
     grd_pt.clear();
-    img_pt_vec.clear();
-  } else if(grd_pt.size() == 1){
-    if (FLAGS_guide_post_debug_display) {
-     cv::circle(img, cv::Point(img_pt_vec[0].x, img_pt_vec[0].y - 30), 50, cv::Scalar(255, 255, 255), 5);
-    }
-    AERROR<<"grd_pt[0].x:"<<grd_pt[0].x<<"grd_pt[0].y:"<<grd_pt[0].y;
   }
-  //cv::imwrite("laneMak.jpg", img);
+  else{
+    // if(guide_post_last_pt_.x < 0.01){
+    //   guide_post_last_pt_ = grd_pt[0];
+    // }
+    if (FLAGS_guide_post_debug_display) {
+     cv::circle(img, cv::Point(img_pt.at<double>(0, 0), img_pt.at<double>(1, 0) - 30), 50, cv::Scalar(255, 255, 255), 5);
+    }
+  }
   if (FLAGS_guide_post_debug_display) {
-    cv::namedWindow("二值图", CV_WINDOW_NORMAL);
-    cv::imshow("二值图", binaryImage);
+    //cv::namedWindow("二值图", CV_WINDOW_NORMAL);
+    //cv::imshow("二值图", binaryImage);
     cv::namedWindow("边缘图", CV_WINDOW_NORMAL);
     cv::imshow("边缘图", edgeImage);
     cv::namedWindow("src", CV_WINDOW_NORMAL);
@@ -1151,7 +1126,7 @@ bool FusionCameraDetectionComponent::FindLinePt(cv::Mat &image, cv::Mat gra_img,
       break;
     }
   }
-  int search_w = 20;
+  int search_w = 40;
   float sum = 0.0, avr = 0.0;
   int size = col_end_temp - col_start_temp;
   if (size <= 50) {
@@ -1170,7 +1145,7 @@ bool FusionCameraDetectionComponent::FindLinePt(cv::Mat &image, cv::Mat gra_img,
     if(image.at<uchar>(row, j + search_w) == 0){
       continue;
     }
-    if (cur_pt_gray_val > avr + 10) {
+    if (cur_pt_gray_val > avr + 20) {
       float grad_x_max_left = 0;
       float grad_x_max_right = 0;
       int edge_left = 0, edge_right = 0, line_w_temp = 0;
@@ -1202,8 +1177,8 @@ bool FusionCameraDetectionComponent::FindLinePt(cv::Mat &image, cv::Mat gra_img,
           sum += image.at<uchar>(row, k);
         }
         float right_avr = sum / line_w_temp;
-        if ((avr > left_avr + 10)
-          && (avr > right_avr + 10))
+        if ((avr > left_avr + 20)
+          && (avr > right_avr + 20))
         {
           line_center_x = (edge_right + edge_left) / 2;
           line_w = line_w_temp;
@@ -1224,12 +1199,12 @@ bool FusionCameraDetectionComponent::DetectLine(cv::Mat &image, cv::Mat img_grad
   int start_col;
   int end_col;
   if(line_pos == 0){
-    start_col = 0;
-    end_col = image.cols / 2 - 0;
+    start_col = 100;
+    end_col = image.cols / 2 - 10;
   }
   else{
-    start_col = image.cols / 2 + 0;
-    end_col = image.cols - 0;
+    start_col = image.cols / 2 + 10;
+    end_col = image.cols - 100;
   }
   line_pts_img.clear();
   for (int i = 500; i > 0; i--) {
@@ -1255,19 +1230,8 @@ bool FusionCameraDetectionComponent::DetectLine(cv::Mat &image, cv::Mat img_grad
       }
     }
   }
-  if (line_pts_img.size() > 200) {
+  if (line_pts_img.size() > 125) {
     polynomial_curve_fit(line_pts_img, 1, line_coff);
-    float pt_to_line_dis_total = 0.0;
-    float pt_to_line_dis_avr = 0.0;
-    for(unsigned int i = 0; i < line_pts_img.size(); i++){
-      pt_to_line_dis_total += fabs(line_coff.at<double>(1, 0) * line_pts_img[i].x + line_coff.at<double>(0, 0) - line_pts_img[i].y);
-    }
-    pt_to_line_dis_avr = pt_to_line_dis_total / line_pts_img.size();
-    pt_to_line_dis_avr /= sqrt(line_coff.at<double>(1, 0) * line_coff.at<double>(1, 0) + 1);
-    //AERROR<<"pt_to_line_dis_avr:"<<pt_to_line_dis_avr;
-    if(pt_to_line_dis_avr > 5.0){
-      return false;
-    }
     //for (int i = begin_row; i > 0; i--) {
       //float col;
       //col = line_coff.at<double>(2, 0) * i * i + line_coff.at<double>(1, 0) * i + line_coff.at<double>(0, 0);
@@ -1291,8 +1255,8 @@ bool FusionCameraDetectionComponent::TrackLine(cv::Mat &image, cv::Mat img_grad,
   for (int i = 500; i > 0; i--){
     //float col_temp = input_line_coff.at<double>(2, 0) * i * i + input_line_coff.at<double>(1, 0) * i + input_line_coff.at<double>(0, 0);
     float col_temp = input_line_coff.at<double>(1, 0) * i + input_line_coff.at<double>(0, 0);
-    start_col = col_temp - 50;
-    end_col = col_temp + 50;
+    start_col = col_temp - 40;
+    end_col = col_temp + 40;
     if(FindLinePt(image, img_grad, i, start_col, end_col, new_line_center_x, new_line_w)){
       line_pts_img.push_back(cv::Point2f(i, new_line_center_x));
     }
@@ -1316,19 +1280,8 @@ bool FusionCameraDetectionComponent::TrackLine(cv::Mat &image, cv::Mat img_grad,
     // }
   }
   
-  if (line_pts_img.size() > 200) {
+  if (line_pts_img.size() > 125) {
     polynomial_curve_fit(line_pts_img, 1, output_line_coff);
-    float pt_to_line_dis_total = 0.0;
-    float pt_to_line_dis_avr = 0.0;
-    for(unsigned int i = 0; i < line_pts_img.size(); i++){
-      pt_to_line_dis_total += fabs(output_line_coff.at<double>(1, 0) * line_pts_img[i].x + output_line_coff.at<double>(0, 0) - line_pts_img[i].y);
-    }
-    pt_to_line_dis_avr = pt_to_line_dis_total / line_pts_img.size();
-    pt_to_line_dis_avr /= sqrt(output_line_coff.at<double>(1, 0) * output_line_coff.at<double>(1, 0) + 1);
-    AERROR<<"pt_to_line_dis_avr:"<<pt_to_line_dis_avr;
-    if(pt_to_line_dis_avr > 5.0){
-      return false;
-    }
     //for (int i = 700; i > 0; i--) {
      // float col;
      // col = output_line_coff.at<double>(2, 0) * i * i + output_line_coff.at<double>(1, 0) * i + output_line_coff.at<double>(0, 0);
@@ -1341,723 +1294,6 @@ bool FusionCameraDetectionComponent::TrackLine(cv::Mat &image, cv::Mat img_grad,
     return true;
   }
   return false;
-}
-//RANSAC 拟合2D 直线
-//输入参数：points--输入点集
-//        iterations--迭代次数
-//        sigma--数据和模型之间可接受的差值,车道线像素宽带一般为10左右
-//              （Parameter use to compute the fitting score）
-//        k_min/k_max--拟合的直线斜率的取值范围.
-//                     考虑到左右车道线在图像中的斜率位于一定范围内，
-//                      添加此参数，同时可以避免检测垂线和水平线
-//输出参数:line--拟合的直线参数,It is a vector of 4 floats
-//              (vx, vy, x0, y0) where (vx, vy) is a normalized
-//              vector collinear to the line and (x0, y0) is some
-//              point on the line.
-//返回值：无
-void FusionCameraDetectionComponent::FitLineRansac(const std::vector<cv::Point2f>& points,
-                   cv::Vec4f &line,
-                   int iterations,
-                   double sigma,
-                   double k_min,
-                   double k_max)
-{
-    unsigned int n = points.size();
-
-    if(n<2)
-    {
-        return;
-    }
-
-    cv::RNG rng;
-    double bestScore = -1.;
-    for(int k=0; k<iterations; k++)
-    {
-        int i1=0, i2=0;
-        while(i1==i2)
-        {
-            i1 = rng(n);
-            i2 = rng(n);
-        }
-        const cv::Point2f& p1 = points[i1];
-        const cv::Point2f& p2 = points[i2];
-
-        cv::Point2f dp = p2-p1;//直线的方向向量
-        dp *= 1./norm(dp);
-        double score = 0;
-
-        if(dp.y/dp.x<=k_max && dp.y/dp.x>=k_min )
-        {
-            for(unsigned int i=0; i<n; i++)
-            {
-                cv::Point2f v = points[i]-p1;
-                double d = v.y*dp.x - v.x*dp.y;//向量a与b叉乘/向量b的摸.||b||=1./norm(dp)
-                //score += exp(-0.5*d*d/(sigma*sigma));//误差定义方式的一种
-                if( fabs(d)<sigma )
-                    score += 1;
-            }
-        }
-        if(score > bestScore)
-        {
-            line = cv::Vec4f(dp.x, dp.y, p1.x, p1.y);
-            bestScore = score;
-        }
-    }
-}
-bool FusionCameraDetectionComponent::DetectYellowLine(cv::Mat & image, int nLinePos, cv::Mat &line_coff) {
-  int nStartCol = 0, nEndCol = 0;
-  //int nLineCol = 0;
-  int nRowSum = 0;
-  int nRowAvr = 0;
-  int nColTemp = 0;
-  cv::Mat grad_x, abs_grad_x;
-  int scale = 1;
-  int delta = 0;
-  int ddepth = CV_16S;
-  cv::Sobel(image, grad_x, ddepth, 1, 0, 3, scale, delta, cv::BORDER_DEFAULT);
-  cv::convertScaleAbs(grad_x, abs_grad_x);
- 
-  std::vector<cv::Point2f> line_pts_img;
-  if(nLinePos == 0){//黄线在左侧
-    nStartCol = image.cols / 2;
-    nEndCol = 0;
-  }else if(nLinePos == 1){//黄线右侧
-    nStartCol = image.cols / 2;
-    nEndCol = image.cols;
-  }
-  //有用直方图找灰度最大值对应的列，发现并不高效
-  //int nHistogramInterval = 14;
-  //float fGraySumMax = 1e5;
-  // std::vector<float> gray_sum_vec;
-  // float gray_sum_temp = 0.0;
-  // for(int j = nStartCol; j < nEndCol; j++){//统计直方图
-  //   for(int i = 0; i < image.rows; i++){
-  //       gray_sum_temp += image.at<uchar>(i, j);
-  //   }
-  //   if(j % nHistogramInterval == 0){
-  //     gray_sum_vec.push_back(gray_sum_temp);
-  //     gray_sum_temp = 0.0;
-  //   }
-  // }
-  
-  // int nMaxValIntervalNum = 0;
-  // gray_sum_temp = 0.0;
-  // for(unsigned int i = 0; i < gray_sum_vec.size(); i++){//计算最大值对应的间隔
-  //   if(gray_sum_vec[i] > gray_sum_temp){
-  //     nMaxValIntervalNum = i;
-  //     gray_sum_temp = gray_sum_vec[i];
-  //   }
-  // }
-  if(1){//gray_sum_temp > fGraySumMax){
-    AERROR<<"detect lane";
-    //nLineCol = nStartCol + nMaxValIntervalNum * nHistogramInterval - nHistogramInterval / 2;
-    int nFirstPtCol = -100;
-    int nTwoPtWidth = 0;;
-    int nWidthOKCnt = 0;
-    int nLineCenter = 0;
-    if(nLinePos == 0){//黄线在左侧
-      for(int i = 0; i < abs_grad_x.rows; i++){
-        for(int j = nStartCol; j > nEndCol; j--){
-          if(abs_grad_x.at<uchar>(i, j) > 125){
-            nTwoPtWidth = nFirstPtCol - j; 
-            if(nTwoPtWidth > 6 && nTwoPtWidth < 30){
-              nWidthOKCnt++;
-              nLineCenter = nFirstPtCol - nTwoPtWidth / 2;
-              break;
-            }
-            nFirstPtCol = j;
-          }
-        }
-        if(nWidthOKCnt == 1){
-          line_pts_img.push_back(cv::Point2f(i, nLineCenter));
-          nRowSum += i;
-          if(FLAGS_lane_debug_display){
-            cv::circle(image, cv::Point(nLineCenter, i), 3, cv::Scalar(128, 128, 128));
-          }
-        }
-        nFirstPtCol = -100;
-        nWidthOKCnt = 0;
-      }
-    }else if(nLinePos == 1){//黄线右侧
-      for(int i = 0; i < abs_grad_x.rows; i++){
-        for(int j = nStartCol; j < nEndCol; j++){
-          if(abs_grad_x.at<uchar>(i, j) > 125){
-            nTwoPtWidth = j - nFirstPtCol; 
-            if(nTwoPtWidth > 6 && nTwoPtWidth < 30){
-              nWidthOKCnt++;
-              nLineCenter = nFirstPtCol + nTwoPtWidth / 2;
-              break;
-            }
-            nFirstPtCol = j;
-          }
-        }
-        if(nWidthOKCnt == 1){
-          line_pts_img.push_back(cv::Point2f(i, nLineCenter));
-          nRowSum += i;
-          if(FLAGS_lane_debug_display){
-            cv::circle(image, cv::Point(nLineCenter, i), 3, cv::Scalar(128, 128, 128));
-          }
-        }
-        nFirstPtCol = -100;
-        nWidthOKCnt = 0;
-      }
-    }
-    
-    if(FLAGS_lane_debug_display){
-      cv::namedWindow("perspective_gray", CV_WINDOW_NORMAL);
-      cv::imshow("perspective_gray", image);
-      cvWaitKey(1); 
-    }
-    AERROR<<"line_pts_img.size:"<<line_pts_img.size();
-    if(line_pts_img.size() > 200){
-      nRowAvr = nRowSum / line_pts_img.size();
-      if(nRowAvr < image.rows * 0.4){
-        return false;
-      }
-      
-      cv::Vec4f lineParam;
-      FitLineRansac(line_pts_img,lineParam,1000,10, -1, 1);
-      double k = lineParam[1] / lineParam[0];
-      double b = lineParam[3] - k*lineParam[2];
-      //AERROR<<"k:"<<k;
-      line_coff.at<double>(1, 0) = k;
-      line_coff.at<double>(0, 0) = b;
-      nColTemp = k * (image.rows - 100) + b;
-      if(nLinePos == 0){
-        if(nColTemp > image.cols / 2){
-          return false;
-        }
-      }
-      if(nLinePos == 1){
-        if(nColTemp < image.cols / 2){
-          return false;
-        }
-      }
-      //AERROR<<"nColTemp:"<<nColTemp;
-      return true;
-    }
-  }
-  return false;
-}
-
-bool FusionCameraDetectionComponent::TrackYellowLine(cv::Mat &image, int line_pos, const cv::Mat input_line_coff, cv::Mat & output_line_coff){
-  int start_col;
-  int end_col;
-  std::vector<cv::Point2f> line_pts_img;
-  cv::Mat grad_x, abs_grad_x;
-  int scale = 1;
-  int delta = 0;
-  int ddepth = CV_16S;
-  cv::Sobel(image, grad_x, ddepth, 1, 0, 3, scale, delta, cv::BORDER_DEFAULT);
-  cv::convertScaleAbs(grad_x, abs_grad_x);
-
-  line_pts_img.clear();
-  for (int i = image.rows; i > 0; i--){
-    float col_temp = input_line_coff.at<double>(1, 0) * i + input_line_coff.at<double>(0, 0);
-    start_col = col_temp - 50;
-    end_col = col_temp + 50;
-    if(start_col < 0 || end_col > image.cols)
-    {
-      continue;
-    }
-    int nFirstPtCol = -100;
-    int nTwoPtWidth = 0;;
-    int nWidthOKCnt = 0;
-    int nLineCenter = 0;
-    
-    for(int j = start_col; j < end_col; j++){
-      if(abs_grad_x.at<uchar>(i, j) > 125){
-          nTwoPtWidth = j - nFirstPtCol; 
-          if(nTwoPtWidth > 6 && nTwoPtWidth < 30){
-            nWidthOKCnt++;
-            nLineCenter = nFirstPtCol + nTwoPtWidth / 2;
-          }
-          nFirstPtCol = j;
-      }
-    }
-      if(nWidthOKCnt == 1){
-        line_pts_img.push_back(cv::Point2f(i, nLineCenter));
-        if(FLAGS_lane_debug_display){
-          cv::circle(image, cv::Point(nLineCenter, i), 3, cv::Scalar(128, 128, 128));
-        }
-      }
-      nFirstPtCol = -100;
-      nWidthOKCnt = 0;
-  }
-  if(FLAGS_lane_debug_display){
-    cv::namedWindow("perspective_gray", CV_WINDOW_NORMAL);
-    cv::imshow("perspective_gray", image);
-    cvWaitKey(1);
-  }
-  
-  if (line_pts_img.size() > 80) {
-    cv::Vec4f lineParam;
-      FitLineRansac(line_pts_img,lineParam,1000,10, -1, 1);
-      double k = lineParam[1] / lineParam[0];
-      double b = lineParam[3] - k*lineParam[2];
-      output_line_coff.at<double>(1, 0) = k;
-      output_line_coff.at<double>(0, 0) = b;
-    return true;
-  }
-  return false;
-}
-bool FusionCameraDetectionComponent::DetectYellowLane(cv::Mat & image, int nLinePos, float fLaneW, camera::CameraFrame *frame, double fCarSpeed, double fCarAngle) {
-  if (image.empty())
-  {
-    return false;
-  }
-  double wheel_base = 3.34;
-  double cur_time = apollo::common::time::Clock::NowInSeconds();
-  double car_center_turn_radius = wheel_base / tan(fCarAngle + 0.000001);
-  double car_center_arc_len = 0.0;
-  double car_angle_offset = 0.0;
-  float color_diff_threshold = 10.0;
-  if(nLinePos == 3){
-    color_diff_threshold = 5.0;
-  }
-  int nOutputValid = 0;
-  std::string camera_name_temp = frame->data_provider->sensor_name();
-  Eigen::Matrix3d homography_im2car_lane = visualize_.homography_image2ground_[camera_name_temp];
-  Eigen::Matrix3d homography_car2im_lane = visualize_.homography_ground2image_[camera_name_temp];
-  cv::Mat perspective(500, 800, CV_8UC3);//row、col 跟配置文件中的点有关系
-  cv::warpPerspective(image, perspective, m_perspective_, cv::Size(perspective.cols, perspective.rows), cv::INTER_NEAREST);
-  cv::Mat perspective_gray(500, 800, CV_8UC1);
-  std::vector<cv::Mat> channels;
-  split(perspective, channels);
-
-  cvtColor(perspective, perspective_gray, CV_RGB2GRAY);
-  CvScalar cs;
-  cs = mean(perspective_gray);
-  cv::Mat perspective_test(500, 800, CV_8UC3);  
-  cv::cvtColor(perspective,perspective_test,CV_BGR2HSV);
-  
-  if(cs.val[0] > 80)
-  {
-    if(nLinePos == 3){//以下逻辑判断是根据不同场景下（阳光、阴影、傍晚）的车道线颜色进行设置的。
-      for (int i = 0; i < perspective.rows; i++) {
-        for (int j = 0; j < perspective.cols; j++) {
-          if(channels[2].at<uchar>(i, j) > 110 && channels[2].at<uchar>(i, j) < 140){
-            color_diff_threshold = 10;
-            if (channels[2].at<uchar>(i, j) *1.0 - channels[1].at<uchar>(i, j) > color_diff_threshold
-            && channels[2].at<uchar>(i, j) *1.0 - channels[0].at<uchar>(i, j) > color_diff_threshold - 5) {
-              perspective_gray.at<uchar>(i, j) = 255;
-            }
-            else {
-              perspective_gray.at<uchar>(i, j) = 0;
-            }
-          }
-          else if(channels[2].at<uchar>(i, j) < 110){
-            color_diff_threshold = 5;
-            if(fabs(channels[2].at<uchar>(i, j) *1.0 - channels[0].at<uchar>(i, j)) < 3){
-              if (channels[2].at<uchar>(i, j) *1.0 - channels[1].at<uchar>(i, j) > color_diff_threshold) {
-                perspective_gray.at<uchar>(i, j) = 255;
-              }
-              else {
-                perspective_gray.at<uchar>(i, j) = 0;
-              }
-            }
-            else{
-              if (channels[2].at<uchar>(i, j) *1.0 - channels[1].at<uchar>(i, j) > 5
-              && channels[2].at<uchar>(i, j) *1.0 - channels[0].at<uchar>(i, j) > 5) {
-                perspective_gray.at<uchar>(i, j) = 255;
-              }
-              else {
-                perspective_gray.at<uchar>(i, j) = 0;
-              }
-            }
-          }else{
-            color_diff_threshold = 15;
-            if (channels[2].at<uchar>(i, j) *1.0 - channels[1].at<uchar>(i, j) > color_diff_threshold
-            && channels[2].at<uchar>(i, j) *1.0 - channels[0].at<uchar>(i, j) > color_diff_threshold) {
-              perspective_gray.at<uchar>(i, j) = 255;
-            }
-            else {
-              perspective_gray.at<uchar>(i, j) = 0;
-            }
-          }
-          
-        }
-      }
-    }
-    else{
-      for (int i = 0; i < perspective.rows; i++) {
-        for (int j = 0; j < perspective.cols; j++) {
-          if (channels[2].at<uchar>(i, j) *1.0 - channels[1].at<uchar>(i, j) > color_diff_threshold
-                && channels[2].at<uchar>(i, j) *1.0 - channels[0].at<uchar>(i, j) > color_diff_threshold) {
-            perspective_gray.at<uchar>(i, j) = 255;
-          }
-          else {
-            perspective_gray.at<uchar>(i, j) = 0;
-          }
-        }
-      }
-    }
-  }
-  else{
-    for (int i = 0; i < perspective.rows; i++) {
-      for (int j = 0; j < perspective.cols; j++) {
-          if (perspective_test.at<cv::Vec3b>(i,j)[0] > 160 && perspective_test.at<cv::Vec3b>(i,j)[0] < 220) {
-            perspective_gray.at<uchar>(i, j) = 255;
-          }
-          else {
-            perspective_gray.at<uchar>(i, j) = 0;
-          }
-      }
-    }
-  }
-  std::vector<cv::Point2f> left_line_pts_grd;
-  cv::Point2f left_line_pt_grd;
-  cv::Mat left_line_coff_grd(3, 1, CV_64FC1);
-  std::vector<cv::Point2f> right_line_pts_grd;
-  cv::Point2f right_line_pt_grd;
-  cv::Mat right_line_coff_grd(3, 1, CV_64FC1);
-
-  static double last_time = 0.0;
-  static double fNoLeftLaneDis = 0.0;
-  static double fNoRightLaneDis = 0.0;
-  static int lane_w = fLaneW;//per pix one cm
-  static int left_track_status = 0;
-  static cv::Mat last_left_line_coff(2, 1, CV_64FC1);
-  static cv::Mat new_left_line_coff(2, 1, CV_64FC1);
-  static cv::Point2f left_car_grd_pt[2];
-  static cv::Point2f right_car_grd_pt[2];
-  static int left_detect_num = 0;
-  static int left_track_num = 0; 
-
-  static int right_track_status = 0;
-  static cv::Mat last_right_line_coff(2, 1, CV_64FC1);
-  static cv::Mat new_right_line_coff(2, 1, CV_64FC1);
-  static int right_detect_num = 0;
-  static int right_track_num = 0; 
-  
-  if(nLinePos == 1){
-    right_track_status = 0;
-  }
-  if(nLinePos == 2){
-    left_track_status = 0;
-  }
-  if(nLinePos & 1){//1：detect left,2:detect right,3:two side
-    if(left_track_status == 0){
-      left_track_num = 0;
-      if(DetectYellowLine(perspective_gray, 0, new_left_line_coff)){
-        last_left_line_coff.at<double>(1, 0) = new_left_line_coff.at<double>(1, 0);
-        last_left_line_coff.at<double>(0, 0) = new_left_line_coff.at<double>(0, 0);
-        left_detect_num++;
-      }else{
-        left_detect_num = 0;
-      }
-    }
-    else{
-      car_center_arc_len = (cur_time - last_time) * fCarSpeed;
-      car_angle_offset = car_center_arc_len / car_center_turn_radius;
-      double x_offset, y_offset;
-
-      if(fCarSpeed >= 0.0){
-        x_offset = -car_center_turn_radius * sin(car_angle_offset);
-        y_offset = -(car_center_turn_radius - car_center_turn_radius * cos(car_angle_offset));
-      }
-      else{
-        x_offset = car_center_turn_radius * sin(car_angle_offset);
-        y_offset = car_center_turn_radius - car_center_turn_radius * cos(car_angle_offset);
-      }
-      //AERROR<<"x_offset:"<<x_offset<<"y_offset:"<<y_offset<<"car_angle_offset:"<<car_angle_offset<<"car_center_turn_radius:"<<car_center_turn_radius;
-      
-      cv::Point2f left_undistort_pt[2];
-      cv::Point2f left_perspective_pt[2];
-      Eigen::Vector3d left_grd_pt_vector;
-      Eigen::Vector3d left_undistort_pt_vector;
-      double temp;
-      for(int i = 0; i < 2; i++){
-        left_car_grd_pt[i].x += x_offset;
-        left_car_grd_pt[i].y += y_offset;
-        left_grd_pt_vector[0] = left_car_grd_pt[i].x * cos(car_angle_offset) + left_car_grd_pt[i].y * sin(car_angle_offset);
-        left_grd_pt_vector[1] = -left_car_grd_pt[i].x * sin(car_angle_offset) + left_car_grd_pt[i].y * cos(car_angle_offset);
-        left_grd_pt_vector[2] = 1.0;
-        left_undistort_pt_vector = homography_car2im_lane * left_grd_pt_vector;
-        left_undistort_pt[i].x = left_undistort_pt_vector[0] / left_undistort_pt_vector[2];
-        left_undistort_pt[i].y = left_undistort_pt_vector[1] / left_undistort_pt_vector[2];
-        temp = m_perspective_.at<double>(2, 0) * left_undistort_pt[i].x + 
-            m_perspective_.at<double>(2, 1) * left_undistort_pt[i].y + 
-            m_perspective_.at<double>(2, 2);
-        left_perspective_pt[i].x = (m_perspective_.at<double>(0, 0) * left_undistort_pt[i].x + 
-                  m_perspective_.at<double>(0, 1) * left_undistort_pt[i].y + 
-                  m_perspective_.at<double>(0, 2)) / temp;
-        left_perspective_pt[i].y = (m_perspective_.at<double>(1, 0) * left_undistort_pt[i].x + 
-                  m_perspective_.at<double>(1, 1) * left_undistort_pt[i].y + 
-                  m_perspective_.at<double>(1, 2)) / temp;
-      }
-      //last_left_line_coff
-      last_left_line_coff.at<double>(1,0) = (left_perspective_pt[1].x - left_perspective_pt[0].x) / (left_perspective_pt[1].y - left_perspective_pt[0].y);
-      last_left_line_coff.at<double>(0,0) = left_perspective_pt[1].x - last_left_line_coff.at<double>(1,0) * left_perspective_pt[1].y;
-
-      left_detect_num = 0;
-      if(TrackYellowLine(perspective_gray, 0, last_left_line_coff, new_left_line_coff) == false){
-        left_track_num++;
-        fNoLeftLaneDis += car_center_arc_len;
-      }else{
-        
-        if(fabs(last_left_line_coff.at<double>(1,0) - new_left_line_coff.at<double>(1,0)) > 0.3){
-          left_track_num++;
-          fNoLeftLaneDis += car_center_arc_len;
-        }else{
-          left_track_num = 0;
-          //AERROR<<new_left_line_coff.at<double>(1,0)<<","<<new_left_line_coff.at<double>(0,0)<<","<<last_left_line_coff.at<double>(1,0)<<","<<last_left_line_coff.at<double>(0,0);
-          last_left_line_coff.at<double>(1,0) = new_left_line_coff.at<double>(1,0) * 0.5 + last_left_line_coff.at<double>(1,0) * 0.5;
-          last_left_line_coff.at<double>(0,0) = new_left_line_coff.at<double>(0,0) * 0.5 + last_left_line_coff.at<double>(0,0) * 0.5;
-        }
-      }
-      
-    }
-    
-    //if(left_track_num > 6){
-    if(fNoLeftLaneDis > 1.0 || left_track_num > 10){//车辆移动超过1米或超过10帧都没检测到左侧车道线
-      left_detect_num = 0;
-      left_track_num = 0;
-      left_track_status = 0;
-    }
-    if(left_detect_num >= 3){
-      left_track_status = 1;
-      left_detect_num = 0;
-      left_track_num = 0;
-      fNoLeftLaneDis = 0.0;
-    }
-  }
-  if(nLinePos & 2){
-    
-    if(right_track_status == 0){
-      right_track_num = 0;
-      if(DetectYellowLine(perspective_gray, 1, new_right_line_coff)){
-        last_right_line_coff.at<double>(1, 0) = new_right_line_coff.at<double>(1, 0);
-        last_right_line_coff.at<double>(0, 0) = new_right_line_coff.at<double>(0, 0);
-        right_detect_num++;
-      }else{
-        right_detect_num = 0;
-      }
-    }
-    else{
-      car_center_arc_len = (cur_time - last_time) * fCarSpeed;
-      car_angle_offset = car_center_arc_len / car_center_turn_radius;
-      double x_offset, y_offset;
-
-      if(fCarSpeed >= 0.0){
-        x_offset = -car_center_turn_radius * sin(car_angle_offset);
-        y_offset = -(car_center_turn_radius - car_center_turn_radius * cos(car_angle_offset));
-      }
-      else{
-        x_offset = car_center_turn_radius * sin(car_angle_offset);
-        y_offset = car_center_turn_radius - car_center_turn_radius * cos(car_angle_offset);
-      }
-      //AERROR<<"x_offset:"<<x_offset<<"y_offset:"<<y_offset<<"car_angle_offset:"<<car_angle_offset<<"car_center_turn_radius:"<<car_center_turn_radius;
-      //AERROR<<"right_car_grd_pt[0].x:"<<right_car_grd_pt[0].x<<"right_car_grd_pt[0].y:"<<right_car_grd_pt[0].y;
-      cv::Point2f right_undistort_pt[2];
-      cv::Point2f right_perspective_pt[2];
-      Eigen::Vector3d right_grd_pt_vector;
-      Eigen::Vector3d right_undistort_pt_vector;
-      double temp;
-      for(int i = 0; i < 2; i++){
-        right_car_grd_pt[i].x += x_offset;
-        right_car_grd_pt[i].y += y_offset;
-        right_grd_pt_vector[0] = right_car_grd_pt[i].x * cos(car_angle_offset) + right_car_grd_pt[i].y * sin(car_angle_offset);
-        right_grd_pt_vector[1] = -right_car_grd_pt[i].x * sin(car_angle_offset) + right_car_grd_pt[i].y * cos(car_angle_offset);
-        right_grd_pt_vector[2] = 1.0;
-        //right_grd_pt_vector<<right_car_grd_pt[i].x + x_offset, right_car_grd_pt[i].y + y_offset, 1.0;
-        right_undistort_pt_vector = homography_car2im_lane * right_grd_pt_vector;
-        right_undistort_pt[i].x = right_undistort_pt_vector[0] / right_undistort_pt_vector[2];
-        right_undistort_pt[i].y = right_undistort_pt_vector[1] / right_undistort_pt_vector[2];
-        temp = m_perspective_.at<double>(2, 0) * right_undistort_pt[i].x + 
-            m_perspective_.at<double>(2, 1) * right_undistort_pt[i].y + 
-            m_perspective_.at<double>(2, 2);
-        right_perspective_pt[i].x = (m_perspective_.at<double>(0, 0) * right_undistort_pt[i].x + 
-                  m_perspective_.at<double>(0, 1) * right_undistort_pt[i].y + 
-                  m_perspective_.at<double>(0, 2)) / temp;
-        right_perspective_pt[i].y = (m_perspective_.at<double>(1, 0) * right_undistort_pt[i].x + 
-                  m_perspective_.at<double>(1, 1) * right_undistort_pt[i].y + 
-                  m_perspective_.at<double>(1, 2)) / temp;
-      }
-      //last_right_line_coff
-      last_right_line_coff.at<double>(1,0) = (right_perspective_pt[1].x - right_perspective_pt[0].x) / (right_perspective_pt[1].y - right_perspective_pt[0].y);
-      last_right_line_coff.at<double>(0,0) = right_perspective_pt[1].x - last_right_line_coff.at<double>(1,0) * right_perspective_pt[1].y;
-
-      right_detect_num = 0;
-      if(TrackYellowLine(perspective_gray, 1, last_right_line_coff, new_right_line_coff) == false){
-        fNoRightLaneDis += car_center_arc_len;
-        right_track_num++;
-      }else{
-        if(fabs(last_right_line_coff.at<double>(1,0) - new_right_line_coff.at<double>(1,0)) > 0.3){
-          fNoRightLaneDis += car_center_arc_len;
-          right_track_num++;
-        }else{
-          right_track_num = 0;
-          last_right_line_coff.at<double>(1,0) = new_right_line_coff.at<double>(1,0) * 0.4 + last_right_line_coff.at<double>(1,0) * 0.6;
-          last_right_line_coff.at<double>(0,0) = new_right_line_coff.at<double>(0,0) * 0.4 + last_right_line_coff.at<double>(0,0) * 0.6;
-        }
-      }
-    }
-    //if(right_track_num > 6){
-    if(fNoRightLaneDis > 1.0 || right_track_num > 10){
-      right_detect_num = 0;
-      right_track_num = 0;
-      right_track_status = 0;
-    }
-    if(right_detect_num >= 3){
-      right_track_status = 1;
-      right_detect_num = 0;
-      right_track_num = 0;
-      fNoRightLaneDis = 0.0;
-    }
-  }
-  last_time = cur_time;
-  
-  if(fabs(last_left_line_coff.at<double>(1,0)) < 0.3){
-      if(last_left_line_coff.at<double>(0, 0) > image.cols / 2){
-        //left_track_status = 0;
-      }
-  }
-  if(fabs(last_right_line_coff.at<double>(1,0)) < 0.3){
-      if(last_right_line_coff.at<double>(0, 0) < image.cols / 2){
-        //right_track_status = 0;
-      }
-  }
-  if(nLinePos == 1){
-    if(left_track_status == 1) {
-        last_right_line_coff.at<double>(1, 0) = last_left_line_coff.at<double>(1, 0);
-        last_right_line_coff.at<double>(0, 0) = last_left_line_coff.at<double>(0, 0) + lane_w * sqrt(1 + pow(last_left_line_coff.at<double>(1, 0),2));
-        //AERROR<<"use_left_cal_right";
-      }
-  }
-  if(nLinePos == 2){
-    if((right_track_status == 1)){
-        last_left_line_coff.at<double>(1, 0) = last_right_line_coff.at<double>(1, 0);
-        last_left_line_coff.at<double>(0, 0) = last_right_line_coff.at<double>(0, 0) - lane_w * sqrt(1 + pow(last_right_line_coff.at<double>(1, 0),2));
-        //AERROR<<"use_right_cal_left";
-      }
-  }
-  
-  if(nLinePos == 3){
-    if((left_track_status == 1) && (right_track_status == 1))
-    {
-      if(fabs(last_left_line_coff.at<double>(1, 0) - last_right_line_coff.at<double>(1, 0)) > 0.3){
-        left_track_status = 0;
-        right_track_status = 0;
-      }
-      else{
-        float k = (last_right_line_coff.at<double>(1, 0) + last_left_line_coff.at<double>(1, 0)) / 2;
-        lane_w = fabs((last_right_line_coff.at<double>(0, 0) - last_left_line_coff.at<double>(0, 0))) / sqrt(1 + k * k);
-        if(lane_w > fLaneW + 50 || lane_w < fLaneW - 50){
-          lane_w = fLaneW;
-          left_track_status = 0;
-          right_track_status = 0;
-        }
-      }
-    }
-    nOutputValid = (left_track_status == 1) && (right_track_status == 1);
-  }
-  else{
-    nOutputValid = (left_track_status == 1) || (right_track_status == 1);
-  }
-
-  Eigen::Vector3d img_pt_temp;
-  Eigen::Vector3d grd_pt_temp;
-  
-  double temp;
-  double temp_x, temp_y1, temp_y2;
-  
-  cv::Point2f undistort_pt_left[2], undistort_pt_right[2];
-  cv::Point2f perspective_pt_left[2], perspective_pt_right[2];
-  
-  float row[2] = {0.0, static_cast<float>(perspective.rows - 1)};
-  for(int i = 0; i < 2; i++){
-    perspective_pt_left[i].y = row[i];
-    perspective_pt_left[i].x = last_left_line_coff.at<double>(1, 0) * perspective_pt_left[i].y  + last_left_line_coff.at<double>(0, 0);
-    temp = m_perspective_inv_.at<double>(2, 0) * perspective_pt_left[i].x + 
-            m_perspective_inv_.at<double>(2, 1) * perspective_pt_left[i].y + 
-            m_perspective_inv_.at<double>(2, 2);
-    undistort_pt_left[i].x = (m_perspective_inv_.at<double>(0, 0) * perspective_pt_left[i].x + 
-              m_perspective_inv_.at<double>(0, 1) * perspective_pt_left[i].y + 
-              m_perspective_inv_.at<double>(0, 2)) / temp;
-    undistort_pt_left[i].y = (m_perspective_inv_.at<double>(1, 0) * perspective_pt_left[i].x + 
-              m_perspective_inv_.at<double>(1, 1) * perspective_pt_left[i].y + 
-              m_perspective_inv_.at<double>(1, 2)) / temp;
-    img_pt_temp<<undistort_pt_left[i].x, undistort_pt_left[i].y, 1.0;
-    grd_pt_temp = homography_im2car_lane * img_pt_temp;
-    
-    left_car_grd_pt[i].x = grd_pt_temp[0] / grd_pt_temp[2];
-    left_car_grd_pt[i].y  = grd_pt_temp[1] / grd_pt_temp[2];
-  }
-  
-  
-  left_line_coff_grd.at<double>(1, 0) = (left_car_grd_pt[0].y - left_car_grd_pt[1].y) / (left_car_grd_pt[0].x - left_car_grd_pt[1].x);
-  left_line_coff_grd.at<double>(0, 0) = left_car_grd_pt[0].y - left_line_coff_grd.at<double>(1, 0) * left_car_grd_pt[0].x;
-  temp_x = 2.0;//车辆中心
-  temp_y1 = left_line_coff_grd.at<double>(1, 0) * temp_x + left_line_coff_grd.at<double>(0, 0);
-  
-  
-  for(int i = 0; i < 2; i++){
-    perspective_pt_right[i].y = row[i];
-    perspective_pt_right[i].x = last_right_line_coff.at<double>(1, 0) * perspective_pt_right[i].y  + last_right_line_coff.at<double>(0, 0);
-    temp = m_perspective_inv_.at<double>(2, 0) * perspective_pt_right[i].x + 
-            m_perspective_inv_.at<double>(2, 1) * perspective_pt_right[i].y + 
-            m_perspective_inv_.at<double>(2, 2);
-    undistort_pt_right[i].x = (m_perspective_inv_.at<double>(0, 0) * perspective_pt_right[i].x + 
-              m_perspective_inv_.at<double>(0, 1) * perspective_pt_right[i].y + 
-              m_perspective_inv_.at<double>(0, 2)) / temp;
-    undistort_pt_right[i].y = (m_perspective_inv_.at<double>(1, 0) * perspective_pt_right[i].x + 
-              m_perspective_inv_.at<double>(1, 1) * perspective_pt_right[i].y + 
-              m_perspective_inv_.at<double>(1, 2)) / temp;
-    img_pt_temp<<undistort_pt_right[i].x, undistort_pt_right[i].y, 1.0;
-    grd_pt_temp = homography_im2car_lane * img_pt_temp;
-    right_car_grd_pt[i].x = grd_pt_temp[0] / grd_pt_temp[2];
-    right_car_grd_pt[i].y  = grd_pt_temp[1] / grd_pt_temp[2];
-  }
-
-  right_line_coff_grd.at<double>(1, 0) = (right_car_grd_pt[0].y - right_car_grd_pt[1].y) / (right_car_grd_pt[0].x - right_car_grd_pt[1].x);
-  right_line_coff_grd.at<double>(0, 0) = right_car_grd_pt[0].y - right_line_coff_grd.at<double>(1, 0) * right_car_grd_pt[0].x;
-  temp_x = 2.0;//车辆中心
-  temp_y2 = right_line_coff_grd.at<double>(1, 0) * temp_x + right_line_coff_grd.at<double>(0, 0);
-  //AERROR<<"temp_y1:"<<temp_y1<<"temp_y2:"<<temp_y2;
-  AERROR<<"nOutputValid:"<<nOutputValid<<"left_detect_num"<<left_detect_num<<","<<"left_track_status,"<<left_track_status<<","<<"right_detect_num"<<right_detect_num<<","<<"right_track_status:"<<right_track_status;
-  AERROR<<"temp_y1:"<<temp_y1<<"temp_y2"<<temp_y2;
-  if(nOutputValid == 1){
-    if(temp_y1 > 0 && temp_y2 < 0){//左侧车道线在车辆中心左侧，右侧车道线在车辆中心右侧
-      base::LaneLine left_line_obj;
-      left_line_obj.curve_car_coord.x_start = 6.0;
-      left_line_obj.curve_car_coord.x_end = 10.0;
-      left_line_obj.curve_car_coord.a = 0.0;
-      left_line_obj.curve_car_coord.b = 0;
-      left_line_obj.curve_car_coord.c = left_line_coff_grd.at<double>(1,0);
-      left_line_obj.curve_car_coord.d = left_line_coff_grd.at<double>(0,0);
-      left_line_obj.pos_type = base::LaneLinePositionType::EGO_LEFT;
-      left_line_obj.type = base::LaneLineType::YELLOW_SOLID;
-      frame->lane_objects.push_back(left_line_obj);
-      AERROR<<"left k:"<<left_line_obj.curve_car_coord.c<<"left b:"<<left_line_obj.curve_car_coord.d;
-
-      base::LaneLine right_line_obj;
-      right_line_obj.curve_car_coord.x_start = 6.0;
-      right_line_obj.curve_car_coord.x_end = 10.0;
-      right_line_obj.curve_car_coord.a = 0.0;
-      right_line_obj.curve_car_coord.b = 0;
-      right_line_obj.curve_car_coord.c = right_line_coff_grd.at<double>(1,0);
-      right_line_obj.curve_car_coord.d = right_line_coff_grd.at<double>(0,0);
-      right_line_obj.pos_type = base::LaneLinePositionType::EGO_RIGHT;
-      right_line_obj.type = base::LaneLineType::YELLOW_SOLID;
-      frame->lane_objects.push_back(right_line_obj);
-      AERROR<<"right k:"<<right_line_obj.curve_car_coord.c<<"right b:"<<right_line_obj.curve_car_coord.d;
-      if(FLAGS_lane_debug_display){
-        cv::line(image, undistort_pt_left[0], undistort_pt_left[1], cv::Scalar(0, 0, 0), 2);
-        cv::line(perspective, perspective_pt_left[0], perspective_pt_left[1], cv::Scalar(0, 0, 0), 2);
-        cv::line(image, undistort_pt_right[0], undistort_pt_right[1], cv::Scalar(255, 255, 255), 2);
-        cv::line(perspective, perspective_pt_right[0], perspective_pt_right[1], cv::Scalar(255, 255, 255), 2);
-      }
-   }
-  }
-  if(FLAGS_lane_debug_display){
-    cv::namedWindow("image", CV_WINDOW_NORMAL);
-    cv::imshow("image", image);
-    cv::namedWindow("perspective", CV_WINDOW_NORMAL);
-    cv::imshow("perspective", perspective);
-    cvWaitKey(1);
-  }
-  return true;
 }
 bool FusionCameraDetectionComponent::DetectLaneNew(cv::Mat & image, camera::CameraFrame *frame) {
   if (image.empty())
@@ -2126,7 +1362,7 @@ bool FusionCameraDetectionComponent::DetectLaneNew(cv::Mat & image, camera::Came
     }else{
       //AERROR<<"last2:"<<&(last_left_line_coff.at<double>(1,0))<<last_left_line_coff.at<double>(1,0)<<","<< last_left_line_coff.at<double>(0,0);
       //AERROR<<"new2:"<<&(new_left_line_coff.at<double>(1,0))<<new_left_line_coff.at<double>(1,0)<<","<< new_left_line_coff.at<double>(0,0);
-      if(fabs(last_left_line_coff.at<double>(1,0) - new_left_line_coff.at<double>(1,0)) > 0.15){
+      if(fabs(last_left_line_coff.at<double>(1,0) - new_left_line_coff.at<double>(1,0)) > 0.3){
         left_track_num++;
       }else{
         left_track_num = 0;
@@ -2135,7 +1371,7 @@ bool FusionCameraDetectionComponent::DetectLaneNew(cv::Mat & image, camera::Came
       }
       //AERROR<<"last::::::"<<last_left_line_coff.at<double>(1,0)<<","<< last_left_line_coff.at<double>(0,0);
     }
-    if(left_track_num > 3){
+    if(left_track_num > 5){
       if((right_track_num <= 2) && (right_track_status == 1)){
         //last_left_line_coff.at<double>(2, 0) = last_right_line_coff.at<double>(2, 0);
         last_left_line_coff.at<double>(1, 0) = last_right_line_coff.at<double>(1, 0);
@@ -2173,7 +1409,7 @@ bool FusionCameraDetectionComponent::DetectLaneNew(cv::Mat & image, camera::Came
     if(TrackLine(perspective, abs_grad_x, 1, last_right_line_coff, new_right_line_coff) == false){
        right_track_num++;
     }else{
-      if(fabs(last_right_line_coff.at<double>(1,0) - new_right_line_coff.at<double>(1,0)) > 0.15){
+      if(fabs(last_right_line_coff.at<double>(1,0) - new_right_line_coff.at<double>(1,0)) > 0.3){
         right_track_num++;
       }else{
         right_track_num = 0;
@@ -2181,7 +1417,7 @@ bool FusionCameraDetectionComponent::DetectLaneNew(cv::Mat & image, camera::Came
         last_right_line_coff.at<double>(0,0) = new_right_line_coff.at<double>(0,0) * 0.4 + last_right_line_coff.at<double>(0,0) * 0.6;
       }
     }
-    if(right_track_num > 3){
+    if(right_track_num > 5){
       if((left_track_num <= 2) && left_track_status == 1) {
         //last_right_line_coff.at<double>(2, 0) = last_left_line_coff.at<double>(2, 0);
         last_right_line_coff.at<double>(1, 0) = last_left_line_coff.at<double>(1, 0);
@@ -2194,17 +1430,20 @@ bool FusionCameraDetectionComponent::DetectLaneNew(cv::Mat & image, camera::Came
   }
   if(fabs(last_left_line_coff.at<double>(1,0)) < 0.3){
       if(last_left_line_coff.at<double>(0, 0) > 600){
-        //left_track_status = 0;
-        //AERROR<<"left_igawig";
+        left_track_status = 0;
       }
   }
   if(fabs(last_right_line_coff.at<double>(1,0)) < 0.3){
       if(last_right_line_coff.at<double>(0, 0) < 450){
-        //right_track_status = 0;
-        //AERROR<<"right_igawig";
+        right_track_status = 0;
       }
   }
-
+  // if(fabs(last_left_line_coff.at<double>(2,0)) > 0.0005){
+  //   left_track_status = 0;
+  // }
+  // if(fabs(last_right_line_coff.at<double>(2,0)) > 0.0005){
+  //   right_track_status = 0;
+  // }
   if(left_track_status == 1 && right_track_status == 1){
     lane_w = last_right_line_coff.at<double>(0, 0) - last_left_line_coff.at<double>(0, 0);
     AERROR<<"lane_w:"<<lane_w;
@@ -2222,7 +1461,7 @@ bool FusionCameraDetectionComponent::DetectLaneNew(cv::Mat & image, camera::Came
       Eigen::Vector3d img_pt_temp;
       Eigen::Vector3d grd_pt_temp;
       double temp,temp_x, temp_y;
-      for (int i = 900; i > 0; i-=3) {
+      for (int i = 500; i > 0; i--) {
         //col = last_left_line_coff.at<double>(2, 0) * i * i + last_left_line_coff.at<double>(1, 0) * i + last_left_line_coff.at<double>(0, 0);
         col = last_left_line_coff.at<double>(1, 0) * i + last_left_line_coff.at<double>(0, 0);
         if(col > 0 && col < perspective.cols){
@@ -2235,13 +1474,13 @@ bool FusionCameraDetectionComponent::DetectLaneNew(cv::Mat & image, camera::Came
           left_line_pt_grd.y  = grd_pt_temp[1] / grd_pt_temp[2];
           left_line_pts_grd.push_back(left_line_pt_grd);
           if(FLAGS_lane_debug_display){
-            cv::circle(image, cv::Point(temp_x, temp_y), 3, cv::Scalar(0, 0, 0), -1);
-            cv::circle(perspective, cv::Point(col, i), 3, cv::Scalar(0, 0, 0), -1);
+            cv::circle(image, cv::Point(temp_x, temp_y), 1, cv::Scalar(0, 0, 0));
+            cv::circle(perspective, cv::Point(col, i), 1, cv::Scalar(0, 0, 0));
           }
         }
       }
       polynomial_curve_fit(left_line_pts_grd, 1, left_line_coff_grd);
-      for (int i = 900; i > 0; i-=3) {
+      for (int i = 500; i > 0; i--) {
         //col = last_right_line_coff.at<double>(2, 0) * i * i + last_right_line_coff.at<double>(1, 0) * i + last_right_line_coff.at<double>(0, 0);
         col = last_right_line_coff.at<double>(1, 0) * i + last_right_line_coff.at<double>(0, 0);
         if(col > 0 && col < perspective.cols){
@@ -2254,8 +1493,8 @@ bool FusionCameraDetectionComponent::DetectLaneNew(cv::Mat & image, camera::Came
           right_line_pt_grd.y  = grd_pt_temp[1] / grd_pt_temp[2];
           right_line_pts_grd.push_back(right_line_pt_grd);
           if(FLAGS_lane_debug_display){
-            cv::circle(image, cv::Point(temp_x, temp_y), 3, cv::Scalar(255, 255, 255), -1);
-            cv::circle(perspective, cv::Point(col, i), 3, cv::Scalar(255, 255, 255), -1);
+            cv::circle(image, cv::Point(temp_x, temp_y), 1, cv::Scalar(255, 255, 255));
+            cv::circle(perspective, cv::Point(col, i), 1, cv::Scalar(255, 255, 255));
           }
         }
       }
@@ -2294,7 +1533,6 @@ bool FusionCameraDetectionComponent::DetectLaneNew(cv::Mat & image, camera::Came
   }
   return true;
 }
-//first version,disert
 bool FusionCameraDetectionComponent::DetectLane(cv::Mat & image, std::vector<cv::Vec4i> &lines_img) {
   if (image.empty())
   {
@@ -2656,15 +1894,12 @@ int FusionCameraDetectionComponent::InternalProc(
   const double msg_timestamp =
       in_message->measurement_time() + timestamp_offset_;
   const int frame_size = static_cast<int>(camera_frames_.size());
-  camera::CameraFrame &camera_frame = camera_frames_[frame_id_ % frame_size];
-  prefused_message->timestamp_ = msg_timestamp;
-  prefused_message->seq_num_ = seq_num_;
-  prefused_message->process_stage_ = ProcessStage::MONOCULAR_CAMERA_DETECTION;
-  prefused_message->sensor_id_ = camera_name;
-  prefused_message->frame_ = base::FramePool::Instance().Get();
-  prefused_message->frame_->sensor_info = sensor_info_map_[camera_name];
-  prefused_message->frame_->timestamp = msg_timestamp;
-
+  int &frame_id = frame_id_map_[camera_name];
+  int nTotalFrameNum = 0;
+  for(auto camera_idx:camera_names_) {
+    nTotalFrameNum += frame_id_map_[camera_idx];
+  }
+  camera::CameraFrame &camera_frame = camera_frames_[nTotalFrameNum % frame_size];
   // Get sensor to world pose from TF
   Eigen::Affine3d camera2world_trans =  Eigen::Affine3d::Identity();
   if (0){//!camera2world_trans_wrapper_map_[camera_name]->GetSensor2worldTrans(
@@ -2677,9 +1912,7 @@ int FusionCameraDetectionComponent::InternalProc(
     prefused_message->error_code_ = *error_code;
     return cyber::FAIL;
   }
-  //Eigen::Affine3d world2camera = camera2world_trans.inverse();
-
-  prefused_message->frame_->sensor2world_pose = camera2world_trans;
+  Eigen::Affine3d world2camera = camera2world_trans.inverse();
 
   // Fill camera frame
   // frame_size != 0, see InitCameraFrames()
@@ -2690,7 +1923,7 @@ int FusionCameraDetectionComponent::InternalProc(
       reinterpret_cast<const uint8_t *>(in_message->data().data()),
       in_message->encoding());
 
-  camera_frame.frame_id = frame_id_;
+  camera_frame.frame_id = frame_id;//frame_id_
   camera_frame.timestamp = msg_timestamp;
   // get narrow to short projection matrix
   if (camera_frame.data_provider->sensor_name() == camera_names_[1]) {
@@ -2698,34 +1931,43 @@ int FusionCameraDetectionComponent::InternalProc(
   } else {
     camera_frame.project_matrix.setIdentity();
   }
-
-  ++frame_id_;
- 
-  double cur_speed = 0.0;
-  double cur_angle = 0.0;
-  double diff;
-  chassis_reader_->Observe();
-  auto msg = chassis_reader_->GetLatestObserved();
-  if (msg)
-  {
-    cur_speed = msg->speed_mps();
-    cur_angle = msg->steering_percentage();
-    float fScale_temp = 25 * (180 / 3.1415926);
-    cur_angle = cur_angle * 8.5 / fScale_temp;
-  }
-  if(camera_name == guide_post_detect_camera_){
-    cv::Mat output_image(image_height_, image_width_, CV_8UC3,
+  ++frame_id;
+  // Run camera perception pipeline
+  camera_obstacle_pipeline_->GetCalibrationService(
+      &camera_frame.calibration_service);
+  // cv::Mat src_gray_image(image_height_, image_width_, CV_8UC1);
+  // base::Image8U src_gray_8U(image_height_, image_width_, base::Color::GRAY);
+  // camera::DataProvider::ImageOptions image_options_gray;
+  // image_options_gray.target_color = base::Color::GRAY;
+  // camera_frame.data_provider->GetImage(image_options_gray, &src_gray_8U);
+  // memcpy(src_gray_image.data, src_gray_8U.cpu_data(),
+  //       src_gray_8U.total() * sizeof(uint8_t)); 
+  
+  cv::Mat output_image(image_height_, image_width_, CV_8UC3,
                        cv::Scalar(250, 0, 0));
-    base::Image8U out_image(image_height_, image_width_, base::Color::RGB);
-    camera::DataProvider::ImageOptions image_options;
-    image_options.target_color = base::Color::BGR;
-    camera_frame.data_provider->GetImage(image_options, &out_image);
-    memcpy(output_image.data, out_image.cpu_data(),
-          out_image.total() * sizeof(uint8_t));
-    camera_frame.lane_objects.clear();
+  base::Image8U out_image(image_height_, image_width_, base::Color::RGB);
+  camera::DataProvider::ImageOptions image_options;
+  image_options.target_color = base::Color::BGR;
+  camera_frame.data_provider->GetImage(image_options, &out_image);
+  memcpy(output_image.data, out_image.cpu_data(),
+         out_image.total() * sizeof(uint8_t));
+  std::vector<cv::Vec4i> lines_img;
+  std::vector<cv::Vec4i> after_filter_lines;
+  camera_frame.lane_objects.clear();
 
-    cv::Mat undistort_img(output_image.rows,output_image.cols,CV_32FC3);
-    cv::remap(output_image,undistort_img,mapx_,mapy_,cv::INTER_NEAREST);
+  cv::Mat undistort_img(output_image.rows,output_image.cols,CV_32FC3);
+  // double diff;
+  // double time1 = apollo::common::time::Clock::NowInSeconds();
+  cv::remap(output_image,undistort_img,mapx_,mapy_,cv::INTER_NEAREST);
+
+  // double time2 = apollo::common::time::Clock::NowInSeconds();
+  // diff = time2 - time1;
+  // AERROR<<"remap:"<<diff;
+  // cv::Mat src_img = cv::imread("test2.png", 1);
+  // cv::Mat new_src_img;
+  // cv::resize(src_img, new_src_img, cv::Size(1920, 1080), 0, 0, cv::INTER_NEAREST);
+  // cv::cvtColor(new_src_img, src_gray_image, CV_BGR2GRAY);
+  if(camera_name == lane_detect_camera_){
     cv::eigen2cv(homography_im2car_,mat_homography_im2car_);
     std::vector<cv::Point2f> guide_post_grd_pt;
     DetectGuidePost(undistort_img, guide_post_grd_pt);
@@ -2733,12 +1975,18 @@ int FusionCameraDetectionComponent::InternalProc(
     // diff = time3 - time2;
     // AERROR<<"DetectGuidePost:"<<diff;
     const auto vec_routing_pts = routing_map_.routing_pt();
-    //cv::imwrite("front_3.jpg", output_image);
-    
+    float cur_speed = 0.0;
+    double diff;
     if(guide_post_time_start_){
       double cur_time = apollo::common::time::Clock::NowInSeconds();
       diff = cur_time - last_time_;
-      
+      chassis_reader_->Observe();
+      auto msg = chassis_reader_->GetLatestObserved();
+      if (msg)
+      {
+        cur_speed = msg->speed_mps();
+        
+      }
       veh_run_dis_ += diff * cur_speed;
       last_time_ = cur_time;
       //AERROR<<"veh_run_dis_:"<<veh_run_dis_<<","<<diff<<","<<cur_speed;
@@ -2755,6 +2003,7 @@ int FusionCameraDetectionComponent::InternalProc(
       } else {
         if((veh_run_dis_ > 1.8) || ((guide_post_grd_pt[0].x > guide_post_last_pt_.x + 0.5) && (veh_run_dis_ > 1.0))){
           AERROR<<"guide post:"<<guide_post_cur_id_<<","<<veh_run_dis_<<","<<guide_post_grd_pt[0].x<<","<<guide_post_grd_pt[0].y;
+        //if((guide_post_grd_pt[0].x < 6.5) && (guide_post_grd_pt[0].x > guide_post_last_pt_.x + 0.5)){
           veh_run_dis_ = 0.0;
           guide_post_cur_id_index_++;
           if(guide_post_direction_ == true){
@@ -2773,83 +2022,196 @@ int FusionCameraDetectionComponent::InternalProc(
       //AERROR<<"guide post:"<<guide_post_cur_id_<<","<<veh_run_dis_<<","<<guide_post_grd_pt[0].x<<;
       SendRoutingMsg(std::to_string(guide_post_cur_id_),std::to_string(guide_post_end_id_),
                      guide_post_grd_pt[0], vec_routing_pts[guide_post_cur_id_index_].lan_type());
-      
-      control::PadMessage pad_msg;
-      apollo::common::Header* header = pad_msg.mutable_header();
-      double publish_time = apollo::common::time::Clock::NowInSeconds();
-      header->set_timestamp_sec(publish_time);
-      header->set_module_name("perception_camera");
-      header->set_camera_timestamp(static_cast<uint64_t>(msg_timestamp * 1e9));
-      //pad_msg.set_allocated_header(header);//mutable_header()
-      pad_msg.set_moving_distance(guide_post_grd_pt[0].x);
-      pad_message_writer_->Write(pad_msg);
     }
-    
-  }
-  if(camera_name == lane_detect_camera_){
-    cv::Mat output_image(image_height_, image_width_, CV_8UC3,
-                       cv::Scalar(250, 0, 0));
-    base::Image8U out_image(image_height_, image_width_, base::Color::RGB);
-    camera::DataProvider::ImageOptions image_options;
-    image_options.target_color = base::Color::BGR;
-    camera_frame.data_provider->GetImage(image_options, &out_image);
-    memcpy(output_image.data, out_image.cpu_data(),
-          out_image.total() * sizeof(uint8_t));
-    camera_frame.lane_objects.clear();
+    cv::Mat undistort_img_gray;
+    cv::cvtColor(undistort_img,undistort_img_gray,CV_BGR2GRAY);
+    DetectLaneNew(undistort_img_gray, &camera_frame);
+    // double time4 = apollo::common::time::Clock::NowInSeconds();
+    // diff = time4 - time3;
+    // AERROR<<"DetectLaneNew:"<<diff;
+  } else {
+    prefused_message->timestamp_ = msg_timestamp;
+    prefused_message->seq_num_ = seq_num_;
+    prefused_message->process_stage_ = ProcessStage::MONOCULAR_CAMERA_DETECTION;
+    prefused_message->sensor_id_ = camera_name;
+    prefused_message->frame_ = base::FramePool::Instance().Get();
+    prefused_message->frame_->sensor_info = sensor_info_map_[camera_name];
+    prefused_message->frame_->timestamp = msg_timestamp;
+    prefused_message->frame_->sensor2world_pose = camera2world_trans;
 
-    cv::Mat undistort_img(output_image.rows,output_image.cols,CV_32FC3);
-    cv::remap(output_image,undistort_img,mapx_,mapy_,cv::INTER_NEAREST);
-
-    double car_latitude = gnss_bestpos_.latitude();//维度
-    double car_longitude = gnss_bestpos_.longitude();//经度
-    
-    double first_pt_latitude = 22.4994592277778;
-    double first_pt_longitude = 113.864127486111;
-    double second_pt_latitude = 22.4958948555556;
-    double second_pt_longitude = 113.864929077778;
-    double f = (second_pt_latitude - first_pt_latitude) * (car_longitude - first_pt_longitude) 
-               - (car_latitude - first_pt_latitude) * (second_pt_longitude - first_pt_longitude);
-    //岸桥下车道宽度2.9米，岸桥和堆场中间车道宽度4.0米，堆场2.9米，纵向3.9米
-    if(f < 0){
-      //AERROR<<"detect left----"<<"car_latitude:"<<car_latitude<<"car_longitude:"<<car_longitude;
-      DetectYellowLane(undistort_img, 1, 300,&camera_frame, cur_speed, cur_angle);//1:left;2:right;3:left and right
-    }else{
-      //AERROR<<"detect two side----"<<"car_latitude:"<<car_latitude<<"car_longitude:"<<car_longitude;
-      DetectYellowLane(undistort_img, 3, 290,&camera_frame, cur_speed, cur_angle);//1:left;2:right;3:left and right
-    }
-    //AERROR<<"DetectLaneNew:"<<diff;
-    //cv::imwrite("front_1.jpg", output_image);
-    //  std::cout << "ly front_1 imshow test" << std::endl;
-    // cv::imshow("front_1.jpg", output_image);
-    // cv::waitKey(1000);
-    //add by houxuefeng 
-    const std::vector<base::ObjectPtr> objects_temp;
-    if (output_final_obstacles_ &&
-      MakeProtobufMsg(msg_timestamp, seq_num_, objects_temp,    //modify camera_frame.tracked_objects to objects_temp, only send lane msg
-                      camera_frame.lane_objects, *error_code,
-                      out_message) != cyber::SUCC) {
-      AERROR << "MakeProtobufMsg failed ts: " << msg_timestamp;
-      *error_code = apollo::common::ErrorCode::PERCEPTION_ERROR_UNKNOWN;
+    AERROR << "LYTEST ready to obstacle perception";
+    if (!camera_obstacle_pipeline_->Perception(camera_perception_options_,&camera_frame)){
+      AERROR << "camera_obstacle_pipeline_->Perception() failed"
+          << " msg_timestamp: " << msg_timestamp;
+      *error_code = apollo::common::ErrorCode::PERCEPTION_ERROR_PROCESS;
       prefused_message->error_code_ = *error_code;
       return cyber::FAIL;
     }
-  }
 
-  *error_code = apollo::common::ErrorCode::OK;
-  prefused_message->error_code_ = *error_code;
-  prefused_message->frame_->camera_frame_supplement.on_use = true;
-  if (FLAGS_obs_enable_visualization) {
-    camera::DataProvider::ImageOptions image_options;
-    image_options.target_color = base::Color::RGB;
+    AINFO << "##" << camera_name << ": pitch "
+          << camera_frame.calibration_service->QueryPitchAngle()
+          << " | camera_grond_height "
+          << camera_frame.calibration_service->QueryCameraToGroundHeight();
+    prefused_message->frame_->objects = camera_frame.tracked_objects;
+    // TODO(gaohan02, wanji): check the boxes with 0-width in perception-camera
+    //add by houxuefeng
+    //char str[100];
 
-    // Use Blob to pass image data
-    prefused_message->frame_->camera_frame_supplement.image_blob.reset(
+    const cv::Rect rectified_rect(100, 100,
+                                    100, 100);
+    cv::Scalar tl_color;
+    tl_color = cv::Scalar(255, 0, 0);
+    prefused_message->frame_->camera_frame_supplement.image_ptr =  camera_frame.data_provider->bgr_;           
+    //add by houxuefeng
+    prefused_message->frame_->objects.clear();
+    for (auto obj : camera_frame.tracked_objects) {
+      auto &box = obj->camera_supplement.box;
+      int trackid = obj->track_id;
+      if (box.xmin < box.xmax && box.ymin < box.ymax) {
+        prefused_message->frame_->objects.push_back(obj);
+        //add by houxuefeng
+        const cv::Rect rectified_rect(box.xmin, box.ymin,
+                                    box.xmax-box.xmin, box.ymax-box.ymin);
+        cv::Scalar tl_color;
+        tl_color = cv::Scalar(0, 255, 0);
+        std::string obj_name;
+        switch (int(obj->sub_type)) {
+          case 0:case 1:case 2:
+            obj_name = "unknown";
+            break;
+          case 3: case 4: case 5:case 6:
+            obj_name = "veh";
+            break;
+          case 7:case 8:case 9:
+            obj_name = "cyclist";
+            break;
+          case 10:
+            obj_name = "ped";
+            break;
+          case 11:
+            obj_name = "trafficcone";
+            break;
+          default:
+            obj_name = "error";
+            break;
+        }
+        float obj_img_h = box.ymax-box.ymin;
+        float obj_world_h = obj->size[2];
+        if(box.xmax - box.xmin > 450) {
+          //continue;//
+        }
+        float dis = obj_world_h * 2000 / obj_img_h;
+        std::string res;
+        res = obj_name + std::to_string(dis);
+        obj_name = obj_name + std::to_string(trackid);
+        cv::putText(output_image, obj_name, cv::Point(box.xmin, box.ymin),
+                cv::FONT_HERSHEY_DUPLEX, 1.0, tl_color, 3);
+        cv::rectangle(output_image, rectified_rect, tl_color, 2);
+        //add by houxuefeng
+      }
+    }
+
+    // display frame id
+    cv::putText(output_image, std::to_string(camera_frame.frame_id), cv::Point(100,100),
+          cv::FONT_HERSHEY_DUPLEX, 1.0, cv::Scalar(0,0,255), 3);
+
+    cv::namedWindow(camera_name, CV_WINDOW_NORMAL);
+    cv::resizeWindow(camera_name, 640, 480);
+    //add by houxuefeng
+    cv::imshow(camera_name, output_image);
+    cvWaitKey(1);                      
+    //add by houxuefeng
+    // process success, make pb msg
+    *error_code = apollo::common::ErrorCode::OK;
+    prefused_message->error_code_ = *error_code;
+    prefused_message->frame_->camera_frame_supplement.on_use = true;
+    if (FLAGS_obs_enable_visualization) {
+      camera::DataProvider::ImageOptions image_options;
+      image_options.target_color = base::Color::RGB;
+
+      // Use Blob to pass image data
+      prefused_message->frame_->camera_frame_supplement.image_blob.reset(
         new base::Blob<uint8_t>);
-    camera_frame.data_provider->GetImageBlob(
-        image_options,
+      camera_frame.data_provider->GetImageBlob(image_options,
         prefused_message->frame_->camera_frame_supplement.image_blob.get());
+    }
+  }
+  const std::vector<base::ObjectPtr> objects_temp;
+  if (output_final_obstacles_ &&
+      MakeProtobufMsg(msg_timestamp, seq_num_, objects_temp,    //modify camera_frame.tracked_objects to objects_temp, only send lane msg
+                      camera_frame.lane_objects, *error_code,
+                      out_message) != cyber::SUCC) {
+    AERROR << "MakeProtobufMsg failed ts: " << msg_timestamp;
+    *error_code = apollo::common::ErrorCode::PERCEPTION_ERROR_UNKNOWN;
+    prefused_message->error_code_ = *error_code;
+    return cyber::FAIL;
   }
 
+  //  Determine CIPV
+  if (enable_cipv_) {
+    CipvOptions cipv_options;
+    if (motion_buffer_ != nullptr) {
+      if (motion_buffer_->size() == 0) {
+        AWARN << "motion_buffer_ is empty";
+        cipv_options.velocity = 5.0f;
+        cipv_options.yaw_rate = 0.0f;
+      } else {
+        cipv_options.velocity = motion_buffer_->back().velocity;
+        cipv_options.yaw_rate = motion_buffer_->back().yaw_rate;
+      }
+      ADEBUG << "[CIPV] velocity " << cipv_options.velocity
+             << ", yaw rate: " << cipv_options.yaw_rate;
+      cipv_.DetermineCipv(camera_frame.lane_objects, cipv_options, world2camera,
+                          &camera_frame.tracked_objects);
+
+      // Get Drop points
+      if (motion_buffer_->size() > 0) {
+        cipv_.CollectDrops(motion_buffer_, world2camera,
+                           &camera_frame.tracked_objects);
+      } else {
+        AWARN << "motion_buffer is empty";
+      }
+    }
+  }
+
+  // Send msg for visualization
+  if (enable_visualization_) {
+    camera::DataProvider::ImageOptions image_options;
+    image_options.target_color = base::Color::BGR;
+    std::shared_ptr<base::Blob<uint8_t>> image_blob(new base::Blob<uint8_t>);
+    camera_frame.data_provider->GetImageBlob(image_options, image_blob.get());
+    std::shared_ptr<CameraPerceptionVizMessage> viz_msg(
+        new (std::nothrow) CameraPerceptionVizMessage(
+            camera_name, msg_timestamp, camera2world_trans.matrix(), image_blob,
+            camera_frame.tracked_objects, camera_frame.lane_objects,
+            *error_code));
+    bool send_viz_ret = camera_viz_writer_->Write(viz_msg);
+    AINFO << "send out camera visualization msg, ts: " << msg_timestamp
+          << " send_viz_ret: " << send_viz_ret;
+
+    cv::Mat output_image(image_height_, image_width_, CV_8UC3,
+                         cv::Scalar(0, 0, 0));
+    base::Image8U out_image(image_height_, image_width_, base::Color::RGB);
+    camera_frame.data_provider->GetImage(image_options, &out_image);
+    memcpy(output_image.data, out_image.cpu_data(),
+           out_image.total() * sizeof(uint8_t));
+    visualize_.ShowResult_all_info_single_camera(output_image, camera_frame,
+                                                 motion_buffer_, world2camera);
+  }
+
+  // send out camera debug message
+  if (output_camera_debug_msg_) {
+    // camera debug msg
+    std::shared_ptr<apollo::perception::camera::CameraDebug> camera_debug_msg(
+        new (std::nothrow) apollo::perception::camera::CameraDebug);
+    if (MakeCameraDebugMsg(msg_timestamp, camera_name, camera_frame,
+                           camera_debug_msg.get()) != cyber::SUCC) {
+      AERROR << "make camera_debug_msg failed";
+      return cyber::FAIL;
+    }
+    camera_debug_writer_->Write(camera_debug_msg);
+  }
+  
   return cyber::SUCC;
 }
 int FusionCameraDetectionComponent::SendRoutingMsg(std::string cur_id,std::string end_id,cv::Point2f guide_post_pos, LanType lane_type){

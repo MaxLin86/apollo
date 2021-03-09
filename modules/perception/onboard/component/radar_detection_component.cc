@@ -60,44 +60,28 @@ bool RadarDetectionComponent::Init() {
 }
 
 bool RadarDetectionComponent::Proc(const std::shared_ptr<ContiRadar>& message) {
-  double timestamp = apollo::common::time::Clock::NowInSeconds();
-  static double leftCornerTime = 0.0;
-  static double leftRadarTime = 0.0;
-  static double rightCornerTime = 0.0;
-  static double rightRadarTime = 0.0;
-
+  AINFO << "Enter radar preprocess, message timestamp: "
+        << message->header().timestamp_sec() << " current timestamp "
+        << apollo::common::time::Clock::NowInSeconds();
   if (message->radar_id() == 1 ||
       message->header().module_name() == "radar_left") {
     messageCollection(message, &leftObs_);
-    leftRadarTime = timestamp;
   } else if (message->radar_id() == 2 ||
              message->header().module_name() == "radar_left_corner") {
     messageCollection(message, &leftCornerObs_);
-    leftCornerTime = timestamp;
   } else if (message->radar_id() == -1 ||
              message->header().module_name() == "radar_right") {
     messageCollection(message, &rightObs_);
-    rightRadarTime = timestamp;
-  } else if (message->radar_id() == -2 ||
+  } else if (message->radar_id() == 2 ||
              message->header().module_name() == "radar_right_corner") {
     messageCollection(message, &rightCornerObs_);
-    rightCornerTime = timestamp;
   } else if (message->radar_id() == 0 ||
              message->header().module_name() == "radar_front") {
-    fflush(NULL);
-    // // fuse object list
-    if (std::fabs(timestamp - leftRadarTime) < 1.0) {
-      radarObjectFuse(leftObs_, *message);
-    }
-    if (std::fabs(timestamp - leftCornerTime) < 1.0) {
-      radarObjectFuse(leftCornerObs_, *message);
-    }
-    if (std::fabs(timestamp - rightRadarTime) < 1.0) {
-      radarObjectFuse(rightObs_, *message);
-    }
-    if (std::fabs(timestamp - rightCornerTime) < 1.0) {
-      radarObjectFuse(rightCornerObs_, *message);
-    }
+    // fuse object list
+    radarObjectFuse(leftCornerObs_, *message);
+    radarObjectFuse(rightCornerObs_, *message);
+    radarObjectFuse(leftObs_, *message);
+    radarObjectFuse(rightObs_, *message);
     FuseMainObj(*message);
     // //middle_radar_message
 

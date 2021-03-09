@@ -19,14 +19,14 @@ cc_library(
     ],
 )
 
-cc_test(
-    name = "kalman_motion_fusion_test",
-    size = "small",
-    srcs = ["kalman_motion_fusion_test.cc"],
-    deps = [
-        ":kalman_motion_fusion",
-        "@gtest//:main",
-    ],
-)
+#cc_test(
+#    name = "kalman_motion_fusion_test",
+#    size = "small",
+#    srcs = ["kalman_motion_fusion_test.cc"],
+#    deps = [
+#        ":kalman_motion_fusion",
+#        "@gtest//:main",
+#    ],
+#)
 
 cpplint()

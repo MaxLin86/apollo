@@ -7,9 +7,11 @@ message FusionComponentConfig {
   optional string fusion_main_sensor = 2;
   optional bool object_in_roi_check = 3;
   optional double radius_for_roi_object_check = 4;
-
+  
   optional string output_obstacles_channel_name = 5
       [default = "/perception/obstacles"];
   optional string output_viz_fused_content_channel_name = 6
       [default = "/perception/inner/visualization/FusedObjects"];
+  optional string fused_obstacle_tracker_conf_dir = 7
+      [default = "modules/perception/production/conf/perception/fusion"];
 }

@@ -41,8 +41,6 @@
 #include "modules/routing/proto/routing.pb.h"
 #include "modules/perception/proto/guidepost_routing_map.pb.h"
 #include "modules/canbus/proto/chassis.pb.h"
-#include "modules/drivers/gnss/proto/gnss_best_pose.pb.h"
-#include "modules/control/proto/pad_msg.pb.h"
 #include <opencv2/opencv.hpp>
 typedef std::shared_ptr<apollo::perception::Motion_Service>
     MotionServiceMsgType;
@@ -80,10 +78,6 @@ class FusionCameraDetectionComponent : public apollo::cyber::Component<> {
   bool DetectGuidePost(cv::Mat img, std::vector<cv::Point2f> &grd_pt);
   bool polynomial_curve_fit(std::vector<cv::Point2f>& key_point, int n, cv::Mat& A);
   bool FindLinePt(cv::Mat &image, cv::Mat gra_img, int  row, int col_start, int col_end, float &line_center_x, float &line_w); 
-  void FitLineRansac(const std::vector<cv::Point2f>& points, cv::Vec4f &line, int iterations, double sigma, double k_min, double k_max);
-  bool DetectYellowLine(cv::Mat & image, int nLinePos, cv::Mat &line_coff);
-  bool TrackYellowLine(cv::Mat &image, int line_pos, const cv::Mat input_line_coff, cv::Mat & output_line_coff);
-  bool DetectYellowLane(cv::Mat & image, int nLinePos, float fLaneW, camera::CameraFrame *frame, double fCarSpeed, double fCarAngle);
   bool DetectLine(cv::Mat &image, cv::Mat img_grad, int line_pos, cv::Mat &line_coff);
   bool TrackLine(cv::Mat &image, cv::Mat img_grad, int line_pos, const cv::Mat input_line_coff, cv::Mat & output_line_coff);
   bool DetectLaneNew(cv::Mat & image, camera::CameraFrame *frame);
@@ -120,7 +114,6 @@ class FusionCameraDetectionComponent : public apollo::cyber::Component<> {
   int SendRoutingMsg(std::string cur_id,std::string end_id,cv::Point2f guide_post_pos, LanType lane_type);
  private:
   std::mutex mutex_;
-  std::mutex gnss_bestpos_mutex_;
   uint32_t seq_num_;
 
   std::vector<std::shared_ptr<cyber::Node>> camera_listener_nodes_;
@@ -167,9 +160,6 @@ class FusionCameraDetectionComponent : public apollo::cyber::Component<> {
   std::shared_ptr<::apollo::cyber::Writer<apollo::routing::RoutingResponse>> response_writer_ = nullptr;
   std::shared_ptr<apollo::cyber::Reader<apollo::canbus::Chassis>>
       chassis_reader_;
-  std::shared_ptr<apollo::cyber::Reader<apollo::drivers::gnss::GnssBestPose>>
-      gps_reader_;
-  apollo::drivers::gnss::GnssBestPose gnss_bestpos_;
   GuidepostRoutingMap routing_map_;
   // camera obstacle pipeline
   camera::CameraPerceptionInitOptions camera_perception_init_options_;
@@ -178,7 +168,7 @@ class FusionCameraDetectionComponent : public apollo::cyber::Component<> {
 
   // fixed size camera frames
   int frame_capacity_ = 20;
-  int frame_id_ = 0;
+  std::map<std::string, int> frame_id_map_;
   std::vector<camera::CameraFrame> camera_frames_;
 
   // image info.
@@ -228,8 +218,6 @@ class FusionCameraDetectionComponent : public apollo::cyber::Component<> {
   std::shared_ptr<
       apollo::cyber::Writer<apollo::perception::camera::CameraDebug>>
       camera_debug_writer_;
-  std::shared_ptr<cyber::Writer<apollo::control::PadMessage>>
-      pad_message_writer_;
 
   // variable for motion service
   base::MotionBufferPtr motion_buffer_;
@@ -250,7 +238,6 @@ class FusionCameraDetectionComponent : public apollo::cyber::Component<> {
   float last_frame_left_line[4];
   float last_frame_right_line[4];
   std::string lane_detect_camera_;
-  std::string guide_post_detect_camera_;
   double last_time_;
   bool guide_post_time_start_;
   float veh_run_dis_;
