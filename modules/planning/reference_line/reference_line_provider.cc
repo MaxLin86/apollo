@@ -286,7 +286,7 @@ bool ReferenceLineProvider::GetReferenceLinesFromRelativeMap(
   CHECK_NOTNULL(segments);
 
   if (relative_map_->navigation_path().empty()) {
-    AERROR << "There isn't any navigation path in current relative map.";
+   // AERROR << "There isn't any navigation path in current relative map.";
     return false;
   }
 

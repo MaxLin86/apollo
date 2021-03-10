@@ -249,7 +249,6 @@ void YoloObstacleDetector::InitYoloBlob(const yolo::NetworkParam &net_param) {
 }
 
 bool YoloObstacleDetector::Init(const ObstacleDetectorInitOptions &options) {
-    AERROR << "LYTEST YoloObstacleDetector Init";
   gpu_id_ = options.gpu_id;
   BASE_CUDA_CHECK(cudaSetDevice(gpu_id_));
   BASE_CUDA_CHECK(cudaStreamCreate(&stream_));

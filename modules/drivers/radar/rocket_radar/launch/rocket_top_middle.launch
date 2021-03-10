@@ -1,0 +1,8 @@
+<cyber>
+    <module>
+        <name>radar_top_middle</name>
+        <dag_conf>/apollo/modules/drivers/radar/rocket_radar/dag/rocket_top_middle.dag</dag_conf>
+        <process_name>radar_top_middle</process_name>
+    </module>
+
+</cyber>

@@ -1,4 +1,4 @@
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/staticslice_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/scanobject_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/include/serializer.h"
@@ -140,14 +140,14 @@ void                 StaticSlice_Impl::allocate()
 
 void                 StaticSlice_Impl::handle_uhdp(const UhdpStaticSliceHeader* msg, uint32_t total_size, uint8_t uhdp_ver)
 {
-    if (total_size < sizeof(UhdpStaticSliceHeader) + sizeof(RDC_SSRsummary))
+    if (aborted)
+    {
+        return;
+    }
+    else if (total_size < sizeof(UhdpStaticSliceHeader))
     {
         fprintf(stderr, "Static Slice message is too small: %d bytes\n", total_size);
         aborted = true;
-        return;
-    }
-    if (aborted)
-    {
         return;
     }
 
@@ -157,6 +157,8 @@ void                 StaticSlice_Impl::handle_uhdp(const UhdpStaticSliceHeader* 
 
     if (!skewer_size)
     {
+        allocate();
+
         write_ptr = (char*)ss;
 
         skewer_size = msg->per_tuple_size;
@@ -197,29 +199,38 @@ void                 StaticSlice_Impl::handle_uhdp(const UhdpStaticSliceHeader* 
         cur_doppler_bin = 0;
     }
 
-    while (total_size >= msg->per_tuple_size)
+    if (uhdp_ver >= 34)
     {
-        memcpy(write_ptr, payload, skewer_size);
-        write_ptr  += skewer_size;
-        payload    += skewer_size;
-        total_size -= skewer_size;
-
-        if (++cur_doppler_bin == num_captured_slices && uhdp_ver < 31)
+        memcpy(write_ptr, payload, total_size);
+        write_ptr  += total_size;
+        total_size  = 0;
+    }
+    else
+    {
+        while (total_size >= msg->per_tuple_size)
         {
-            const RDC_SSRsummary& rsum = *reinterpret_cast<const RDC_SSRsummary*>(payload);
-            if (rsum.R_bin != cur_range_bin)
+            memcpy(write_ptr, payload, skewer_size);
+            write_ptr  += skewer_size;
+            payload    += skewer_size;
+            total_size -= skewer_size;
+
+            if (++cur_doppler_bin == num_captured_slices && uhdp_ver < 31)
             {
-                printf("Static slice rbin summary is invalid\n");
-                aborted = true;
-                return;
+                const RDC_SSRsummary& rsum = *reinterpret_cast<const RDC_SSRsummary*>(payload);
+                if (rsum.R_bin != cur_range_bin)
+                {
+                    printf("Static slice rbin summary is invalid\n");
+                    aborted = true;
+                    return;
+                }
+
+                myscan.range_bins[cur_range_bin].exponent = rsum.exponent;
+                cur_range_bin++;
+                cur_doppler_bin = 0;
+
+                payload    += sizeof(RDC_SSRsummary);
+                total_size -= sizeof(RDC_SSRsummary);
             }
-
-            myscan.range_bins[cur_range_bin].exponent = rsum.exponent;
-            cur_range_bin++;
-            cur_doppler_bin = 0;
-
-            payload    += sizeof(RDC_SSRsummary);
-            total_size -= sizeof(RDC_SSRsummary);
         }
     }
 
@@ -324,6 +335,8 @@ bool                 StaticSlice_Impl::deserialize(ScanSerializer& s)
     size_t len = s.begin_read_scan_data_type(fname);
     if (len)
     {
+        allocate();
+
         bool ok = true;
         cint16* ssc = (cint16*)ss;
         uint32_t samples = myscan.scan_info.SS_size_A * num_captured_slices;

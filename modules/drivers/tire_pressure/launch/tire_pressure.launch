@@ -1,0 +1,7 @@
+<cyber>
+    <module>
+        <name>tire_pressure</name>
+        <dag_conf>/apollo/modules/drivers/tire_pressure/dag/tire_pressure.dag</dag_conf>
+        <process_name></process_name>
+    </module>
+</cyber>

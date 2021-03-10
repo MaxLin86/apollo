@@ -1,6 +1,8 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #pragma once
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/rdc-threshctrl.h"
 #include "modules/drivers/radar/rocket_radar/driver/include/scanobject.h"
 
@@ -19,15 +21,16 @@ class StaticSlice_Impl;
 class ZeroDoppler_Impl;
 class Activations_Impl;
 class PointCloud_Impl;
+class Tracks_Impl;
 class MUSICData_Impl;
 class RadarDataCube1_Impl;
 class ADCCaptureData_Impl;
+class FrameObject_Impl;
 class EnvScanData;
-struct RDC_ThresholdControl;
 
 // This enum should be at least as large as the maximum number of beamforming
-// angles of any radar that SRA communicate with
-enum { MAX_MAX_ROUGH_ANGLES = 192 };
+// angles of any radar that RRA communicate with
+enum { MAX_MAX_ROUGH_ANGLES = 384 };
 
 class ScanObject_Impl: public ScanObject
 {
@@ -41,6 +44,7 @@ public:
         , myzd(NULL)
         , myact(NULL)
         , mypc(NULL)
+        , mytracks(NULL)
         , mymusic(NULL)
         , myrdc1(NULL)
         , myadc(NULL)
@@ -50,19 +54,21 @@ public:
         , motherboard_type_name(NULL)
         , antennaboard_type_name(NULL)
         , antenna_module_type_name(NULL)
+        , rdc3_blob(NULL)
         , vrx_mapping(NULL)
         , zero_d_bins(NULL)
         , hw_coredump_pi(NULL)
         , hw_coredump_si(NULL)
-        , rdc1_playback_data(NULL)
         , range_bins(NULL)
         , angle_bins(NULL)
         , histograms(NULL)
         , dprobe_out(NULL)
         , adi_measured_dc(NULL)
+        , completed_aprobes(NULL)
         , first_envdata(NULL)
         , last_envdata(NULL)
         , next_scan_object(NULL)
+        , myframe(NULL)
         , rx_pos(NULL)
         , tx_pos(NULL)
         , num_range_bins_rcvd(0)
@@ -72,8 +78,8 @@ public:
         , hw_coredump_pi_received(0)
         , hw_coredump_si_total_bytes(0)
         , hw_coredump_si_received(0)
-        , rdc1_playback_received(0)
-        , rdc1_playback_total_bytes(0)
+        , num_completed_aprobes(0)
+        , rdc3_blob_size_bytes(0)
         , rear_axle_distance(3.91f)
         , centerline_distance(0)
         , mount_height(0.7f)
@@ -90,6 +96,8 @@ public:
     virtual                           ~ScanObject_Impl();
 
     virtual const UhdpScanInformation& get_scan_info() const         { return scan_info; }
+
+    virtual const char*                get_scan_info_as_json() const;
 
     virtual Err                        get_last_error() const        { return last_err; }
 
@@ -110,6 +118,8 @@ public:
     virtual RadarDataCube1*            get_rdc1();
 
     virtual ADCCaptureData*            get_adc();
+
+    virtual Tracks*                    get_tracks();
 
     virtual const RDC_ThresholdControl* get_scan_thresholds() const    { return &mythresh; }
 
@@ -139,7 +149,13 @@ public:
 
     virtual const RDC_adi_measured_dc* get_measured_dc() const { return adi_measured_dc; }
 
+    virtual INT                        get_num_completed_aprobes() const { return num_completed_aprobes; }
+
+    virtual bool                       get_completed_aprobe(INT index, RDC_AprobeRequest& request) const;
+
     virtual const uint16_t*            get_zero_doppler_bins() const { return zero_d_bins; }
+
+    virtual const char*                get_sparse_rdc3_blob(size_t& length) { length = size_t(rdc3_blob_size_bytes); return rdc3_blob; }
 
     virtual float                      get_azimuth_rad(uint32_t az_bin) const;
 
@@ -153,9 +169,15 @@ public:
 
     virtual const vec3f_t&             get_receiver_position(uint32_t rxid) const;
 
+    virtual void                       get_mounting_distances(float& rear_axle_dist, float& centerline_dist, float& height) const;
+
+    virtual void                       get_mounting_angles(float& azimuth_deg, float& elevation_deg) const;
+
     virtual void                       save_to_session(const char* session_path) const;
 
     virtual void                       serialize(ScanSerializer& s) const;
+
+    virtual void                       serialize_scan_info_json(ScanSerializer& s) const;
 
     virtual void                       release();
 
@@ -172,6 +194,8 @@ public:
             void                       release_activations(Activations& act);
 
             void                       release_pointcloud(PointCloud& act);
+
+            void                       release_tracks(Tracks& t);
 
             void                       release_music(MUSICData& mus);
 
@@ -191,7 +215,13 @@ public:
 
             bool                       serialize_scan_info(ScanSerializer& s) const;
 
+            bool                       deserialize_scan_info_bin(ScanSerializer& s, size_t bytes, bool& format_075);
+
+            bool                       serialize_scan_info_bin(ScanSerializer& s) const;
+
             EnvScanData*               find_envdata(uint32_t msg_id, bool create);
+
+            void                       attach_blob(char* blob, uint32_t size_bytes);
 
     UhdpScanInformation scan_info;
 
@@ -208,6 +238,8 @@ public:
     Activations_Impl*   myact;
 
     PointCloud_Impl*    mypc;
+
+    Tracks_Impl*        mytracks;
 
     MUSICData_Impl*     mymusic;
 
@@ -231,6 +263,8 @@ public:
 
     const char*         antenna_module_type_name;
 
+    const char*         rdc3_blob;
+
     uint8_t*            vrx_mapping;
 
     uint16_t*           zero_d_bins;
@@ -238,8 +272,6 @@ public:
     char*               hw_coredump_pi;
 
     char*               hw_coredump_si;
-
-    char*               rdc1_playback_data;
 
     UhdpRangeBinInfo*   range_bins;
 
@@ -251,11 +283,15 @@ public:
 
     RDC_adi_measured_dc* adi_measured_dc;
 
+    RDC_AprobeRequest*  completed_aprobes;
+
     EnvScanData*        first_envdata;
 
     EnvScanData*        last_envdata;
 
     ScanObject_Impl*    next_scan_object; // singly linked list for Conn
+
+    FrameObject_Impl*   myframe;          // is scan linked to a FrameObject?
 
     vec3f_t*            rx_pos;
 
@@ -275,9 +311,9 @@ public:
 
     uint32_t            hw_coredump_si_received;
 
-    uint32_t            rdc1_playback_received;
+    uint32_t            num_completed_aprobes;
 
-    uint32_t            rdc1_playback_total_bytes;
+    uint32_t            rdc3_blob_size_bytes;
 
     float               rear_axle_distance;
 

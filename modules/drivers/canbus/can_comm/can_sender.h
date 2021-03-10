@@ -300,6 +300,49 @@ void CanSender<SensorType>::PowerSendThreadFunc() {
       }
       std::vector<CanFrame> can_frames;
       CanFrame can_frame = message.CanFrame();
+
+
+      /* add@20201228: for msg count& checksum, tbd... */
+      if (can_frame.id == 0x98ffefe8) {
+        static uint8_t message_counter = 0;
+
+        uint32_t message_checksum = 0;
+        uint32_t id = can_frame.id - 0x80000000;
+        for(int i = 0; i < 7; i++){
+          message_checksum += can_frame.data[i];
+        }
+        message_checksum += (message_counter & 0x0F);
+        message_checksum += ((id & 0xFF) + ((id >> 8) & 0xFF) + ((id >> 16) & 0xFF) + ((id >> 24) & 0xFF));
+        message_checksum = ((message_checksum >> 4) + message_checksum) & 0x0F;
+
+        can_frame.data[7] = (message_counter & 0x0F) + ((message_checksum << 4) & 0xF0);
+        message_counter = (message_counter + 1) % 16;
+      }
+
+      /* add@20210224: brake ctrl */
+      static uint8_t s_brake_message_counter = 0;
+      static uint8_t s_brake_message_exit_flag = 0;
+      static uint8_t s_brake_message_valid_flag = 0;
+      if (can_frame.id == 0x8c04eb0a) {
+        if (can_frame.data[3] == 0 &&
+            can_frame.data[4] == 0 && 
+            can_frame.data[5] == 0 && 
+            can_frame.data[6] == 0) {
+          if (s_brake_message_exit_flag == 0) {
+            s_brake_message_exit_flag = 1;
+            s_brake_message_counter = (s_brake_message_valid_flag == 1) ? 3 : 0;
+          }
+          if (s_brake_message_counter > 0) {
+            s_brake_message_counter--;
+          } else {
+            continue;
+          }
+        } else {
+          s_brake_message_valid_flag = 1;
+          s_brake_message_exit_flag = 0;
+        }
+      }
+
       can_frames.push_back(can_frame);
       if (can_client_->SendSingleFrame(can_frames) != common::ErrorCode::OK) {
         AERROR << "Send msg failed:" << can_frame.CanFrameString();

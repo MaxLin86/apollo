@@ -1,0 +1,23 @@
+syntax = "proto2";
+
+package apollo.roadguide;
+
+import "modules/common/proto/header.proto";
+
+message MeasAnt {
+  optional uint32 id = 1;
+  optional uint32 mag = 2;
+  optional string mag_bar = 3;
+}
+
+message MeasRow {
+  optional uint32 row_num = 1;
+  repeated MeasAnt meas_ant = 2;
+}
+
+message RoadguideMsg {
+  optional apollo.common.Header header = 1;
+  optional int32 id = 2;
+  optional int32 pos_x = 3;
+  repeated MeasRow meas_row = 4;
+}

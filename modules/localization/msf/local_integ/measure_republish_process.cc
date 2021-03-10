@@ -25,6 +25,8 @@
 #include "modules/localization/msf/common/util/time_conversion.h"
 #include "yaml-cpp/yaml.h"
 
+#define ant_baseline_length 1.6
+
 namespace apollo {
 namespace localization {
 namespace msf {
@@ -420,6 +422,16 @@ void MeasureRepublishProcess::TransferXYZFromBestgnsspose(
   measure->variance[2][2] =
       bestgnsspos_msg.height_std_dev() * bestgnsspos_msg.height_std_dev();
 
+      if (measure->variance[0][0] > 0.01) {
+        //measure->variance[0][0] /= 10;
+      }
+      if (measure->variance[1][1] > 0.01) {
+       // measure->variance[1][1] /= 10;
+      }
+      if (measure->variance[2][2] > 0.01) {
+        //measure->variance[2][2] *= 500;
+      }
+
   measure->measure_type = MeasureType::GNSS_POS_ONLY;
   measure->frame_type = FrameType::ENU;
   height_mutex_.lock();
@@ -553,6 +565,22 @@ bool MeasureRepublishProcess::GnssHeadingProcess(
           << position_type;
     return false;
   }
+
+  // add by shzhw
+  auto baseline_length = heading_msg.baseline_length();
+  if (baseline_length < ant_baseline_length-0.5 || baseline_length > ant_baseline_length+0.5) {
+    AINFO << "the heading's baseline_length is invalid: "
+          << baseline_length;      
+    return false;
+  }
+  //auto extended_solution_status = heading_msg.extended_solution_status();
+  //if (extended_solution_status <=0) {
+  //  AINFO << "the heading's extended_solution_status is invalid: "
+  //        << extended_solution_status;    
+   // return false;
+  //}
+  //----------------------------
+
   measure_data->time = heading_msg.measurement_time();
   if (is_trans_gpstime_to_utctime_) {
     measure_data->time = GpsToUnixSeconds(measure_data->time);
@@ -716,6 +744,37 @@ bool MeasureRepublishProcess::CheckBestgnssposeStatus(
           << "or xy fixed or height fixed: " << gnss_position_type;
     return false;
   }
+
+  // add by shzhw
+  /*
+  static int invalid_cnt = 0;
+  static int inval_to_val_cnt = 0;
+  if (bestgnsspos_msg.sol_type() ==16 ||
+        bestgnsspos_msg.sol_type() ==17) {
+  //if (bestgnsspos_msg.sol_type() <47 ||
+   //     bestgnsspos_msg.sol_type() >51) {        
+          AERROR << "TYPE:    " << bestgnsspos_msg.sol_type() << ",  " << static_cast<int>(bestgnsspos_msg.sol_type());
+          invalid_cnt++;
+          inval_to_val_cnt=0;
+          return false;
+ }
+
+ if (bestgnsspos_msg.sol_type() ==50 ||bestgnsspos_msg.sol_type() ==48) {
+   if (invalid_cnt > 2) {
+     AERROR << "invalid TYPE:    " << bestgnsspos_msg.sol_type() << ",  " << static_cast<int>(bestgnsspos_msg.sol_type());
+     
+     inval_to_val_cnt++;
+     //return false;
+     if (inval_to_val_cnt < 1) {
+       return false;
+     } else {
+       invalid_cnt =0;
+     }
+   }
+   
+ }
+ */
+ 
 
   return true;
 }

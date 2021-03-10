@@ -29,10 +29,10 @@ bool UltrasonicRadarCanbusComponent::Init() {
 }
 
 bool UltrasonicRadarCanbusComponent::Proc() {
-  Ultra431 tmpValue;
-  SenderMessage<Ultrasonic> sender_message(Ultra431::ID,&tmpValue);
-  sender_message.Update();
-  utralsonic_radar_canbus_.can_client_->SendSingleFrame({sender_message.CanFrame()}); 
+  // Ultra401 tmpValue;
+  // SenderMessage<Ultrasonic> sender_message(Ultra401::ID,&tmpValue);
+  // // sender_message.Update();
+  // utralsonic_radar_canbus_.can_client_->SendSingleFrame({sender_message.CanFrame()}); 
   return true; 
 }
 

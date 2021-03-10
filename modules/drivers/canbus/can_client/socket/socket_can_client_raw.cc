@@ -164,6 +164,19 @@ ErrorCode SocketCanClientRaw::Send(const std::vector<CanFrame> &frames,
              << CANBUS_MESSAGE_LENGTH << ").";
       return ErrorCode::CAN_CLIENT_ERROR_SEND_FAILED;
     }
+#if 0
+
+  if(frames[i].id == 0x98ffefe8){
+    static int num=0;
+    num++;
+    if(num%10000 <= 3){
+       return ErrorCode::OK; 
+    }
+  }
+#endif
+  /*   if (!(frames[i].id == 0x98ffefe8 || frames[i].id == 0x8cff1400 || frames[i].id == 0x8cff1600)) {
+      AERROR << "CAN id err:" << std::hex << frames[i].id << "dlc=" << frames[i].len;
+    } */
     send_frames_[i].can_id = frames[i].id;
     send_frames_[i].can_dlc = frames[i].len;
     std::memcpy(send_frames_[i].data, frames[i].data, frames[i].len);

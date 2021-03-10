@@ -1,29 +1,8 @@
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2017 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #pragma once
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/uhtypes.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/scp-src/eng-api/uhdp-msg-structs.h"
 #include "modules/drivers/radar/rocket_radar/driver/include/radardatacube1.h"
@@ -48,19 +27,30 @@ public:
         , rdc1(NULL)
         , rdc1exp(NULL)
         , range_exponents(NULL)
+        , rdc1_playback_data(NULL)
+        , rdc1_playback_received(0)
+        , rdc1_playback_total_bytes(0)
         , aborted(false)
     {
-        allocate();
     }
 
     virtual ~RadarDataCube1_Impl()
     {
-        delete [] rdc1;
-        delete [] rdc1exp;
-        delete [] range_exponents;
+        if (rdc1_playback_data)
+        {
+            delete [] rdc1_playback_data;
+        }
+        else
+        {
+            delete [] rdc1;
+            delete [] rdc1exp;
+        }
         rdc1 = NULL;
         rdc1exp = NULL;
+        rdc1_playback_data = NULL;
+
         range_exponents = NULL;
+        delete [] range_exponents;
     }
 
     virtual uint32_t             get_range_dimension() const;
@@ -71,9 +61,19 @@ public:
 
     virtual const cint16*        get_samples() const;
 
+    virtual const char*          get_exponent_data() const;
+
+    virtual const char*          get_rdc1_info() const;
+
     virtual uint32_t             get_exponent_at_pulse_range(uint32_t pulse, uint32_t range_bin) const;
 
-    virtual const char*          get_exponent_data() const;
+    virtual size_t               get_rdc1_size_bytes() const;
+
+    virtual size_t               get_rdc1_exp_size_bytes() const;
+
+    virtual size_t               get_rdc1_info_size_bytes() const;
+
+    virtual bool                 is_replayable() const { return rdc1_playback_data != NULL; }
 
     virtual void                 release();
 
@@ -82,6 +82,8 @@ public:
             void                 allocate();
 
             void                 handle_uhdp(const char *payload, uint32_t total_size);
+
+            void                 handle_replay_uhdp(const char* payload, uint32_t total_size);
 
             void                 setup();
 
@@ -98,6 +100,12 @@ public:
     char*            rdc1exp;
 
     RangeExponentData* range_exponents;
+
+    char*            rdc1_playback_data;
+
+    uint32_t         rdc1_playback_received;
+
+    uint32_t         rdc1_playback_total_bytes;
 
     bool             aborted;
 };

@@ -1,33 +1,13 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_UHMATH_H
 #define SRS_HDR_UHMATH_H 1
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
 
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/uhtypes.h"
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhmathtypes.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhmathtypes.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhstdlib.h"
 
 SRS_DECLARE_NAMESPACE()
 
@@ -74,7 +54,7 @@ static UHINLINE FLOAT db2mag(FLOAT db)               { return powf(10.0F, db * 0
 
 static UHINLINE FLOAT mag2db(FLOAT f)                { return 20.0F * log10f(f); }
 
-static UHINLINE FLOAT rfa_to_db(FLOAT rfa, size_t num_cells) { return mag2db(uh_sqrtf(-2 * logf(float(double(rfa) / num_cells)))); }
+static UHINLINE FLOAT rfa_to_db(FLOAT rfa, size_t num_cells) { return mag2db(uh_sqrtf(-2 * logf(float(double(rfa) / double(num_cells))))); }
 
 static UHINLINE int32_t uh_lroundf(FLOAT f)
 {
@@ -83,27 +63,27 @@ static UHINLINE int32_t uh_lroundf(FLOAT f)
 
 static UHINLINE uint16_t f2qu16(FLOAT f, INT frac_bit)
 {
-    FLOAT v = f * (1 << frac_bit) + 0.5F;
+    FLOAT v = f * float(1 << frac_bit) + 0.5F;
     return (uint16_t)(v < 0.0F ? 0 : v > 65535.0F ? 65535.0F : v);
 }
 
 static UHINLINE int16_t  f2q16(FLOAT f, INT frac_bit)
 {
     FLOAT round = f < 0 ? -0.5F : 0.5F;
-    FLOAT v = f * (1 << frac_bit) + round;
+    FLOAT v = f * float(1 << frac_bit) + round;
     return (int16_t)(v < -32768.0F ? -32768.0F : v > 32767.0F ? 32767.0F : v);
 }
 
 static UHINLINE uint32_t f2qu32(FLOAT f, INT frac_bit)
 {
-    FLOAT v = f * (1 << frac_bit) + 0.5F;
+    FLOAT v = f * float(1 << frac_bit) + 0.5F;
     return (uint32_t)(v < 0.0F ? 0.0F : v > 4294967295.0F ? 4294967295.0F : v);
 }
 
 static UHINLINE int32_t f2q32(FLOAT f, INT frac_bit)
 {
     FLOAT round = f < 0 ? -0.5F : 0.5F;
-    FLOAT v = f * (1 << frac_bit) + round;
+    FLOAT v = f * float(1 << frac_bit) + round;
     return (int32_t)(v < -2147483648.0F ? -2147483648.0F : v > 2147483647.0F ? 2147483647.0F : v);
 }
 
@@ -199,6 +179,16 @@ static UHINLINE void     quadratic_interpolate_db(cfloat &y, FLOAT &x, cfloat a,
     y = db2mag(y1);
 }
 
+
+uint16_t ransac(                         // Return: number of inliers (static targets)
+                FLOAT*      best_model,  // Output: best model
+                FLOAT*      data,        // Input:  data array
+                uint16_t    n_data,      // Input:  number of data (detections)
+                FLOAT*      initial,     // Input:  initial conditions
+                FLOAT       swing,       // Input:  max deviation from initial conditions
+                uint16_t    n_sample,    // Input:  number of samples selected randomly (not used now, taking 2 samples)
+                uint16_t    iteration,   // Input:  number of iterations
+                FLOAT       threshold);  // Input:  residual threshold (0.005)
 
 SRS_CLOSE_NAMESPACE()
 

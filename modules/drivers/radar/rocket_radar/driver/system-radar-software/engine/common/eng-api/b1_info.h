@@ -1,6 +1,8 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_B1_INFO_H
 #define SRS_HDR_B1_INFO_H 1
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/uhnder_part.h"
 
 SRS_DECLARE_NAMESPACE()
@@ -12,9 +14,11 @@ struct RcpB2AuthenticationData
 {
     uint32_t img_length;
     uint32_t signature_length;
-    uint32_t key_length;
+    uint32_t key_mod_length;
+    uint32_t key_exp_length;
     uint32_t *authenticated_img_addr;
-    uint32_t key[64];
+    uint32_t key_mod[64];
+    uint32_t key_exp[64];
     uint32_t signature[64];
 };
 

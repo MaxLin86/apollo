@@ -177,7 +177,9 @@ bool NavigationLane::GeneratePath() {
   */
 
   // method 2, to do
-  static auto pre_lane_marker = perception_obstacles_.mutable_lane_marker();
+  /**/
+  //static auto pre_lane_marker = perception_obstacles_.mutable_lane_marker();
+  static auto pre_lane_marker = perception_obstacles_.lane_marker();
   static double left_lane_marker_c0 = 0.0;
   static double left_lane_marker_c1 = 0.0;
   static double left_lane_marker_view_range = 0.0;
@@ -188,14 +190,22 @@ bool NavigationLane::GeneratePath() {
            perception_obstacles_.lane_marker().has_left_lane_marker() &&
            perception_obstacles_.lane_marker().left_lane_marker().has_c0_position() &&
            perception_obstacles_.lane_marker().has_right_lane_marker()) {
-    pre_lane_marker = perception_obstacles_.mutable_lane_marker();
+    //pre_lane_marker = perception_obstacles_.mutable_lane_marker();
+    pre_lane_marker.CopyFrom(perception_obstacles_.lane_marker());
     // AERROR << pre_lane_marker->left_lane_marker().c0_position();
-    left_lane_marker_c0 = pre_lane_marker->left_lane_marker().c0_position();
-    left_lane_marker_c1 = pre_lane_marker->left_lane_marker().c1_heading_angle();
-    left_lane_marker_view_range = pre_lane_marker->left_lane_marker().view_range();
-    right_lane_marker_c0 = pre_lane_marker->right_lane_marker().c0_position();
-    right_lane_marker_c1 = pre_lane_marker->right_lane_marker().c1_heading_angle();
-    right_lane_marker_view_range = pre_lane_marker->right_lane_marker().view_range();
+    //left_lane_marker_c0 = pre_lane_marker->left_lane_marker().c0_position();
+    //left_lane_marker_c1 = pre_lane_marker->left_lane_marker().c1_heading_angle();
+    //left_lane_marker_view_range = pre_lane_marker->left_lane_marker().view_range();
+    //right_lane_marker_c0 = pre_lane_marker->right_lane_marker().c0_position();
+    //right_lane_marker_c1 = pre_lane_marker->right_lane_marker().c1_heading_angle();
+    //right_lane_marker_view_range = pre_lane_marker->right_lane_marker().view_range();
+
+    left_lane_marker_c0 = pre_lane_marker.left_lane_marker().c0_position();
+    left_lane_marker_c1 = pre_lane_marker.left_lane_marker().c1_heading_angle();
+    left_lane_marker_view_range = pre_lane_marker.left_lane_marker().view_range();
+    right_lane_marker_c0 = pre_lane_marker.right_lane_marker().c0_position();
+    right_lane_marker_c1 = pre_lane_marker.right_lane_marker().c1_heading_angle();
+    right_lane_marker_view_range = pre_lane_marker.right_lane_marker().view_range();
   } else {    
     perception_obstacles_.mutable_lane_marker()->mutable_left_lane_marker()->set_c0_position(left_lane_marker_c0);
     perception_obstacles_.mutable_lane_marker()->mutable_left_lane_marker()->set_c1_heading_angle(left_lane_marker_c1);
@@ -212,6 +222,15 @@ bool NavigationLane::GeneratePath() {
     perception_obstacles_.mutable_lane_marker()->mutable_right_lane_marker()->set_view_range(right_lane_marker_view_range);  
    // perception_obstacles_.mutable_lane_marker()->CopyFrom(*pre_lane_marker); //no do
   }
+  if (lane_marker_miss_count_ > 6) {
+    //LogErrorStatus(map_msg, "no perception lane marker!"); 
+    //AERROR << "555555555555555: " << lane_marker_miss_count_;
+    //AERROR << "666666666666666: " << perception_obstacles_.lane_marker().left_lane_marker().c0_position();
+    perception_obstacles_.clear_lane_marker();
+    //pre_lane_marker
+    //return false;
+  }
+  
   //-----------------------------
 
   const auto &lane_marker = perception_obstacles_.lane_marker();
@@ -432,6 +451,27 @@ void NavigationLane::MergeNavigationLineAndLaneMarker(
 
   int lane_marker_index = 0;
   double navigation_line_weight = 1.0 - config_.lane_marker_weight();
+
+  // add by shzhw,test
+  double lane_marker_weight_t = config_.lane_marker_weight();  
+  auto vehicle_pose_t = VehicleStateProvider::Instance()->original_pose();
+  const double veh_px_t = vehicle_pose_t.position().x();
+  const double veh_py_t = vehicle_pose_t.position().y();
+  double veh_rote_px_t = veh_px_t*cos(-1.24)+veh_py_t*sin(-1.24);
+  double veh_heading_t = vehicle_pose_t.heading();
+  
+  if (std::fabs(veh_heading_t-1.9) < 0.12  
+           && veh_rote_px_t < -2097592.92697106 && veh_rote_px_t >-2097614.49570406) {
+    lane_marker_weight_t = 0.65;
+  }
+  if (std::fabs(veh_heading_t-1.9) < 0.15
+           && veh_rote_px_t <-2097696.78063490 && veh_rote_px_t >-2097725.74572335) {
+    lane_marker_weight_t = 0.85;
+  }
+
+  navigation_line_weight = 1.0 - lane_marker_weight_t;
+  //---------------------
+
   for (int i = 0; i < path->path_point_size(); ++i) {
     auto *point = path->mutable_path_point(i);
     double s = point->s();
@@ -712,7 +752,7 @@ ProjIndexPair NavigationLane::UpdateProjectionIndex(const common::Path &path,
   }
 
   if (check_distance_func(index, &min_d)) {
-    if (0 && FLAGS_enable_cyclic_rerouting) {
+    if (FLAGS_enable_cyclic_rerouting) {
       // We create a condition here that sets the "current_project_index" to
       // 0, should the vehicle reach the end point of a cyclic/circular
       // route. For cyclic/circular navigation lines where the distance
@@ -747,6 +787,10 @@ double NavigationLane::GetKappa(const double c1, const double c2,
 bool NavigationLane::ConvertLaneMarkerToPath(
     const perception::LaneMarkers &lane_marker, common::Path *const path) {
   CHECK_NOTNULL(path);
+
+  if (!GetLaneMarkerValid()) {
+      return false;
+  }
 
   const double current_speed =
     VehicleStateProvider::Instance()->vehicle_state().linear_velocity();
@@ -813,7 +857,7 @@ bool NavigationLane::ConvertLaneMarkerToPath(
 
       if (lane_marker_miss_count_ > 20 && total_driving_length > 3.0) { 
         AERROR << "no valid guidepost marker or lane marker exist.";
-        return false;
+        // return false;
       }
     }
 

@@ -5,5 +5,4 @@ header {
 }
 driving_mode: COMPLETE_MANUAL
 action: START
-moving_distance: -1.160
-
+moving_distance: 30.0

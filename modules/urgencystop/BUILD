@@ -6,6 +6,7 @@ cc_library(
     name = "urgency_stop_component_lib",
     srcs = ["urgency_stop_component.cc"],
     hdrs = ["urgency_stop_component.h"],
+    copts = ['-DMODULE_NAME=\\"AEBS\\"'],
     deps = [
         "//cyber",
         "//modules/common/adapters:adapter_gflags",

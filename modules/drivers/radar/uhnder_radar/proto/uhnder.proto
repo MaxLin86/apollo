@@ -2,8 +2,6 @@ syntax = "proto2";
 
 package apollo.drivers.uhnder_radar;
 
-import "modules/common/proto/header.proto";
-
 enum ThresholdPreset
 {
     LOW = 0;  

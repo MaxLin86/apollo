@@ -1,3 +1,5 @@
+% Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+% Refer to SOFTWARE_LICENSE file for details
 function plot_RDC2zd_continuous(path, max_range, live, startscan,makeMovie)
 % e.g. plot_RDC2zd_continuous('X:\software\jonathan\RDC2zerodopAgain\init_192.168.95.1',8,0,257)
 persistNumScans = 5;

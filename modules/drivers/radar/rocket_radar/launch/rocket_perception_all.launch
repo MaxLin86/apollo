@@ -1,0 +1,8 @@
+<cyber>
+    <module>
+        <name>radar_perception_all</name>
+        <dag_conf>/apollo/modules/drivers/radar/rocket_radar/dag/rocket_perception_all.dag</dag_conf>
+        <process_name>radar_perception_all</process_name>
+    </module>
+
+</cyber>

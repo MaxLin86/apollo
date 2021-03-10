@@ -1,3 +1,5 @@
+% Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+% Refer to SOFTWARE_LICENSE file for details
 function plot_clutterImage_continuous(path, max_range, live, startscan, makeMovie, room_x, room_y)
 
 if ~exist('loadjson','file')

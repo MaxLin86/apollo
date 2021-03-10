@@ -281,7 +281,7 @@ void NaviPlanning::RunOnce(const LocalView& local_view,
     }
   }
 
-  status = Plan(start_timestamp, stitching_trajectory, trajectory_pb);
+  //status = Plan(start_timestamp, stitching_trajectory, trajectory_pb); //delete by shzhw 20201211
 
   const auto time_diff_ms = (Clock::NowInSeconds() - start_timestamp) * 1000;
   ADEBUG << "total planning time spend: " << time_diff_ms << " ms.";

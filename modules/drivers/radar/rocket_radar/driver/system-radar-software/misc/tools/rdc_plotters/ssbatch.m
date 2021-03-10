@@ -1,3 +1,5 @@
+% Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+% Refer to SOFTWARE_LICENSE file for details
 %datapath = 'X:\software\jpb\data_2017_09_11_outdoors_at_airfield\_FIELD_2D_resolution_vertical_250mcps_X25m';
 function ssbatch(datapath)
 

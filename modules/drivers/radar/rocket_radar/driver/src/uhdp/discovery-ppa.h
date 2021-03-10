@@ -1,3 +1,5 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #pragma once
 
 #include "modules/drivers/radar/rocket_radar/driver/src/uhdp/prothandlerbase.h"

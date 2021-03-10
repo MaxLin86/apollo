@@ -64,6 +64,10 @@ class MSFLocalizationComponent final
 
   std::shared_ptr<cyber::Reader<canbus::Chassis>> chassis_listener_ = nullptr;
 
+  std::shared_ptr<cyber::Reader<routing::RoutingResponse>> routing_reader_ = 
+    nullptr;
+    std::string routing_response_topic_ = "";
+
  private:
   std::shared_ptr<LocalizationMsgPublisher> publisher_;
   MSFLocalization localization_;

@@ -100,7 +100,9 @@ ErrorCode VehicleController::Update(const ControlCommand &control_command) {
   // Execute action to transform driving mode
   if (control_command.has_pad_msg() && control_command.pad_msg().has_action()) {
     AINFO << "Canbus received pad msg: "
-          << control_command.pad_msg().ShortDebugString();
+          << control_command.pad_msg().ShortDebugString()
+          << "action: "
+          << control_command.pad_msg().action();
     Chassis::DrivingMode mode = Chassis::COMPLETE_MANUAL;
     switch (control_command.pad_msg().action()) {
       case control::DrivingAction::START: {
@@ -162,9 +164,11 @@ ErrorCode VehicleController::Update(const ControlCommand &control_command) {
   }
   // Added by shijh
   // TODO
-  if (control_command.has_error_level() && control_command.has_error_dtc()) {
-    SetFaultLevel(control_command.error_level(), control_command.error_dtc());
-  }
+  SetFaultLevel(
+        control_command.has_error_level(),
+        control_command.has_error_dtc(),
+        control_command.error_level(), 
+        control_command.error_dtc());
   
   if(control_command.adstatusreq() == 2 ){
     fflush(NULL);

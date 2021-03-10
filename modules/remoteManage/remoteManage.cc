@@ -13,12 +13,14 @@
 #include "modules/common/util/message_util.h"
 #include "modules/common/time/time.h"
 #include "modules/common/adapters/adapter_gflags.h"
+//#include "modules/localization/msf/common/util/frame_transform.h"
 
 namespace apollo {
 namespace remoteManage {
 
 using apollo::common::time::Clock;
 using apollo::canbus::Chassis;
+//using apollo::localization::LocalizationEstimate;
 
 bool remoteManage::Init()
 {
@@ -39,7 +41,18 @@ bool remoteManage::Init()
 		chassis_info_.CopyFrom(*chassis);
 	});
 
-	task_writer_ = node_->CreateWriter<actTask>(FLAGS_tmc_task_topic);
+#if 0
+	reader_Location_ = node_->CreateReader<LocalizationEstimate>
+	(
+	 	FLAGS_localization_topic, [this](const std::shared_ptr<LocalizationEstimate> & localization)
+		{
+			ADEBUG << "Received localization data: run localization callback.";
+			std::lock_guard<std::mutex> lock( mutex_ );
+			info_Location_.CopyFrom( *localization );
+		}
+	);
+#endif
+	task_writer_ = node_->CreateWriter<actTask>(FLAGS_rms_task_topic);
 
 	InitActData();
 	InitPacketPulse();
@@ -286,6 +299,18 @@ void remoteManage::packPulse()
   uint8_t nStatusCar = 1;
   uint8_t nStatusTask = 1;
 
+#if 0
+  apollo::localization::msf::WGS84Corr temp_wgs;
+
+  apollo::localization::msf::FrameTransform::UtmXYToLatlon( 
+		  info_Location_.pose().position().x(),
+		  info_Location_.pose().position().y(),
+		  49,
+		  false,
+		  &temp_wgs );
+  dbCoordX = RadToDeg(temp_wgs.log);
+  dbCoordY = RadToDeg(temp_wgs.lat);
+#endif
   memcpy(&act_nPacketPulse[78],  &dbCoordX,  sizeof(double));
   memcpy(&act_nPacketPulse[86],  &dbCoordY,  sizeof(double));
   memcpy(&act_nPacketPulse[94],  &dbAngleDir,  sizeof(double));

@@ -5,6 +5,7 @@
 #include "modules/canbus/proto/chassis.pb.h"
 #include "modules/manuctrl/proto/manuctrl_conf.pb.h"
 #include "modules/drivers/joystick/stream/stream.h"
+#include "modules/common/configs/vehicle_config_helper.h"
 
 using apollo::cyber::Component;
 
@@ -38,6 +39,7 @@ class manuctrlComponent : public apollo::cyber::TimerComponent {
   void ReadStream();
   void StartStream();
   bool slip_decode_add_byte(slip_t * p_slip, uint8_t c);
+  bool joystick_rock_mid_flag_;
 
   ManuctrlConf manuctrl_conf_;
   static constexpr size_t DATA_BUFFER_SIZE = 2048;
@@ -99,12 +101,15 @@ class manuctrlComponent : public apollo::cyber::TimerComponent {
   #define CTRL_BRAKE_SLOPE   ((float)3300 / CTRL_PKT_RATE_HZ)
 
   #define CTRL_ROCKER_MID        50U
-  #define CTRL_ROCKER_TRIG_TH    15U
+  #define CTRL_ROCKER_TRIG_TH    20U
   #define CTRL_ROCKER_RANGE      50U
-  #define CTRL_STEER_ANGLE_MAX   100
+  #define CTRL_STEER_ANGLE_MIN   0U
+  #define CTRL_STEER_ANGLE_MAX   100U
+  #define CTRL_STEER_ANGLE_CAL(offset) ((CTRL_STEER_ANGLE_MAX - CTRL_STEER_ANGLE_MIN) * (offset) / (CTRL_ROCKER_RANGE - CTRL_ROCKER_TRIG_TH) + CTRL_STEER_ANGLE_MIN)
   #define CTRL_STEER_SPEED_MIN   0U
   #define CTRL_STEER_SPEED_MAX   100U
   #define CTRL_STEER_SPEED_CAL(offset) ((CTRL_STEER_SPEED_MAX - CTRL_STEER_SPEED_MIN) * (offset) / (CTRL_ROCKER_RANGE - CTRL_ROCKER_TRIG_TH) + CTRL_STEER_SPEED_MIN)
+  
     
   typedef enum {
     VEHICLE_STATUS_IGNITION,
@@ -139,9 +144,16 @@ class manuctrlComponent : public apollo::cyber::TimerComponent {
     float             brake;
     double            steer_angle;
     double            steer_speed;
+    bool              steer_calib_trigger;
     bool              manual_ch;
+
+    common::VehicleSignal::HeadLampStat           head_lamp;
     bool              full_beam_head_lamp;
     bool              dipped_head_lamp;
+
+    bool              led_screen;
+    common::VehicleSignal::TopWarnLampStat        top_warn_lamp;
+
     common::VehicleSignal::TurnSignal turn_signal;
   } ctrl_t;
 
@@ -158,7 +170,15 @@ class manuctrlComponent : public apollo::cyber::TimerComponent {
   double last_rcved_time_;
   double exit_ad_delay_sec_;
   double exit_ad_start_time_;
+  double steer_angle_ratio_calib_;
+  double steer_angle_ratio_calib_step_min_;
+  double steer_angle_ratio_calib_step_max_;
+  uint32_t counter;
   bool   exiting_ad_;
+
+ protected:
+  common::VehicleParam vehicle_params_;
+
 };
 
 CYBER_REGISTER_COMPONENT(manuctrlComponent)

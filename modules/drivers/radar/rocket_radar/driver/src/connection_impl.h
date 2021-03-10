@@ -1,12 +1,14 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #pragma once
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/ip-protocols.h"
-#include "modules/drivers/radar/rocket_radar/driver/include/sra.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/ip-protocols.h"
+#include "modules/drivers/radar/rocket_radar/driver/include/rra.h"
 #include "modules/drivers/radar/rocket_radar/driver/include/connection.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/threading.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/logcontrol_impl.h"
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhstdlib.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhstdlib.h"
 
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/uhnder-helpers.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/uhdp/prothandlerbase.h"
@@ -15,11 +17,14 @@ class ScanObject_Impl;
 class Scanning_Impl;
 class ControlMessage;
 class UserProfileAgent;
+class SensorGroup_Impl;
 struct ProtHandlerBase;
 
 class Connection_Impl : public Connection, public Thread
 {
 public:
+
+    enum { USEC_PER_SEC = 1000 * 1000 };
 
 #if _WIN32
     enum { ADDITIONAL_WINDOW = 8 };
@@ -40,10 +45,10 @@ public:
         : last_err(CON_NO_ERROR)
         , sockfd(-1)
         , log_agent(a)
-        , released(false)
         , use_thread(_use_thread)
         , connection_active(false)
         , diag_is_hung(false)
+        , is_rebooted(false)
         , command_sequence_number(0)
         , diag_sequence_number(rand())
         , peek_sequence_number(0)
@@ -59,6 +64,7 @@ public:
         , last_diag_return_code(DIAG_RET_SUCCESS)
         , last_diag_error_num(0)
         , myscanning(NULL)
+        , mysensorgroup(NULL)
         , scanlist_cond(scanlist_mutex)
         , cur_in_scan(NULL)
         , last_in_scan(NULL)
@@ -67,7 +73,6 @@ public:
         , first_cm(NULL)
         , last_cm(NULL)
         , pending_cm(NULL)
-        , vehicle(NULL)
         , profile_agent(NULL)
         , next_cm_sequence(0)
         , current_window(INITIAL_PACKET_WINDOW)
@@ -76,6 +81,7 @@ public:
         , last_msg_type(UHDP_TYPE_HELLO)
         , timeout_scale(1)
         , additional_packet_window(ADDITIONAL_WINDOW)
+        , skew_update_counter(0)
         , rear_axle_distance(3.91f)
         , centerline_distance(0)
         , mount_height(0.7f)
@@ -95,8 +101,8 @@ public:
     {
         memset(&counters, 0, sizeof(counters));
         memset(&scanctrl, 0, sizeof(scanctrl));
-        scan_interval_base_host_time.tv_sec = 0;
-        scan_interval_base_host_time.tv_usec = 0;
+        frame_interval_base_host_time.tv_sec = 0;
+        frame_interval_base_host_time.tv_usec = 0;
         last_time_align.timestamp32 = 0;
         last_time_align.timestamp64 = 0;
         last_time_align.scan_sequence_number = -1;
@@ -110,9 +116,7 @@ public:
 
     virtual void            poll_socket();
 
-    virtual void            register_vehicle_CAN_device(VehicleCAN& v);
-
-    virtual void            synchronize_scan_interval(timeval host_time);
+    virtual void            synchronize_frame_interval(timeval host_time);
 
     virtual uint32_t        get_num_diags() const;
 
@@ -140,6 +144,8 @@ public:
 
     virtual ScanObject*     poll_completed_scan();
 
+    virtual bool            is_connection_valid() const { return connection_active && !is_rebooted; }
+
             bool            scan_available();
 
     virtual void            configure_detection_thresholds(const RDC_ThresholdControl* thresh_ctrl, uint32_t count);
@@ -160,6 +166,8 @@ public:
     virtual void            register_dcmeasurement_requests(const RDC_DCMeasure_config& dc_measure);
 
     virtual uint32_t        query_radar_status_bitmask();
+
+    virtual const char*     get_radar_host_name();
 
     virtual const char*     get_module_name() const { return module_name; }
 
@@ -187,7 +195,11 @@ public:
 
     virtual bool            tftp_upload(const char* local_fname, const char* radar_fname);
 
+    virtual bool            tftp_string_upload(const char* buffer, size_t size_bytes, const char* radar_fname);
+
     virtual bool            tftp_download(const char* local_fname, const char* radar_fname);
+
+    virtual void            send_rdc1_data_ready_message();
 
     virtual void            close_and_release();
 
@@ -234,13 +246,23 @@ public:
         }
     }
 
+    virtual void            mark_connection_rebooted() { is_rebooted = true; }
+
+    virtual bool            is_connection_rebooted() const { return is_rebooted; }
+
     void                    start_radar_profiling(UserProfileAgent& agent);
 
     void                    stop_radar_profiling();
 
+    void                    poll_retransmit_timers();
+
     void                    poll_socket_internal();
 
+    void                    poll_sensor_group();
+
     int                     create_socket();
+
+    void                    configure_socket_wait_time(int timeout_ms);
 
     void                    abort_connection();
 
@@ -248,7 +270,10 @@ public:
 
     void                    send_uhdp(struct UhdpHeader* hdr);
 
-    void                    send_scan_interval_base_time();
+    void                    send_frame_interval_base_time();
+
+    // returns true if scan object takes ownership of the memory
+    bool                    apply_rdc3_blob(uint32_t scan_sequence_number, char* blob, uint32_t size_bytes);
 
     void                    allocate_protocols();
 
@@ -256,7 +281,7 @@ public:
 
     void                    queue_completed_scan(ScanObject_Impl*);
 
-    int                     send_hello(uint32_t radar_ip, uint32_t timeout_sec, uint32_t uhdp_ver);
+    MakeConnectionError     send_hello(uint32_t radar_ip, uint32_t timeout_sec, uint32_t uhdp_ver);
 
     void                    env_control_ack_received(uint16_t sequence_number);
 
@@ -266,13 +291,13 @@ public:
 
     UserLogAgent&       log_agent;
 
-    bool                released;
-
     bool                use_thread;
 
     bool                connection_active;
 
     bool                diag_is_hung;
+
+    bool                is_rebooted;
 
     ProtHandlerBase*    uhdp_table[256];
 
@@ -280,7 +305,7 @@ public:
 
     char                status_buffer[1024];
 
-    char                control_msg_buffer[1024];
+    char                control_msg_buffer[1540];
 
     char                lld_core_dump_msg_buffer[128];
 
@@ -288,7 +313,7 @@ public:
 
     struct sockaddr_in  radar_ip4addr;
 
-    timeval             scan_interval_base_host_time;
+    timeval             frame_interval_base_host_time;
 
     uint32_t            connection_uhdp_version;
 
@@ -321,6 +346,8 @@ public:
     int32_t             last_diag_error_num;
 
     Scanning_Impl*      myscanning;
+
+    SensorGroup_Impl*   mysensorgroup;
 
     LogControl_Impl*    logcontrol;
 
@@ -363,8 +390,6 @@ public:
 
     ControlMessage*     pending_cm;
 
-    VehicleCAN*         vehicle;
-
     UserProfileAgent*   profile_agent;
 
     uint16_t            next_cm_sequence;
@@ -380,6 +405,8 @@ public:
     uint32_t            timeout_scale;
 
     uint32_t            additional_packet_window;
+
+    uint32_t            skew_update_counter;
 
     float               rear_axle_distance;
 
@@ -412,4 +439,26 @@ public:
     uint32_t            lld_core_dump_size;
 
     uint32_t            lld_core_dump_receive_count;
+
+    static int ctrl_c_pressed;
 };
+
+
+struct UHPHandler : public ProtHandlerBase
+{
+    // modern SRS only sends this message in response to UHDP version mismatch,
+    // so we treat it very specially
+    void handle_packet(const char* payload, uint32_t len)
+    {
+        //uint32_t cpuid = *(uint32_t*)payload;
+        payload += sizeof(uint32_t);
+        len -= sizeof(uint32_t);
+        char* msg = const_cast<char*>(payload);
+        msg[len - 5] = 0;
+        free(last_msg);
+        last_msg = strdup(msg);
+    }
+
+    static char* last_msg;
+};
+

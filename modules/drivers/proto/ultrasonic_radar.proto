@@ -4,6 +4,14 @@ package apollo.drivers;
 
 import "modules/common/proto/header.proto";
 
+message UltrObstacle {
+  optional int32 index = 1;
+  optional float range = 2;
+  optional float x = 3;
+  optional float y = 4;
+  optional float z = 5;
+}
+
 message Ultrasonic {
   //
   //               x axis
@@ -24,8 +32,5 @@ message Ultrasonic {
   // return a range to form a range array, 'ranges'.
 
   optional apollo.common.Header header = 1;
-  repeated float ranges = 2;
-  repeated float ranges_x = 3;
-  repeated float ranges_y = 4;
-  repeated float ranges_z = 5;
+  repeated UltrObstacle ultr_obstacle = 2;
 }

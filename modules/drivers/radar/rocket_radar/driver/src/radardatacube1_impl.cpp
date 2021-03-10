@@ -1,9 +1,26 @@
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/radardatacube1_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/scanobject_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/include/serializer.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/rhal_out.h"
 #include <assert.h>
+
+struct ReplayHeader
+{
+    uint32_t magic;
+    uint32_t rdc1_exp_size;
+    uint32_t rdc1_info_size;
+    uint32_t rdc1_size;
+
+    size_t total_size() const
+    {
+        return sizeof(*this) + rdc1_exp_size + rdc1_info_size + rdc1_size;
+    }
+
+    static const uint32_t MAGIC = 0x357a9a04UL;
+};
+
+enum { RDC1_EXP_SIZE_PER_RANGEBIN = 16 }; // rsp-common.h
 
 uint32_t             RadarDataCube1_Impl::get_range_dimension() const
 {
@@ -16,10 +33,12 @@ uint32_t             RadarDataCube1_Impl::get_vrx_dimension() const
     return myscan.scan_info.total_vrx;
 }
 
+
 uint32_t             RadarDataCube1_Impl::get_pulses_dimension() const
 {
     return myscan.scan_info.num_pulses;
 }
+
 
 const cint16*        RadarDataCube1_Impl::get_samples() const
 {
@@ -30,6 +49,62 @@ const cint16*        RadarDataCube1_Impl::get_samples() const
 const char*          RadarDataCube1_Impl::get_exponent_data() const
 {
     return rdc1exp;
+}
+
+
+const char*          RadarDataCube1_Impl::get_rdc1_info() const
+{
+    if (rdc1_playback_data)
+    {
+        const ReplayHeader* header = (const ReplayHeader*)rdc1_playback_data;
+        return rdc1_playback_data + sizeof(*header) + header->rdc1_exp_size;
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
+
+size_t               RadarDataCube1_Impl::get_rdc1_size_bytes() const
+{
+    if (rdc1_playback_data)
+    {
+        const ReplayHeader* header = (const ReplayHeader*)rdc1_playback_data;
+        return header->rdc1_size;
+    }
+    else
+    {
+        return sizeof(rdc1[0]) * myscan.scan_info.num_range_bins * myscan.scan_info.num_pulses * myscan.scan_info.total_vrx;
+    }
+}
+
+
+size_t               RadarDataCube1_Impl::get_rdc1_exp_size_bytes() const
+{
+    if (rdc1_playback_data)
+    {
+        const ReplayHeader* header = (const ReplayHeader*)rdc1_playback_data;
+        return header->rdc1_exp_size;
+    }
+    else
+    {
+        return myscan.scan_info.num_range_bins * RDC1_EXP_SIZE_PER_RANGEBIN;
+    }
+}
+
+
+size_t               RadarDataCube1_Impl::get_rdc1_info_size_bytes() const
+{
+    if (rdc1_playback_data)
+    {
+        const ReplayHeader* header = (const ReplayHeader*)rdc1_playback_data;
+        return header->rdc1_info_size;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 
@@ -50,6 +125,11 @@ void                 RadarDataCube1_Impl::handle_uhdp(const char* payload, uint3
     UhdpRDC1Header* hdr = (UhdpRDC1Header*)payload;
     const char* exp_hdr = payload + sizeof(UhdpRDC1Header);
     uint32_t exp_size = total_size - sizeof(UhdpRDC1Header);
+
+    if (!rdc1)
+    {
+        allocate();
+    }
 
     if (hdr->cur_pulse == 0xFFFF)
     {
@@ -100,11 +180,68 @@ void                 RadarDataCube1_Impl::handle_uhdp(const char* payload, uint3
 }
 
 
+void                 RadarDataCube1_Impl::handle_replay_uhdp(const char* payload, uint32_t total_size)
+{
+    payload    += sizeof(UhdpDataHeader);
+    total_size -= sizeof(UhdpDataHeader);
+    if (!rdc1_playback_data)
+    {
+        if (total_size > sizeof(uint32_t) * 4)
+        {
+            const ReplayHeader* header = (const ReplayHeader*)payload;
+            if (header->magic == ReplayHeader::MAGIC)
+            {
+                rdc1_playback_total_bytes = header->total_size();
+                rdc1_playback_data = new char[rdc1_playback_total_bytes];
+            }
+            else
+            {
+                aborted = true;
+            }
+        }
+    }
+    if (rdc1_playback_data)
+    {
+        if (rdc1_playback_received + total_size <= rdc1_playback_total_bytes)
+        {
+            memcpy(rdc1_playback_data + rdc1_playback_received, payload, total_size);
+            rdc1_playback_received += total_size;
+        }
+    }
+}
+
+
 void                 RadarDataCube1_Impl::setup()
 {
     if (aborted)
     {
         release();
+        return;
+    }
+
+    if (rdc1_playback_data)
+    {
+        if (rdc1_playback_received != rdc1_playback_total_bytes)
+        {
+            delete [] rdc1_playback_data;
+            rdc1_playback_data = NULL;
+            rdc1_playback_received = 0U;
+            rdc1_playback_total_bytes = 0U;
+        }
+        else
+        {
+            delete [] rdc1;
+            delete [] rdc1exp;
+
+            const ReplayHeader* header = (const ReplayHeader*)rdc1_playback_data;
+            rdc1exp = rdc1_playback_data + sizeof(*header);
+            rdc1 = (cint16*)(rdc1_playback_data + sizeof(*header) + header->rdc1_info_size + header->rdc1_exp_size);
+        }
+    }
+    else if (!rdc1)
+    {
+        release();
+        return;
     }
 
     const uint16_t* exp16 = reinterpret_cast<const uint16_t*>(rdc1exp);
@@ -170,6 +307,19 @@ uint32_t             RadarDataCube1_Impl::get_exponent_at_pulse_range(uint32_t p
 bool                 RadarDataCube1_Impl::serialize(ScanSerializer& s) const
 {
     char fname[128];
+
+    if (rdc1_playback_data)
+    {
+        sprintf(fname, "scan_%06d_rdc1_bundle.bin", myscan.scan_info.scan_sequence_number);
+        bool ok = s.begin_write_scan_data_type(fname);
+        if (ok)
+        {
+            ok &= s.write_scan_data_type(rdc1_playback_data, rdc1_playback_total_bytes, 1);
+            s.end_write_scan_data_type(!ok);
+        }
+        return ok;
+    }
+
     sprintf(fname, "scan_%06d_rdc1.bin", myscan.scan_info.scan_sequence_number);
     bool ok = s.begin_write_scan_data_type(fname);
     if (ok)
@@ -193,8 +343,27 @@ bool                 RadarDataCube1_Impl::serialize(ScanSerializer& s) const
 bool                 RadarDataCube1_Impl::deserialize(ScanSerializer& s)
 {
     char fname[128];
-    sprintf(fname, "scan_%06d_rdc1.bin", myscan.scan_info.scan_sequence_number);
+
+    sprintf(fname, "scan_%06d_rdc1_bundle.bin", myscan.scan_info.scan_sequence_number);
     size_t len = s.begin_read_scan_data_type(fname);
+    if (len)
+    {
+        rdc1_playback_total_bytes = len;
+        rdc1_playback_received = len;
+        rdc1_playback_data = new char[len];
+        s.read_scan_data_type(rdc1_playback_data, 1, len);
+        s.end_read_scan_data_type();
+        aborted = false;
+        setup();
+        return true;
+    }
+    else
+    {
+        s.end_read_scan_data_type();
+    }
+
+    sprintf(fname, "scan_%06d_rdc1.bin", myscan.scan_info.scan_sequence_number);
+    len = s.begin_read_scan_data_type(fname);
     if (len)
     {
         uint32_t total_rdc1 = myscan.scan_info.num_range_bins

@@ -27,6 +27,9 @@ cc_library(
         "//modules/perception/proto:perception_proto",
         "//modules/planning/proto:planning_proto",
         "//modules/prediction/proto:prediction_proto",
+        "//modules/planning/common/util:util_lib",
+        "//modules/rms/proto:rms_cc_proto",
+	"//modules/localization/msf/common/util:localization_msf_common_util_frame_transform",
     ],
 )
 
@@ -37,6 +40,7 @@ cc_library(
     copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
         ":control_lib",
+        "//modules/lidar/proto:lidar_proto",
     ],
 )
 

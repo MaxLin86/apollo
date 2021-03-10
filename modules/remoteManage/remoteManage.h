@@ -5,6 +5,7 @@
 #include "modules/common/proto/geometry.pb.h"
 #include "modules/remoteManage/proto/remoteManage.pb.h"
 #include "modules/canbus/proto/chassis.pb.h"
+//#include "modules/localization/proto/localization.pb.h"
 
 using apollo::cyber::Component;
 using apollo::common::Point2D;
@@ -35,6 +36,8 @@ private:
   void packPulse();
   void packStatus();
   bool analysisPacket(uint8_t * pData, uint32_t * pnDataLen);
+
+  inline double RadToDeg(double rad) { return (rad / M_PI * 180.0); };
   
  private:
 	bool			bFlagQuitModule;
@@ -55,8 +58,10 @@ private:
 
   actNet_conf  actNetConfig;
   std::shared_ptr<apollo::cyber::Reader<apollo::canbus::Chassis>> chassis_reader_;
+  //std::shared_ptr<apollo::cyber::Reader<apollo::localization::LocalizationEstimate>> reader_Location_;
   std::shared_ptr<apollo::cyber::Writer<actTask>> task_writer_;
   canbus::Chassis  chassis_info_;
+  //localization::LocalizationEstimate  info_Location_;
 
   std::unique_ptr<std::thread>  thread_socket_connect_;
   std::unique_ptr<std::thread>  thread_socket_write_;

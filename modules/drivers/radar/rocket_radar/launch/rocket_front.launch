@@ -1,8 +1,0 @@
-<cyber>
-    <module>
-        <name>radar_front</name>
-        <dag_conf>/apollo/modules/drivers/radar/rocket_radar/dag/rocket_front.dag</dag_conf>
-        <process_name>radar_front</process_name>
-    </module>
-
-</cyber>

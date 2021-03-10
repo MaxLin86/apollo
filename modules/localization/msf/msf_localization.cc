@@ -29,10 +29,63 @@
 
 #define enable_DR_kf true
 
+#define enable_guidepost_kf true
+
 namespace apollo {
 namespace localization {
 
 using apollo::common::Status;
+
+void split(const std::string& s, std::vector<std::string>& sv, const char flag = ' ') {
+    sv.clear();
+    std::istringstream iss(s);
+    std::string temp;
+    while (std::getline(iss, temp, flag)) {
+        sv.push_back(temp);
+    }
+    return;
+}
+
+bool MSFLocalization::LoadMap() {
+  //to get guidepost world coordinate
+  //std::string mapPath = "/apollo/modules/map/data/demo/signpost_shzhw.txt";
+  std::string mapPath = "/apollo/modules/map/data/demo/guidepost_utm_out.txt";
+  std::ifstream mapFile;
+  mapFile.open(mapPath, std::ios::in);
+  if (!mapFile.is_open()) {
+    AERROR << "load guidepsot map file failed";
+    return false;
+  }
+  std::string strLine;
+  while (getline(mapFile, strLine))
+  {
+    if (strLine.empty())
+      continue;
+    std::vector<std::string> sv;
+    split(strLine, sv, ',');
+    if (sv.size() == 3)
+    {
+        GuidepostGroup guidepostGroup;
+        guidepostGroup.id = sv[0];
+        guidepostGroup.x = atof(sv[1].c_str());
+        guidepostGroup.y = atof(sv[2].c_str());        
+        msf_localization_DR_filter_->guidepost_groups_.push_back(guidepostGroup);
+    }
+  }
+  mapFile.close();
+
+  if ( msf_localization_DR_filter_->guidepost_groups_.size() > 0) {
+  } else
+  {
+    AERROR << "guidepos group num: 0";
+  }
+  
+  AINFO << "guidepos group num: " <<  msf_localization_DR_filter_->guidepost_groups_.size();
+  std::cout << "guidepos group num: " <<  msf_localization_DR_filter_->guidepost_groups_.size() << std::endl;
+  return true;
+}
+
+
 
 MSFLocalization::MSFLocalization()
     : monitor_logger_(
@@ -43,6 +96,8 @@ MSFLocalization::MSFLocalization()
 Status MSFLocalization::Init() {
   InitParams();
 
+
+
   if (enable_DR_kf) {    
     int kf_coor_sys = 1; 
 
@@ -52,6 +107,12 @@ Status MSFLocalization::Init() {
 
     trailer_localization_filter_ = std::unique_ptr<TrailerLocalizationFilter>(new TrailerLocalizationFilter());
     trailer_localization_filter_->CreateKalmanFilter(kf_coor_sys);
+
+  #if enable_guidepost_kf
+    msf_localization_DR_filter_->CreateGuidepostKalmanFilter(kf_coor_sys);
+    LoadMap();  
+  #endif
+
   }
 
   return localization_integ_.Init(localization_param_);
@@ -220,36 +281,181 @@ void MSFLocalization::OnChassis(const canbus::Chassis& chassis) {
     std::lock_guard<std::mutex> lock(chassis_mutex_);
     //    std::unique_lock<std::mutex> lock(chassis_mutex_);
     chassis_.CopyFrom(chassis);  
-
-}
-
-void MSFLocalization::LocalizationDRCorrect(LocalizationEstimate &localization) {
-  // process fused input data
- if(!msf_localization_DR_filter_->local_view_.chassis || 
+    /*
+     if(!msf_localization_DR_filter_->local_view_.chassis || 
      (msf_localization_DR_filter_->local_view_.chassis->header().timestamp_sec()!=  chassis_.header().timestamp_sec())) {
 
-    std::unique_lock<std::mutex> lock(chassis_mutex_);
-  msf_localization_DR_filter_->local_view_.chassis = std::make_shared<canbus::Chassis>(chassis_);
-  msf_localization_DR_filter_->local_view_.localization_estimate = std::make_shared<LocalizationEstimate>(localization);
+   // std::unique_lock<std::mutex> lock(chassis_mutex_);
+    msf_localization_DR_filter_->local_view_.chassis = std::make_shared<canbus::Chassis>(chassis_);
+  }
+  */
+}
 
+
+void MSFLocalization::OnRouting(const routing::RoutingResponse& routing) {
+  {
+    std::lock_guard<std::mutex> lock(routing_mutex_);
+    routing_.CopyFrom(routing);
+  }
+}
+
+
+void MSFLocalization::LocalizationDRCorrect(LocalizationEstimate &localization, LocalizationStatus &localization_status) {
+  // process fused input data
+
+ if ((!msf_localization_DR_filter_->local_view_.chassis || 
+     (msf_localization_DR_filter_->local_view_.chassis->header().timestamp_sec()!=  chassis_.header().timestamp_sec()))
+     && (chassis_.header().timestamp_sec() > 0.0)) {
+  /**/
+  /*
+if ((!msf_localization_DR_filter_->local_view_.chassis || 
+     (msf_localization_DR_filter_->local_view_.chassis->header().sequence_num()!=  chassis_.header().sequence_num()))
+     && (chassis_.header().timestamp_sec() > 0.0)) {
+  */
+    std::unique_lock<std::mutex> lock(chassis_mutex_);
+    msf_localization_DR_filter_->local_view_.chassis = std::make_shared<canbus::Chassis>(chassis_);
+  }
   
+  
+
+  static bool update_msf_localization = false;
+  //static int msf_localization_cnt = 0;
+  if (!msf_localization_DR_filter_->local_view_.localization_estimate || 
+     std::fabs(msf_localization_DR_filter_->local_view_.localization_estimate->header().timestamp_sec()-  localization.header().timestamp_sec()) > 1e-4) {
+
+    msf_localization_DR_filter_->local_view_.localization_estimate = std::make_shared<LocalizationEstimate>(localization);
+    //msf_localization_cnt ++;
+   // if (msf_localization_cnt%100 ==0) {
+    update_msf_localization = true;
+    //AERROR << '..............: ' << msf_localization_cnt;
+    //} else {
+    //  update_msf_localization = false;
+    //}
+  } else {
+    update_msf_localization = false;
+  }
+   
+  static bool update_gps = false;
+  if((!msf_localization_DR_filter_->local_view_.best_gnss_pos  || 
+    std::fabs(msf_localization_DR_filter_->local_view_.best_gnss_pos ->header().timestamp_sec() - bestgnsspos_msg_.header().timestamp_sec())>1e-4) ) {
+    std::unique_lock<std::mutex> lock(bestgnsspos_msg_mutex_);
+    
+    msf_localization_DR_filter_->local_view_.best_gnss_pos = std::make_shared<drivers::gnss::GnssBestPose>(bestgnsspos_msg_); 
+    update_gps = true;
+  } else {
+    update_gps = false;
+  }
+
+  //static bool update_localization_status = false;
+  if((!msf_localization_DR_filter_->local_view_.localization_status  || 
+    std::fabs(msf_localization_DR_filter_->local_view_.localization_status ->header().timestamp_sec() - localization_status.header().timestamp_sec())>1e-4) ) {
+    //std::unique_lock<std::mutex> lock(bestgnsspos_msg_mutex_);
+    
+    msf_localization_DR_filter_->local_view_.localization_status = std::make_shared<LocalizationStatus>(localization_status); 
+    //update_localization_status = true;
+  } else {
+    //update_localization_status = false;
+  }
+
+    //static bool update_heading = false;
+  if((!msf_localization_DR_filter_->local_view_.gnss_heading  || 
+    std::fabs(msf_localization_DR_filter_->local_view_.gnss_heading ->measurement_time() - gnss_heading_msg_.measurement_time())>1e-4) ) {
+    std::unique_lock<std::mutex> lock(gnssheading_msg_mutex_);
+    
+    msf_localization_DR_filter_->local_view_.gnss_heading = std::make_shared<drivers::gnss::Heading>(gnss_heading_msg_); 
+    //update_heading = true;
+  } else {
+    //update_heading = false;
+  }
+
+  static bool update_guidepost = false;
+  if (routing_.has_header()) {
+    if (!msf_localization_DR_filter_->local_view_.routing ||
+          std::fabs(msf_localization_DR_filter_->local_view_.routing->header().timestamp_sec() - routing_.header().timestamp_sec())>1e-4) {
+        std::unique_lock<std::mutex> lock(routing_mutex_);  
+        msf_localization_DR_filter_->local_view_.routing =
+            std::make_shared<routing::RoutingResponse>(routing_);
+        update_guidepost = true;
+    } else {
+        update_guidepost = false;
+    }
+  }
+  
+  if (std::fabs(msf_localization_DR_filter_->local_view_.chassis->header().timestamp_sec()-1607321842.01221) < 0.001) {
+    AERROR <<std::fixed<< "pre_pre22:" << msf_localization_DR_filter_->kalman_filter_->state_pre_.at<double>(0,0) << "\t" <<
+     msf_localization_DR_filter_->kalman_filter_->state_pre_.at<double>(1,0) << "\t" <<
+      msf_localization_DR_filter_->kalman_filter_->state_pre_.at<double>(2,0);
+
+    AERROR <<std::fixed<< "pre_post22:" << msf_localization_DR_filter_->kalman_filter_->state_post_.at<double>(0,0) << "\t" <<
+     msf_localization_DR_filter_->kalman_filter_->state_post_.at<double>(1,0) << "\t" <<
+      msf_localization_DR_filter_->kalman_filter_->state_post_.at<double>(2,0);
+    AERROR <<"best pose type: " <<msf_localization_DR_filter_->local_view_.best_gnss_pos->sol_type();
+  }
+
   if (!msf_localization_DR_filter_init ) {
     msf_localization_DR_filter_init =  msf_localization_DR_filter_->InitKalmanFilter(msf_localization_DR_filter_->local_view_); 
   }
   if (msf_localization_DR_filter_init ) {
-    msf_localization_DR_filter_->KalmanFilterPredict(msf_localization_DR_filter_->local_view_);
-    msf_localization_DR_filter_->KalmanFilterCorrect(msf_localization_DR_filter_->local_view_);
+    std::lock_guard<std::mutex> lock(chassis_mutex_);
+    msf_localization_DR_filter_->KalmanFilterPredict(msf_localization_DR_filter_->local_view_);//-----------------------1118
+
+      if (std::fabs(msf_localization_DR_filter_->local_view_.chassis->header().timestamp_sec()-1607321842.01221) < 0.001) {
+         AERROR <<std::fixed<< "cur_pre22:" << msf_localization_DR_filter_->kalman_filter_->state_pre_.at<double>(0,0) << "\t" <<
+     msf_localization_DR_filter_->kalman_filter_->state_pre_.at<double>(1,0) << "\t" <<
+      msf_localization_DR_filter_->kalman_filter_->state_pre_.at<double>(2,0);
+      }
+    
+    if (update_msf_localization) {
+      msf_localization_DR_filter_->KalmanFilterCorrect(msf_localization_DR_filter_->local_view_, update_gps);
+    }
   
+    if (update_guidepost) {
+      #if enable_guidepost_kf
+      msf_localization_DR_filter_->KalmanFilterGuidepostCorrect(msf_localization_DR_filter_->local_view_,msf_localization_DR_filter_->guidepost_groups_);
+      #endif
+    }
+  
+
   #if save_debug_info
-       std::ofstream correct_local_out;
+      std::ofstream correct_local_out;
   correct_local_out.open("correct_local_out.txt",std::ios::app);
   correct_local_out << std::fixed << DR_correct_localizer_->kalman_filter_->state_post_.at<double>(0,0) << "\t" << DR_correct_localizer_->kalman_filter_->state_post_.at<double>(1,0) << 
       "\t" << DR_correct_localizer_->kalman_filter_->state_post_.at<double>(2,0) << std::endl;
   correct_local_out.close();
   #endif
+
+  #if 1
+      std::ofstream test_data;
+  test_data.open("test_data.txt",std::ios::app);
+  auto can_time_t = chassis_.header().timestamp_sec();
+  auto time_t = msf_localization_DR_filter_->local_view_.chassis->header().timestamp_sec();
+  auto speed_t = msf_localization_DR_filter_->local_view_.chassis->speed_mps();
+  auto steer_per_t = msf_localization_DR_filter_->local_view_.chassis->steering_percentage();
+
+  auto px_t  = msf_localization_DR_filter_->local_view_.localization_estimate->pose().position().x();
+  auto py_t = msf_localization_DR_filter_->local_view_.localization_estimate->pose().position().y();
+  auto theta_t = msf_localization_DR_filter_->local_view_.localization_estimate->pose().heading();
+  auto px_std_t = msf_localization_DR_filter_->local_view_.localization_estimate->uncertainty().position_std_dev().x();
+  auto py_std_t = msf_localization_DR_filter_->local_view_.localization_estimate->uncertainty().position_std_dev().y();
+  auto theta_std_t = msf_localization_DR_filter_->local_view_.localization_estimate->uncertainty().orientation_std_dev().z();
+
+  auto gnss_heading_t = msf_localization_DR_filter_->local_view_.gnss_heading->heading();
+  auto gnss_heading_std_t = msf_localization_DR_filter_->local_view_.gnss_heading->heading_std_dev();
+
+  
+  test_data << std::fixed << can_time_t << "\t" << time_t << "\t" << speed_t << "\t" << steer_per_t << "\t" << 
+      px_t << "\t" << py_t << "\t" << theta_t <<"\t" <<px_std_t << "\t" << py_std_t  << "\t" << theta_std_t<< 
+        "\t" << msf_localization_DR_filter_->kalman_filter_->state_post_.at<double>(0,0) << "\t" <<msf_localization_DR_filter_->kalman_filter_->state_post_.at<double>(1,0) <<"\t" <<
+      msf_localization_DR_filter_->kalman_filter_->state_post_.at<double>(2,0)  
+      << "\t" << msf_localization_DR_filter_->kalman_filter_->state_pre_.at<double>(0,0) << "\t" <<msf_localization_DR_filter_->kalman_filter_->state_pre_.at<double>(1,0) <<"\t" <<
+      msf_localization_DR_filter_->kalman_filter_->state_pre_.at<double>(2,0)  
+      <<  "\t" << gnss_heading_t << "\t" << gnss_heading_std_t << std::endl;
+  test_data.close();
+  #endif
+  
   
   }
-  }
+ 
 
 }
 
@@ -285,7 +491,7 @@ void MSFLocalization::OnRawImu(
 
   #if 1
     // add chassis info DRekf
-    LocalizationDRCorrect(local_result);
+    LocalizationDRCorrect(local_result, status);
     const auto &DR_ekf_state = msf_localization_DR_filter_->kalman_filter_->state_post_;
     local_result.mutable_pose()->mutable_position()->set_x(DR_ekf_state.at<double>(0,0));
     local_result.mutable_pose()->mutable_position()->set_y(DR_ekf_state.at<double>(1,0));
@@ -316,6 +522,7 @@ void MSFLocalization::OnGnssBestPose(
   }
 
   localization_integ_.GnssBestPoseProcess(*bestgnsspos_msg);
+  bestgnsspos_msg_.CopyFrom(*bestgnsspos_msg);
 
   const auto &result = localization_integ_.GetLastestGnssLocalization();
 
@@ -363,6 +570,7 @@ void MSFLocalization::OnGnssHeading(
   }
   #if 1
   localization_integ_.GnssHeadingProcess(*gnss_heading_msg);
+  gnss_heading_msg_.CopyFrom(*gnss_heading_msg);
   #else
   //modified by shzhw, correct heading
   drivers::gnss::Heading correct_gnss_heading_msg;  

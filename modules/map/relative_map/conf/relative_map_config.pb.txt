@@ -15,5 +15,5 @@ navigation_lane {
   min_view_range_to_use_lane_marker: 0.5
   min_lane_half_width: 1.5
   max_lane_half_width: 2.0
-  lane_marker_weight: 0.5
+  lane_marker_weight: 0.65
 }

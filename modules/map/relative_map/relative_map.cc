@@ -31,7 +31,7 @@
 //#include "modules/planning/reference_line/spiral_reference_line_smoother.h"
 //#include "modules/planning/reference_line/spiral_smoother_util.cc"
 
-#define save_debug_info true
+#define save_debug_info false
 
 namespace apollo {
 namespace relative_map {
@@ -138,6 +138,54 @@ void PathSegmentTrans2D(const double P0[2], const double P1[2], const double P2
 }
 
 
+double my_norm(const Eigen::Vector2d optpath, const Eigen::Vector2d prepath)
+{
+  double aa;
+  double scale;
+  double absxk;
+  double t;
+  scale = 3.3121686421112381E-170;
+  absxk = std::abs(optpath.x() - prepath.x());
+  if (absxk > 3.3121686421112381E-170) {
+    aa = 1.0;
+    scale = absxk;
+  } else {
+    t = absxk / 3.3121686421112381E-170;
+    aa = t * t;
+  }
+
+  absxk = std::abs(optpath.y() - prepath.y());
+  if (absxk > scale) {
+    t = scale / absxk;
+    aa = 1.0 + aa * t * t;
+    scale = absxk;
+  } else {
+    t = absxk / scale;
+    aa += t * t;
+  }
+
+  return scale * std::sqrt(aa);
+}
+
+void PathSmoothing(std::vector<Eigen::Vector2d>&path, double alpha, double beta, std::vector<Eigen::Vector2d>&optPath) {
+  double change = 1e-5;
+  for (size_t i =0; i < path.size();i++) {
+    optPath.push_back(path[i]);
+  }
+
+  while (change >= 1e-5) {
+    change = 0.0;
+    for (size_t ip = 1; ip < path.size()-1;ip++) {
+      Eigen::Vector2d prePath = optPath[ip];
+      optPath[ip]=optPath[ip]-alpha*(optPath[ip]-path[ip]);
+      optPath[ip]=optPath[ip]-beta*(2.0*optPath[ip]-optPath[ip-1]-optPath[ip+1]);
+      change=change+my_norm(optPath[ip],prePath);
+    }
+  }
+  
+
+}  
+
 cv::Mat polyfit(std::vector<cv::Point2d>& in_point, int n)
 {
 	int size = in_point.size();
@@ -212,6 +260,45 @@ bool RelativeMap::LoadMap() {
   return true;
 }
 
+bool RelativeMap::LoadLocalPath() {
+  //std::ifstream fin("/apollo/data/intoSZ_path_20210129121938.record.00000.txt");//SZ1 inner //打开文件流操作
+  //std::ifstream fin("/apollo/data/intoSZ_path_20210201201923.record.00000.txt");//SZ1 out
+
+  //std::ifstream fin("/apollo/data/intoSZ2_path_20210203124337.record.00000.txt");//SZ2 out
+
+ // std::ifstream fin("/apollo/data/intoAyardF_path_20210203190553.record.00000.txt");//SZ2 to A yard
+  std::ifstream fin("/apollo/data/SZ1_intoAyardF_path_20210203203122.record.00000.txt");//SZ1  to A yard
+
+	std::string line; 
+	while (getline(fin, line))   //整行读取，换行符“\n”区分，遇到文件尾标志eof终止读取
+	{
+		//std::cout <<"原始字符串："<< line << std::endl; //整行输出
+    
+	  std::istringstream sin(line); //将整行字符串line读入到字符串流istringstream中
+		std::vector<std::string> fields; //声明一个字符串向量
+		std::string field;
+		while (getline(sin, field, ',')) //将字符串流sin中的字符读入到field字符串中，以逗号为分隔符
+		{
+			fields.push_back(field); //将刚刚读取的字符串添加到向量fields中
+		}
+		//std::string seq_number = Trim(fields[0]); //清除掉向量fields中第一个元素的无效字符，并赋值给变量seq
+		std::string str_lat =Trim(fields[0]); //清除掉向量fields中第二个元素的无效字符，并赋值给变量lat
+		std::string str_lon =Trim(fields[1]); //清除掉向量fields中第三个元素的无效字符，并赋值给变量lon
+		//std::cout <<"处理之后的字符串："<< seq_number << "\t" << lat << "\t" << lon << std::endl; 
+    Eigen::Vector2d local_path_point;
+    local_path_point.x() = stringToNum<double>(str_lat);//+(-5.78174585541547e-07);
+    local_path_point.y() = stringToNum<double>(str_lon);//+(3.47222185480080e-06);
+    //std::cout <<std::fixed << "处理之后的数值："<< seq_number << "\t" << local_path_point.x() << "\t" << local_path_point.y() << std::endl; 
+
+      
+   
+        local_path_points_vector_.push_back(local_path_point);
+
+
+  }
+  fin.close();
+  return true;	
+}
 
 
 RelativeMap::RelativeMap()
@@ -239,6 +326,7 @@ Status RelativeMap::Init() {
 
 
     LoadMap();
+    LoadLocalPath();
     reset_act_task_ = false;
     tcs_navigator_status_ = false;
 
@@ -274,26 +362,14 @@ void RelativeMap::OnNavigationInfo(const NavigationInfo& navigation_info) {
   }
 }
 
-void RelativeMap::OnTmcNavigationInfo(const remoteManage::actTask& act_task) {
+void RelativeMap::OnTmcNavigationInfo(const rms::msgTaskCoord& act_task) {
   {
     std::lock_guard<std::mutex> lock(navigation_lane_mutex_);
     //if (FLAGS_tmc_navigation_points) {
     //  return;
     //}//add by shzhw 0917
-    //navigation_lane_.UpdateTmcNavigationInfo(act_task);    
-  act_task_.CopyFrom(act_task);
-
-  static double act_task_timestamp = 0.0;
-  if (act_task_.has_header()) {
-      if (((act_task_timestamp == 0.0) && (act_task_.task_coord_size()> 0)) || 
-            (act_task_timestamp != act_task_.header().timestamp_sec())) {
-              act_task_timestamp = act_task_.header().timestamp_sec();
-              reset_act_task_ = true;
-      } else {
-        reset_act_task_ = false;
-      }
-  }
-        
+    //navigation_lane_.UpdateTmcNavigationInfo(act_task); 
+    act_task_.CopyFrom(act_task);        
   //tmc_gps_points_;
 
 
@@ -329,6 +405,47 @@ bool RelativeMap::CreateMapFromNavigationLane(MapMsg* map_msg) {
   
   if(!localization_.has_pose() || !localization_.pose().has_heading()) {return false;}
   //if(!chassis_.has_speed_mps()) {return false;} // to avoid ctrl variable appears nan
+/*
+  static double act_task_timestamp = 0.0;
+  if (act_task_.has_header()) {
+      if ((act_task_.task_coord_size()> 0) && 
+            (act_task_timestamp != act_task_.header().timestamp_sec())) {
+              act_task_timestamp = act_task_.header().timestamp_sec();
+	      if (act_task_.task_flag() == 1) {
+                reset_act_task_ = true;
+	      } else {
+		reset_act_task_ = false;
+	      }
+      } else {
+        reset_act_task_ = false;
+      }
+  }
+*/
+    static double act_task_timestamp = 0.0;
+  static double pre_dst_lat = 0.0;
+  static double pre_dst_lon = 0.0;
+  if (act_task_.has_header()) {
+      if ((act_task_.task_coord_size()> 0) &&
+            (act_task_timestamp != act_task_.header().timestamp_sec())) {
+        act_task_timestamp = act_task_.header().timestamp_sec();
+        double cur_dst_lat = act_task_.dst_coord().y();
+        double cur_dst_lon = act_task_.dst_coord().x();
+	      if (act_task_.task_flag() == 1) {
+          if (std::fabs(pre_dst_lat - cur_dst_lat) > 1e-10 &&
+               std::fabs(pre_dst_lon - cur_dst_lon) > 1e-10) {
+            reset_act_task_ = true;
+          } else {
+            reset_act_task_ = false;
+          }
+	      } else {
+		      reset_act_task_ = false;
+	      }
+        pre_dst_lat = cur_dst_lat;
+        pre_dst_lon = cur_dst_lon;
+      } else {
+        reset_act_task_ = false;
+      }
+  }
 
   LocalizationEstimate const& localization = localization_;
   Chassis const& chassis = chassis_;
@@ -337,18 +454,14 @@ bool RelativeMap::CreateMapFromNavigationLane(MapMsg* map_msg) {
 
   //------add 20200708-----------------------------
   static int nIndex = 0;
-  //nIndex++;
-  AERROR <<"nIndex: " << nIndex;
-  //if ((nIndex == 1 /*||nIndex==100*/)  && FLAGS_tmc_navigation_points) {
-   
+  nIndex++;
+  //AERROR <<"nIndex: " << nIndex;
+  //if ((nIndex == 1 ||nIndex==400)  && FLAGS_tmc_navigation_points) {   
   if ( FLAGS_tmc_navigation_points && (act_task_.task_coord_size()> 0)) {
 
-    AERROR << "points size: " << act_task_.task_coord_size();
-    nIndex++;
-    if (nIndex == 1) {
-    AERROR << "nIndex: " << nIndex;
-  
-    //if ( FLAGS_tmc_navigation_points && reset_act_task_) { 
+    //nIndex++;
+   // if (nIndex == 1 ||nIndex==400) {
+    if ( FLAGS_tmc_navigation_points && reset_act_task_) {
       
   // generate navigation from tmc
       std::vector<cv::Point2d>  tmc_gps_points;
@@ -387,12 +500,26 @@ bool RelativeMap::CreateMapFromNavigationLane(MapMsg* map_msg) {
     #else
       
       /**/
+      //traget position gps to UTM
+      localization::msf::UTMCoor traget_utm_xy;
+
+      
+      /**/
+      double lat = act_task_.dst_coord().y();
+      double lon = act_task_.dst_coord().x();
+      localization::msf::FrameTransform::LatlonToUtmXY(lon/180.0*M_PI,
+                                    lat/180.0*M_PI, &traget_utm_xy);
+      traget_position_coord_.set_x(traget_utm_xy.x);
+      traget_position_coord_.set_y(traget_utm_xy.y);
+      
+
+
       cv::Point2d tmc_gps_point;
       
       for (int n = 0; n < act_task_.task_coord_size();n++) {
         tmc_gps_point.x = act_task_.task_coord(n).y();
         tmc_gps_point.y = act_task_.task_coord(n).x();
-        AERROR << "X:" <<tmc_gps_point.x << ", Y: " << tmc_gps_point.y;
+       // AERROR << "X:" <<tmc_gps_point.x << ", Y: " << tmc_gps_point.y;
         tmc_gps_points.push_back(tmc_gps_point);
       }
 
@@ -410,6 +537,9 @@ bool RelativeMap::CreateMapFromNavigationLane(MapMsg* map_msg) {
 
     }
 
+  } else if (FLAGS_tmc_navigation_points && (act_task_.task_coord_size() <= 0)) {
+    LogErrorStatus(map_msg, "Task cancelled.");
+    return false;
   }//add by shzhw 0917
 
   // process fused input dta
@@ -525,7 +655,13 @@ bool RelativeMap::CreateMapFromNavigationLane(MapMsg* map_msg) {
     // update navigation_lane from perception_obstacles (lane marker)
     PerceptionObstacles const& perception = perception_obstacles_;
     navigation_lane_.UpdatePerception(perception);
-    map_msg->mutable_lane_marker()->CopyFrom(perception_obstacles_.lane_marker());
+    //map_msg->mutable_lane_marker()->CopyFrom(perception_obstacles_.lane_marker());
+
+    map_msg->mutable_traget_position_coord()->CopyFrom(traget_position_coord_);
+    map_msg->set_machine_status(act_task_.machine_status());
+    map_msg->set_box_position(act_task_.box_position());
+    map_msg->set_machine_type(act_task_.machine_type());
+    map_msg->set_task_type(act_task_.task_type());
   // add by shzhw, to check lane marker missing
   /*
   // method 1, error, to do
@@ -539,7 +675,9 @@ bool RelativeMap::CreateMapFromNavigationLane(MapMsg* map_msg) {
   */
 
   // method 2, to do
-  static auto pre_lane_marker = perception_obstacles_.mutable_lane_marker();
+  /**/
+  //static auto pre_lane_marker = perception_obstacles_.mutable_lane_marker();
+  static auto pre_lane_marker = perception_obstacles_.lane_marker();
   static double left_lane_marker_c0 = 0.0;
   static double left_lane_marker_c1 = 0.0;
   static double left_lane_marker_view_range = 0.0;
@@ -552,15 +690,25 @@ bool RelativeMap::CreateMapFromNavigationLane(MapMsg* map_msg) {
            perception_obstacles_.lane_marker().has_left_lane_marker() &&
            perception_obstacles_.lane_marker().left_lane_marker().has_c0_position() &&
            perception_obstacles_.lane_marker().has_right_lane_marker()) {
-    pre_lane_marker = perception_obstacles_.mutable_lane_marker();
+     //pre_lane_marker = perception_obstacles_.mutable_lane_marker();
+     pre_lane_marker.CopyFrom(perception_obstacles_.lane_marker());
+
     std::cout << "22222222222222222" << std::endl;
     // AERROR << pre_lane_marker->left_lane_marker().c0_position();
-    left_lane_marker_c0 = pre_lane_marker->left_lane_marker().c0_position();
-    left_lane_marker_c1 = pre_lane_marker->left_lane_marker().c1_heading_angle();
-    left_lane_marker_view_range = pre_lane_marker->left_lane_marker().view_range();
-    right_lane_marker_c0 = pre_lane_marker->right_lane_marker().c0_position();
-    right_lane_marker_c1 = pre_lane_marker->right_lane_marker().c1_heading_angle();
-    right_lane_marker_view_range = pre_lane_marker->right_lane_marker().view_range();
+    //left_lane_marker_c0 = pre_lane_marker->left_lane_marker().c0_position();
+    //left_lane_marker_c1 = pre_lane_marker->left_lane_marker().c1_heading_angle();
+    //left_lane_marker_view_range = pre_lane_marker->left_lane_marker().view_range();
+    //right_lane_marker_c0 = pre_lane_marker->right_lane_marker().c0_position();
+    //right_lane_marker_c1 = pre_lane_marker->right_lane_marker().c1_heading_angle();
+    //right_lane_marker_view_range = pre_lane_marker->right_lane_marker().view_range();
+
+    left_lane_marker_c0 = pre_lane_marker.left_lane_marker().c0_position();
+    left_lane_marker_c1 = pre_lane_marker.left_lane_marker().c1_heading_angle();
+    left_lane_marker_view_range = pre_lane_marker.left_lane_marker().view_range();
+    right_lane_marker_c0 = pre_lane_marker.right_lane_marker().c0_position();
+    right_lane_marker_c1 = pre_lane_marker.right_lane_marker().c1_heading_angle();
+    right_lane_marker_view_range = pre_lane_marker.right_lane_marker().view_range();
+
     std::cout << left_lane_marker_c0 << "\t" << left_lane_marker_c1 << std::endl;
     null_lane_marker_count = 0;
   } else {    
@@ -583,21 +731,50 @@ bool RelativeMap::CreateMapFromNavigationLane(MapMsg* map_msg) {
   AERROR << "NULL LANE MARKER COUNT NUM: " << null_lane_marker_count;
   if (null_lane_marker_count > 6) {
     LogErrorStatus(map_msg, "no perception lane marker!"); 
+    AERROR << "55555555555555555555: " << null_lane_marker_count;
+    AERROR << "66666666666666666666: " << perception_obstacles_.lane_marker().left_lane_marker().c0_position();
+    perception_obstacles_.clear_lane_marker();
     //return false;
   }
   //-----------------------------
     navigation_lane_.SetLaneMarkerMissCount(null_lane_marker_count);
     map_msg->mutable_lane_marker()->CopyFrom(perception_obstacles_.lane_marker());
+
+    //20201020
+    //auto cur_theta = localization_.pose().heading();
+    //if ( (std::fabs(cur_theta- 1.9) < 0.2) /*|| (std::fabs(cur_theta -(-1.2)) < 0.2)*/) {
+    //  navigation_lane_.SetLaneMarkerValid(true);
+    //  if (null_lane_marker_count > 6) {
+    //    navigation_lane_.SetLaneMarkerValid(false);
+    //  }
+    //} else {
+    //  navigation_lane_.SetLaneMarkerValid(false);      
+    //}
+   
   }
   //---------------------------------------------------------------------------------
+    //20201020
+    auto cur_theta = localization_.pose().heading();
+    if ( (std::fabs(cur_theta- 1.9) < 0.2) /*|| (std::fabs(cur_theta -(-1.2)) < 0.2)*/) {
+      navigation_lane_.SetLaneMarkerValid(true);
+      //if (null_lane_marker_count > 6) {
+      //  navigation_lane_.SetLaneMarkerValid(false);
+     // }
+     if  (localization_.uncertainty().position_std_dev().x() < 0.04
+       &&localization_.uncertainty().position_std_dev().y() < 0.04) {
+         if (std::fabs(cur_theta- 1.9) > 0.1) {
+            navigation_lane_.SetLaneMarkerValid(false);
+         }
+     }
+     double invalid_startx = localization_.pose().position().x()*cos(-1.24)+
+                             localization_.pose().position().y()*sin(-1.24);
+     if(invalid_startx <  -2097692.27883582) {
+       navigation_lane_.SetLaneMarkerValid(false);
+     }
+    } else {
+      navigation_lane_.SetLaneMarkerValid(false);
+    }
 
-  //20201020
-  auto cur_theta = localization_.pose().heading();
-  if ( (std::fabs(cur_theta- 1.9) < 0.2) || (std::fabs(cur_theta -(-1.2)) < 0.2)) {
-    navigation_lane_.SetLaneMarkerValid(true);
-  } else {
-    navigation_lane_.SetLaneMarkerValid(false);
-  }
 
 
   if (!navigation_lane_.GeneratePath()) {
@@ -634,7 +811,7 @@ bool RelativeMap::GenerateNavigatorPath(const std::vector<cv::Point2d>& gps_poin
   std::vector<size_t> inflection_point_indexs;
 
       std::ofstream gps_in_data;
-    gps_in_data.open("gps_in_data.txt",std::ios::app);
+    gps_in_data.open("gps_in_data.txt"/*,std::ios::app*/);
 
   for (size_t i =0; i < gps_points.size(); i++) {
 
@@ -669,86 +846,123 @@ bool RelativeMap::GenerateNavigatorPath(const std::vector<cv::Point2d>& gps_poin
   }
 
 
-  AERROR << "SIZE:" << inflection_point_indexs.size();
-    std::vector<size_t> inflection_point_indexs_t;
+  //AERROR << "SIZE:" << inflection_point_indexs.size();
+  std::vector<size_t> inflection_point_indexs_t;
+  std::vector<Eigen::Vector2d> new_raw_points;
+  std::vector<apollo::common::PathPoint> smooth_points;
+
+  bool res = false;
+
+ #if 0 //method 1, r =10.0
+
+  if (inflection_point_indexs_t.size() > 0) {
     inflection_point_indexs_t.insert(inflection_point_indexs_t.end(),inflection_point_indexs.begin(),inflection_point_indexs.end());
-  for (size_t k=0;k < inflection_point_indexs_t.size()-1; k++) {
-      AERROR << "inflection_point_indexs:" <<inflection_point_indexs[k];
-    if (inflection_point_indexs_t[k+1] - inflection_point_indexs_t[k] < 3 ) {
-      AERROR << "k:" << k;
-     
-      for(std::vector<size_t>::iterator iter=inflection_point_indexs.begin();iter!=inflection_point_indexs.end();iter++){        //从vector中删除指定的某一个元素 
-        if(*iter== inflection_point_indexs_t[k] || *iter== inflection_point_indexs_t[k+1]){
-          inflection_point_indexs.erase(iter);
-        //break;
-        }   
+    for (size_t k=0;k < inflection_point_indexs_t.size()-1; k++) {
+      //  AERROR << "inflection_point_indexs:" <<inflection_point_indexs[k];
+      if (inflection_point_indexs_t[k+1] - inflection_point_indexs_t[k] < 3 ) {
+        //AERROR << "k:" << k;
+      
+        for(std::vector<size_t>::iterator iter=inflection_point_indexs.begin();iter!=inflection_point_indexs.end();iter++){        //从vector中删除指定的某一个元素 
+          if(*iter== inflection_point_indexs_t[k] || *iter== inflection_point_indexs_t[k+1]){
+            inflection_point_indexs.erase(iter);
+          //break;
+          }   
+        }
+
+      }
+    }
+    //AERROR << "SIZE2:" << inflection_point_indexs.size();
+
+    //process infletion path segment
+    
+
+    size_t start_index = 0;
+    size_t end_index = std::max(static_cast<size_t>(0), inflection_point_indexs[0]-static_cast<size_t>(10));
+    new_raw_points.insert(new_raw_points.end(),raw_points.begin()+start_index,raw_points.begin()+end_index);
+  //AERROR << start_index << "," << end_index;
+    for (size_t k=0;k < inflection_point_indexs.size(); k++) {
+      double P0[2];
+      double P1[2];
+      double P2[2];
+
+      double Pt1[2];
+      double Pt2[2];
+      double d1;
+      double d2;
+      double C[2];
+      double theta;
+      const double r = 6.0;//6.0;
+
+      size_t P0_index = std::max(static_cast<size_t>(0), inflection_point_indexs[k]-static_cast<size_t>(10));
+      size_t P2_index = std::min(gps_points.size()-static_cast<size_t>(2), inflection_point_indexs[k]+static_cast<size_t>(10));
+
+      P0[0] = raw_points[P0_index].x();P0[1] = raw_points[P0_index].y();
+      P1[0] = raw_points[inflection_point_indexs[k]].x();P1[1] = raw_points[inflection_point_indexs[k]].y();
+      P2[0] = raw_points[P2_index].x();P2[1] = raw_points[P2_index].y();
+
+      PathSegmentTrans2D(P0, P1,  P2, r, Pt1, Pt2, &d1, &d2,
+        C, &theta);
+    
+
+      const double delta_phi = 0.1;    
+      const double phi1 = atan2(Pt1[1]-C[1], Pt1[0]-C[0]);
+      const double phi2 = atan2(Pt2[1]-C[1], Pt2[0]-C[0]); 
+      
+      std::vector<Eigen::Vector2d> new_inflection_points;
+      Eigen::Vector2d  new_inflection_point;
+      const double dfai=M_PI - theta;
+      for (int k = 0;k<std::floor(std::fabs(dfai)/delta_phi);k++) {
+          double phi_t = phi1 + k*(phi2-phi1)/std::fabs(phi2-phi1)*delta_phi;
+          if(abs(phi2-phi1)> M_PI) {
+              phi_t = phi1- k*(phi2-phi1)/std::fabs(phi2-phi1)*delta_phi;
+          }
+        new_inflection_point.x() = C[0] + r*cos(phi_t);
+        new_inflection_point.y() = C[1] + r*sin(phi_t);
+        new_inflection_points.push_back(new_inflection_point);
       }
 
+      new_raw_points.insert(new_raw_points.end(),new_inflection_points.begin(),new_inflection_points.end());
+      
+      if (k < inflection_point_indexs.size()-static_cast<size_t>(1)) {
+      start_index = std::min(gps_points.size()-static_cast<size_t>(2), inflection_point_indexs[k]+static_cast<size_t>(10));
+      end_index = std::max(static_cast<size_t>(0), inflection_point_indexs[k+1]-static_cast<size_t>(10)); 
+      new_raw_points.insert(new_raw_points.end(),raw_points.begin()+start_index,raw_points.begin()+end_index);
+    
+      }    
     }
+    start_index = std::min(gps_points.size()-static_cast<size_t>(2), inflection_point_indexs[inflection_point_indexs.size()-1]+static_cast<size_t>(10));
+    new_raw_points.insert(new_raw_points.end(),raw_points.begin()+start_index,raw_points.end());
+    
+    res = Smooth(new_raw_points, &smooth_points);
+  } else {
+    res = Smooth(raw_points, &smooth_points);
   }
-  AERROR << "SIZE2:" << inflection_point_indexs.size();
 
-  //process infletion path segment
-  std::vector<Eigen::Vector2d> new_raw_points;
+ #else //method 2
+  double alpha = FLAGS_path_smooth_param_alpha;//0.02;//0.04;//0.02;// 0.02;
+  double beta = FLAGS_path_smooth_param_beta;//0.4;//0.3;//0.4;
+  PathSmoothing(raw_points, alpha, beta, new_raw_points);
 
-  static size_t start_index = 0;
-  static size_t end_index = std::max(static_cast<size_t>(0), inflection_point_indexs[0]-static_cast<size_t>(10));
-  new_raw_points.insert(new_raw_points.end(),raw_points.begin()+start_index,raw_points.begin()+end_index);
-
-  for (size_t k=0;k < inflection_point_indexs.size(); k++) {
-    double P0[2];
-    double P1[2];
-    double P2[2];
-
-    double Pt1[2];
-    double Pt2[2];
-    double d1;
-    double d2;
-    double C[2];
-    double theta;
-    const double r = 6.0;
-
-    size_t P0_index = std::max(static_cast<size_t>(0), inflection_point_indexs[k]-static_cast<size_t>(10));
-    size_t P2_index = std::min(gps_points.size()-static_cast<size_t>(2), inflection_point_indexs[k]+static_cast<size_t>(10));
-
-    P0[0] = raw_points[P0_index].x();P0[1] = raw_points[P0_index].y();
-    P1[0] = raw_points[inflection_point_indexs[k]].x();P1[1] = raw_points[inflection_point_indexs[k]].y();
-    P2[0] = raw_points[P2_index].x();P2[1] = raw_points[P2_index].y();
-
-    PathSegmentTrans2D(P0, P1,  P2, r, Pt1, Pt2, &d1, &d2,
-      C, &theta);
-
-    const double delta_phi = 0.1;    
-    const double phi1 = atan2(Pt1[1]-C[1], Pt1[0]-C[0]);
-    const double phi2 = atan2(Pt2[1]-C[1], Pt2[0]-C[0]); 
-    
-    std::vector<Eigen::Vector2d> new_inflection_points;
-    Eigen::Vector2d  new_inflection_point;
-    const double dfai=M_PI - theta;
-    for (int k = 0;k<std::floor(std::fabs(dfai)/delta_phi);k++) {
-        double phi_t = phi1 + k*(phi2-phi1)/std::fabs(phi2-phi1)*delta_phi;
-        if(abs(phi2-phi1)> M_PI) {
-            phi_t = phi1- k*(phi2-phi1)/std::fabs(phi2-phi1)*delta_phi;
-        }
-       new_inflection_point.x() = C[0] + r*cos(phi_t);
-       new_inflection_point.y() = C[1] + r*sin(phi_t);
-       new_inflection_points.push_back(new_inflection_point);
-    }
-
-    new_raw_points.insert(new_raw_points.end(),new_inflection_points.begin(),new_inflection_points.end());
-    
-    if (k < inflection_point_indexs.size()-static_cast<size_t>(1)) {
-    start_index = std::min(gps_points.size()-static_cast<size_t>(2), inflection_point_indexs[k]+static_cast<size_t>(10));
-    end_index = std::max(static_cast<size_t>(0), inflection_point_indexs[k+1]-static_cast<size_t>(10)); 
-    new_raw_points.insert(new_raw_points.end(),raw_points.begin()+start_index,raw_points.begin()+end_index);
+    if (act_task_.machine_type() == 4 && act_task_.task_type() == 6) { //chai suo
+   // //   for(std::vector<size_t>::iterator iter=new_raw_points.end();iter!=new_raw_points.end()-31;iter--){        //从vector中删除指定的某一个元素
+   // //    new_raw_points.erase(iter);
+   // //  }
+     // new_raw_points.insert(new_raw_points.end(),local_path_points_vector_.begin(),local_path_points_vector_.end());
+      
+  }
+   double rote_traget_py = -traget_position_coord_.x()*sin(-1.24) + traget_position_coord_.y()*cos(-1.24);
+  if (act_task_.machine_type() == 1 && rote_traget_py < 1560632.1480125) {
+	  AERROR << "A yard-------------";
+    res = Smooth(local_path_points_vector_, &smooth_points);
+  }
+  else {
+   AERROR << "no A yard------------";
+  res = Smooth(new_raw_points, &smooth_points);
+  }
+ #endif
   
-    }    
-  }
-  start_index = std::min(gps_points.size()-static_cast<size_t>(2), inflection_point_indexs[inflection_point_indexs.size()-1]+static_cast<size_t>(10));
-  new_raw_points.insert(new_raw_points.end(),raw_points.begin()+start_index,raw_points.end());
-
-  std::vector<apollo::common::PathPoint> smooth_points;
-  auto res = Smooth(new_raw_points, &smooth_points);//--------------------
+  
+  
     //auto res = Smooth(raw_points, &smooth_points);//--------------------
   if (!res) {
     AERROR << "Failed to smooth a the line";
@@ -756,12 +970,13 @@ bool RelativeMap::GenerateNavigatorPath(const std::vector<cv::Point2d>& gps_poin
   } else {
     AERROR   << "smooth the line success";
     //NavigationInfo tmc_navigation_info;
+    tmc_navigation_info.clear_navigation_path();
     auto tmc_navigation_path = tmc_navigation_info.mutable_navigation_path()->Add();
     tmc_navigation_path->set_path_priority(0);
     tmc_navigation_path->mutable_path()->set_name("tmc_navigation");
 
     std::ofstream smooth_out_data;
-    smooth_out_data.open("smooth_out_data.txt",std::ios::app);    
+    smooth_out_data.open("smooth_out_data.txt"/*,std::ios::app*/);
     
 
     for (size_t ii =0;ii < smooth_points.size();ii++) {
@@ -779,12 +994,17 @@ bool RelativeMap::GenerateNavigatorPath(const std::vector<cv::Point2d>& gps_poin
       }
 
     }
-    //navigation_lane_.UpdateNavigationInfo(tmc_navigation_info);//tttttttt
-
+    AERROR << "33333333333";
+    //static int n2=0;
+    //n2++;
+    //if(n2==1) {
+    navigation_lane_.UpdateNavigationInfo(tmc_navigation_info);
+    //}
+    
 
     //3333333333333
     //std::unique_lock<std::mutex> lock(navigation_lane_mutex_); 
-    tcs_navigation_msg_ = std::make_shared<NavigationInfo>(tmc_navigation_info);
+    //tcs_navigation_msg_ = std::make_shared<NavigationInfo>(tmc_navigation_info);
     return true;
   }
 
@@ -821,7 +1041,7 @@ bool RelativeMap::GenerateNavigatorPath(const std::vector<cv::Point2d>& gps_poin
     //CHECK(cyber::common::GetProtoFromFile(
       //  "modules/planning/conf/spiral_smoother_config.pb.txt", &config));
         cyber::common::GetProtoFromFile(
-        "modules/planning/conf/spiral_smoother_config.pb.txt", &config);
+        "/apollo/modules/planning/conf/spiral_smoother_config.pb.txt", &config);
 
     std::vector<double> opt_theta;
     std::vector<double> opt_kappa;

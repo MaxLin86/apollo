@@ -50,6 +50,8 @@ bool MSFLocalizationComponent::InitConfig() {
   bestgnsspos_topic_ = FLAGS_gnss_best_pose_topic;
   gnss_heading_topic_ = FLAGS_heading_topic;
 
+  routing_response_topic_ = FLAGS_routing_response_topic;
+
   if (!publisher_->InitConfig()) {
     AERROR << "Init publisher config failed.";
     return false;
@@ -96,6 +98,13 @@ bool MSFLocalizationComponent::InitIO() {
 
       localization_.OnChassis(*chassis.get());
     });
+
+  routing_reader_ = node_->CreateReader<routing::RoutingResponse>(
+    routing_response_topic_,
+    [this](const std::shared_ptr<routing::RoutingResponse>& routing) {
+      ADEBUG << "Received routing data: run routing callback.";
+      localization_.OnRouting(*routing.get());
+    });      
 
   // init writer
   if (!publisher_->InitIO()) {

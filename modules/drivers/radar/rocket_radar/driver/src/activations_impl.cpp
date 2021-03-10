@@ -1,28 +1,7 @@
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/activations_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/scanobject_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/include/serializer.h"
@@ -135,8 +114,21 @@ void     Activations_Impl::handle_uhdp(UhdpRDC3Header* rdc3hdr, uint32_t total_s
             return;
         }
 
+        INT bkt = rdc3hdr->bucket_index;
         bucket.total_skewers = rdc3hdr->total_tuple_in_bucket;
         bucket.skewers = new Skewer[bucket.total_skewers];
+        if (myscan.uhdp_version >= 33)
+        {
+            bucket.rb_start = rdc3hdr->range_bin_start;
+        }
+        else if (bkt == THRESH_HI_B || bkt == THRESH_LO_B || bkt == CUSTOM_RD_B)
+        {
+            bucket.rb_start = myscan.scan_info.num_range_bins / 2;
+        }
+        else
+        {
+            bucket.rb_start = 0;
+        }
     }
 
     total_size -= sizeof(UhdpRDC3Header);
@@ -145,7 +137,9 @@ void     Activations_Impl::handle_uhdp(UhdpRDC3Header* rdc3hdr, uint32_t total_s
     // Consume bucket data, which is the summary data followed by the skewer data
     while (bucket.num_sum < bucket.total_skewers && total_size >= sizeof(RDC_RDsummary))
     {
-        bucket.skewers[bucket.num_sum++].summary = *(RDC_RDsummary*)payload;
+        bucket.skewers[bucket.num_sum].summary = *(RDC_RDsummary*)payload;
+        bucket.skewers[bucket.num_sum].summary.R_bin_offset += bucket.rb_start;
+        bucket.num_sum++;
         payload += sizeof(RDC_RDsummary);
         total_size -= sizeof(RDC_RDsummary);
     }
@@ -211,16 +205,8 @@ void     Activations_Impl::setup()
     {
         BucketData& bucket = buckets[bkt];
 
-        uint16_t rbin_start = 0;
-        if (bkt == THRESH_HI_B || bkt == THRESH_LO_B || bkt == CUSTOM_RD_B)
-        {
-            rbin_start = myscan.scan_info.num_range_bins / 2;
-        }
-
         for (uint32_t sk = 0; sk < bucket.num_skewers; sk++)
         {
-            bucket.skewers[sk].summary.R_bin += rbin_start;
-
             if (complex_data_available())
             {
                 for (uint32_t a = 0; a < get_num_angle_bins(); a++)
@@ -298,11 +284,14 @@ const uint16_t* Activations_Impl::get_raw_samples(
     }
 
     last_err = ACT_NO_ERROR;
-    exponent = buckets[real_bucket].skewers[real_act_idx].summary.exponent;
-    range_bin = buckets[real_bucket].skewers[real_act_idx].summary.R_bin;
-    doppler_bin = buckets[real_bucket].skewers[real_act_idx].summary.D_bin;
-    max_val = buckets[real_bucket].skewers[real_act_idx].summary.max_val;
-    return buckets[real_bucket].skewers[real_act_idx].data;
+    const BucketData& b = buckets[real_bucket];
+    const Skewer&     s = b.skewers[real_act_idx];
+
+    exponent    = s.summary.exponent;
+    range_bin   = s.summary.R_bin_offset;
+    doppler_bin = s.summary.D_bin;
+    max_val     = s.summary.max_val;
+    return s.data;
 }
 
 
@@ -365,11 +354,14 @@ const cint16* Activations_Impl::get_raw_samples_complex(
     }
 
     last_err = ACT_NO_ERROR;
-    exponent = buckets[real_bucket].skewers[real_act_idx].summary.exponent;
-    range_bin = buckets[real_bucket].skewers[real_act_idx].summary.R_bin;
-    doppler_bin = buckets[real_bucket].skewers[real_act_idx].summary.D_bin;
-    max_val = buckets[real_bucket].skewers[real_act_idx].summary.max_val;
-    return buckets[real_bucket].skewers[real_act_idx].cdata;
+    const BucketData& b = buckets[real_bucket];
+    const Skewer&     s = b.skewers[real_act_idx];
+
+    exponent    = s.summary.exponent;
+    range_bin   = s.summary.R_bin_offset;
+    doppler_bin = s.summary.D_bin;
+    max_val     = s.summary.max_val;
+    return s.cdata;
 }
 
 

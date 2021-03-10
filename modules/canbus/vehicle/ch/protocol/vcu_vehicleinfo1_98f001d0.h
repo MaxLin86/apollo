@@ -34,10 +34,10 @@ class Vcuvehicleinfo198f001d0 : public ::apollo::drivers::canbus::ProtocolData<
  private:
 
   // config detail: {'name': 'VCU_DTC', 'offset': 0.0, 'precision': 1.0, 'len': 8, 'is_signed_var': False, 'physical_range': '[0|255]', 'bit': 40, 'type': 'int', 'order': 'intel', 'physical_unit': ''}
-  int vcu_dtc(const std::uint8_t* bytes, const int32_t length) const;
+  Vcu_vehicleinfo1_98f001d0::Vcu_dtcType vcu_dtc(const std::uint8_t* bytes, const int32_t length) const;
 
   // config detail: {'name': 'VCU_CumulatedMileage', 'offset': 0.0, 'precision': 20.0, 'len': 16, 'is_signed_var': False, 'physical_range': '[0|1310000]', 'bit': 48, 'type': 'double', 'order': 'intel', 'physical_unit': 'km'}
-  double vcu_cumulatedmileage(const std::uint8_t* bytes, const int32_t length) const;
+  /* double vcu_cumulatedmileage(const std::uint8_t* bytes, const int32_t length) const; */
 
   // config detail: {'name': 'VCU_ModuleStatus', 'enum': {0: 'VCU_MODULESTATUS_NORMAL', 1: 'VCU_MODULESTATUS_L1_WARNING', 2: 'VCU_MODULESTATUS_L2_FAULT', 3: 'VCU_MODULESTATUS_L3_FAULT', 4: 'VCU_MODULESTATUS_OTHER'}, 'precision': 1.0, 'len': 3, 'is_signed_var': False, 'offset': 0.0, 'physical_range': '[0|7]', 'bit': 32, 'type': 'enum', 'order': 'intel', 'physical_unit': ''}
   Vcu_vehicleinfo1_98f001d0::Vcu_modulestatusType vcu_modulestatus(const std::uint8_t* bytes, const int32_t length) const;

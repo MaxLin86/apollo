@@ -1,17 +1,33 @@
 header {
-  timestamp_sec: 1615185413.5710518
+  timestamp_sec: 1615361271.81067
   module_name: "perception_camera"
-  sequence_num: 5
-  lidar_timestamp: 1600829666353507072
-  camera_timestamp: 1600829666353507072
+  sequence_num: 502
+  lidar_timestamp: 1614667986121786880
+  camera_timestamp: 1614667986121786880
 }
 error_code: OK
 lane_marker {
   left_lane_marker {
+    quality: 0.5
+    c0_position: 1.4827700853347778
+    c1_heading_angle: -0.039316911250352859
+    c2_curvature: 0
+    c3_curvature_derivative: 0
+    view_range: 4
   }
   right_lane_marker {
+    quality: 0.5
+    c0_position: -1.2678699493408203
+    c1_heading_angle: -0.054685544222593307
+    c2_curvature: 0
+    c3_curvature_derivative: 0
+    view_range: 4
   }
   next_left_lane_marker {
+  }
+  next_left_lane_marker {
+  }
+  next_right_lane_marker {
   }
   next_right_lane_marker {
   }

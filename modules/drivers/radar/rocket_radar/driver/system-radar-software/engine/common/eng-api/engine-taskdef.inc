@@ -1,6 +1,6 @@
 /* defines profiling zones or time ranges (for PPA or other profiling tools) */
 
-// Defined by env-uhnder
+// Defined by env-reference
 DEFINE_TASK(OS_SCP_IDLE,                    "SCP Idle Time")
 
 // UhDP agent
@@ -33,6 +33,9 @@ DEFINE_TASK(RSI_MUSIC_COV_COMPLETE,         "RSI::music_cov_complete")
 DEFINE_TASK(RSI_MUSIC_SVD_COMPLETE,         "RSI::music_svd_complete")
 DEFINE_TASK(RSI_MUSIC_COMPLETE,             "RSI::music_rpc_complete")
 DEFINE_TASK(RSI_HISTOGRAMS_COMPLETE,        "RSI::histograms_complete")
+DEFINE_TASK(RSI_FIND_GIANT_TARGET,          "RSI::find_activations_giant_target")
+DEFINE_TASK(RSI_PROCESS_ANGLE_NF,           "RSI::process_angle_noise_floor")
+DEFINE_TASK(RSI_COMPUTE_RIDGE_MASK,         "RSI::compute_ridge_mask")
 DEFINE_TASK(RSI_SW_COMPLETE,                "RSI::sw_complete")
 DEFINE_TASK(RSI_PROCESS_PEAKS,              "RSI::process_peaks")
 DEFINE_TASK(RSI_SW_COMPLETE_MUSIC,          "RSI::sw_complete_music")
@@ -40,6 +43,8 @@ DEFINE_TASK(RSI_RELEASE,                    "RSI::release")
 DEFINE_TASK(RSI_SS_DETECTIONS,              "RSI::static_slice_detections")
 DEFINE_TASK(RSI_CI_DETECTIONS,              "RSI::clutter_image_detections")
 DEFINE_TASK(RSI_REFINE_EGO_VEL,             "RSI::refine_ego_vel")
+DEFINE_TASK(RSI_REFINE_EGO_VEL_DETS,        "RSI::refine_ego_vel_from_detections")
+DEFINE_TASK(RSI_REVD_ITER_DETS,             "RSI::refine_evfd_iterate_dets")
 DEFINE_TASK(RSI_CHECK_DSP_ZEROD,            "RSI::check_dsp_zerod")
 DEFINE_TASK(RSI_DETECTION_THRESH,           "RSI::compute_detection_thresholds")
 
@@ -74,8 +79,11 @@ DEFINE_TASK(RLA_SCAN_PROG,                  "RLA_SD::rla_program_nonshadow_bl_re
 DEFINE_TASK(RLA_PROC_GAINMGR,               "RLA_ProcGainMgr::process_proc_scale_stats")
 DEFINE_TASK(RLA_PROC_GAINMGR_UPDATE_SFS,    "RLA_ProcGainMgr::update_proc_scale_factors")
 DEFINE_TASK(RLA_PID,                        "RHAL_PID_Controller::update_pid")
-
 DEFINE_TASK(RLA_PROC_COMPLETE,              "RLA_PD::rla_proc_complete")
+
+DEFINE_TASK(RLA_FE_POWER_CONTROL,           "RLA::rla_fe_power_control")
+DEFINE_TASK(RLA_BE_POWER_CONTROL,           "RLA::rla_be_power_control")
+DEFINE_TASK(RLA_P5_POWER_CONTROL,           "RLA::rla_p5_power_control")
 
 DEFINE_TASK(RGC_UPDATE_PRELOAD,             "RGC::update_preload_now")
 DEFINE_TASK(RGC_UPDATE_HARDWARE,            "RGC::update_hardware_now")
@@ -135,6 +143,7 @@ DEFINE_TASK(CND_START_PROC_INST,            "COND: PROC Start")
 DEFINE_TASK(CND_PROG_PROC_INST,             "COND: PROC Program")
 DEFINE_TASK(CND_PREPROG_PROC_INST,          "COND: PROC PreProgram")
 DEFINE_TASK(CND_PROC_COMPLETE,              "COND: PROC Complete")
+DEFINE_TASK(CND_APROBE_WAIT,                "COND: APROBE Wait")
 
 // x86 specific
 DEFINE_TASK(X86_SCAN_COMPLETE,              "X86::scan_complete")
@@ -189,9 +198,28 @@ DEFINE_TASK(OS_INIT_DSP,                    "OS::init-oslayer-DSP")
 DEFINE_TASK(OS_INIT_HSM,                    "OS::init-oslayer-HSM")
 DEFINE_TASK(OS_INIT_CCP,                    "OS::init-oslayer-CCP")
 
+// PowerControl
+DEFINE_TASK(SCP_POWER_CONTROL,              "POWER::scp_power_control")
+DEFINE_TASK(NOC_POWER_CONTROL,              "POWER::noc_power_control")
+
 //PVT
 DEFINE_TASK(THERMAL_MONITOR_PROFILER,       "TM")
 DEFINE_TASK(VOLTAGE_MONITOR_PROFILER,       "VM")
+
+//MCU
+DEFINE_TASK(MCU_COMMAND,                    "MCU")
+DEFINE_TASK(RAIL_0,                         "RAIL 0")
+DEFINE_TASK(RAIL_1,                         "RAIL 1")
+DEFINE_TASK(RAIL_2,                         "RAIL 2")
+DEFINE_TASK(RAIL_3,                         "RAIL 3")
+DEFINE_TASK(RAIL_4,                         "RAIL 4")
+DEFINE_TASK(RAIL_5,                         "RAIL 5")
+DEFINE_TASK(RAIL_6,                         "RAIL 6")
+DEFINE_TASK(RAIL_7,                         "RAIL 7")
+DEFINE_TASK(RAIL_8,                         "RAIL 8")
+DEFINE_TASK(RAIL_9,                         "RAIL 9")
+
+DEFINE_TASK(RANSAC_UTIL,                    "RANSAC")
 
 // temporary tasks for debugging (don't commit code that uses these)
 DEFINE_TASK(TASK1,                          "Task 1")

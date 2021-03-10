@@ -1,3 +1,5 @@
+% Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+% Refer to SOFTWARE_LICENSE file for details
 function plot_clutImg_movie(socpath,scannums)
 %scannums=1:207;
 %socpath='~/Documents/Uhnder/Bitbucket/sabine-radar-sw/build-x86';

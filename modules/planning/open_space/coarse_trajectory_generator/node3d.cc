@@ -102,8 +102,8 @@ Node3d::Node3d(const std::vector<double>& traversed_x,
 
 Box2d Node3d::GetBoundingBox(const common::VehicleParam& vehicle_param_,
                              const double x, const double y, const double phi) {
-  double ego_length = vehicle_param_.length()-0.10;//safe
-  double ego_width = vehicle_param_.width()-0.10;//safe 
+  double ego_length = vehicle_param_.length()-0.16;//safe
+  double ego_width = vehicle_param_.width()-0.16;//safe 
   double shift_distance =
       ego_length / 2.0 - vehicle_param_.back_edge_to_center();
   Box2d ego_box(

@@ -1,9 +1,0 @@
-<cyber>
-    <module>
-        <name>rocket_radar</name>
-        <dag_conf>/apollo/modules/drivers/radar/rocket_radar/dag/rocket_all.dag</dag_conf>
-        <process_name>rocket_radar</process_name>
-    </module>
-
-
-</cyber>

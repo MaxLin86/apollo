@@ -38,6 +38,7 @@ cc_library(
     srcs = ["objProcess.cc"],
     hdrs = ["objProcess.h"],
     deps = [
+        "//cyber",
         "@eigen",
     ],
 )

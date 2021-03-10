@@ -9,7 +9,7 @@ namespace drivers{
 namespace uhnder_radar {
 
 bool cmp(track a, track b) {
-  if (fabs(a.lifetime - b.lifetime) < 0.001) {
+  if ( std::fabs(a.lifetime - b.lifetime) < 0.001) {
     return (a.count > b.count);
   } else {
     return (a.lifetime > b.lifetime);
@@ -26,40 +26,56 @@ void RadarTrackProcess::initRadarTrack(float pos_x, float pos_y,float angle){
     MeasLists_.clear();
     TrackLists_.clear();
     H_matrix_.resize(3,6);
+    Flag_2D_ = false;
 }
 
 void RadarTrackProcess::radarTrackMainProcess(std::vector<track> &tracks) {
   trackCluster();
+  
+  trackPredict();
   trackMatch();
   trackUpdate();
   trackManage();
   trackAddNew();
   trackOutput(tracks);
-  trackPredict();
 }
 
 void RadarTrackProcess::trackCluster() {
+  float sum_z = 0.0f;
   for (auto it = MeasLists_.begin(); it != MeasLists_.end();) {
     float vcs_px = it->pos_x * cos(install_ang_) -
                    it->pos_y * sin(install_ang_) + install_x_;
     float vcs_py = it->pos_x * sin(install_ang_) +
                    it->pos_y * cos(install_ang_) + install_y_;
-    if (vcs_px > 60.0 || fabs(vcs_py) > 6.0 ) {
+    
+    sum_z += std::fabs(it->pos_z);
+    if (vcs_px > 50.0 || std::fabs(vcs_py) > 6.0) {
       it = MeasLists_.erase(it);
     } else {
       ++it;
     }
   }
+  
+  Flag_2D_ = false;
+  if(sum_z > 0.5){
+    Flag_2D_ = true;
+  }
 
   int size = MeasLists_.size();
-  float eps = 0.75;
+  float eps = 0.465;
   for (int i = 0; i < size; i++) {
+    if (MeasLists_[i].clutter == true) {
+      continue;
+    }
     for (int j = i + 1; j < size; j++) {
+      if (MeasLists_[j].clutter == true) {
+        continue;
+      }
       float dx = MeasLists_[i].pos_x - MeasLists_[j].pos_x;
       float dy = MeasLists_[i].pos_y - MeasLists_[j].pos_y;
-      float dv = fabs(MeasLists_[i].speed - MeasLists_[j].speed);
-      float dis = sqrt(dx * dx + dy * dy);
-      float d_clu = 0.75 * dis + 0.25 * dv;
+      // float dv =  std::fabs(MeasLists_[i].speed - MeasLists_[j].speed);
+      float dis = std::sqrt(dx * dx + dy * dy);
+      float d_clu = dis;  // 0.75 * dis + 0.25 * dv;
       if (d_clu < eps) {
         if (MeasLists_[i].snr > MeasLists_[j].snr) {
           MeasLists_[j].clutter = true;
@@ -77,78 +93,76 @@ void RadarTrackProcess::trackCluster() {
       ++it;
     }
   }
-
 }
 
 void RadarTrackProcess::trackMatch() {
  // std::sort(TrackLists_.begin(),TrackLists_.end(),cmp);
   int track_size = TrackLists_.size();
   int meas_size = MeasLists_.size();
-  for (int i = 0; i < track_size; i++) {
-    float dx_match = 0.75;
-    float dy_match = 0.5;
-    if (TrackLists_[i].id > -1) {
-      TrackLists_[i].match_status = false;
-      TrackLists_[i].match_index = -1;
-      for (int j = 0; j < meas_size; j++) {
-        if (MeasLists_[j].match_status == false) {
-          float dx = fabs(TrackLists_[i].pos_x - MeasLists_[j].pos_x);
-          float dy = fabs(TrackLists_[i].pos_y - MeasLists_[j].pos_y);
-          float dr = sqrt(dx * dx + dy * dy);
-          float dv = fabs(TrackLists_[i].speed - MeasLists_[j].speed);
-          if (dx < dx_match && dy < dy_match) {
-            TrackLists_[i].match_status = true;
-            dx_match = dx;
-            dy_match = dy;
-            MeasLists_[j].match_status = true;
-            int idx = TrackLists_[i].match_index;
-            if (idx > -1) {
-              MeasLists_[idx].match_status = false;
+
+  for (int k = 0; k < track_size; k++) {
+    TrackLists_[k].match_status = false;
+    TrackLists_[k].match_index = -1;
+  }
+  bool use_flag_2D = false;
+
+  if (!use_flag_2D) {
+    for (int i = 0; i < track_size; i++) {
+      float dr_match = 0.31;
+      if (TrackLists_[i].id > -1) {
+        for (int j = 0; j < meas_size; j++) {
+          if (MeasLists_[j].match_status == false) {
+            float dx = std::fabs(TrackLists_[i].pos_x - MeasLists_[j].pos_x);
+            float dy = std::fabs(TrackLists_[i].pos_y - MeasLists_[j].pos_y);
+            float dr = std::sqrt(dx * dx + dy * dy);
+            float dv = std::fabs(TrackLists_[i].speed - MeasLists_[j].speed);
+            if (dr < dr_match) {
+              TrackLists_[i].match_status = true;
+              MeasLists_[j].match_status = true;
+              int idx = TrackLists_[i].match_index;
+              if (idx > -1) {
+                MeasLists_[idx].match_status = false;
+              }
+              TrackLists_[i].match_index = j;
+              TrackLists_[i].match_error = dr;
+              TrackLists_[i].match_dx = dx;
+              TrackLists_[i].match_dy = dy;
+              TrackLists_[i].match_dv = dv;
+              dr_match = dr;
             }
-            TrackLists_[i].match_index = j;
-            TrackLists_[i].match_error = dr;
-            TrackLists_[i].match_dx = dx;
-            TrackLists_[i].match_dy = dy;
-            TrackLists_[i].match_dv = dv;
           }
         }
       }
     }
-  }
 
-  for (int i = 0; i < track_size; i++) {
-    float dx_match = 0.75;
-    float dy_match = 0.5;
-    if (TrackLists_[i].id == -1) {
-      TrackLists_[i].match_status = false;
-      TrackLists_[i].match_index = -1;
-      for (int j = 0; j < meas_size; j++) {
-        if (MeasLists_[j].match_status == false) {
-          float dx = fabs(TrackLists_[i].pos_x - MeasLists_[j].pos_x);
-          float dy = fabs(TrackLists_[i].pos_y - MeasLists_[j].pos_y);
-          float dr = sqrt(dx * dx + dy * dy);
-          float dv = fabs(TrackLists_[i].speed - MeasLists_[j].speed);
-          if (dx < dx_match && dy < dy_match) {
-            TrackLists_[i].match_status = true;
-            dx_match = dx;
-            dy_match = dy;
-            MeasLists_[j].match_status = true;
-            int idx = TrackLists_[i].match_index;
-            if (idx > -1) {
-              MeasLists_[idx].match_status = false;
+    for (int i = 0; i < track_size; i++) {
+      float dr_match = 0.465;
+      if (TrackLists_[i].id == -1) {
+        for (int j = 0; j < meas_size; j++) {
+          if (MeasLists_[j].match_status == false) {
+            float dx = std::fabs(TrackLists_[i].pos_x - MeasLists_[j].pos_x);
+            float dy = std::fabs(TrackLists_[i].pos_y - MeasLists_[j].pos_y);
+            float dr = std::sqrt(dx * dx + dy * dy);
+            float dv = std::fabs(TrackLists_[i].speed - MeasLists_[j].speed);
+            if (dr < dr_match) {
+              TrackLists_[i].match_status = true;
+              MeasLists_[j].match_status = true;
+              int idx = TrackLists_[i].match_index;
+              if (idx > -1) {
+                MeasLists_[idx].match_status = false;
+              }
+              TrackLists_[i].match_index = j;
+              TrackLists_[i].match_error = dr;
+              TrackLists_[i].match_dx = dx;
+              TrackLists_[i].match_dy = dy;
+              TrackLists_[i].match_dv = dv;
+              dr_match = dr;
             }
-            TrackLists_[i].match_index = j;
-            TrackLists_[i].match_error = dr;
-            TrackLists_[i].match_dx = dx;
-            TrackLists_[i].match_dy = dy;
-            TrackLists_[i].match_dv = dv;
           }
         }
       }
     }
-  }
-
-
+  } 
 }
 
 void RadarTrackProcess::trackUpdate() {
@@ -164,6 +178,11 @@ void RadarTrackProcess::trackUpdate() {
     Eigen::Vector3d y_matrix;
     Eigen::MatrixXd K_matrix(6, 3);
     if (TrackLists_[i].match_status == true) {
+      int idx = TrackLists_[i].match_index;
+      TrackLists_[i].speed = MeasLists_[idx].speed;
+      TrackLists_[i].rcs = MeasLists_[idx].rcs;
+
+      TrackLists_[i].snr = MeasLists_[idx].snr;
       P_matrix = TrackLists_[i].P_matrix;
       X_matrix << TrackLists_[i].pos_x, TrackLists_[i].pos_y,
           TrackLists_[i].vel_x, TrackLists_[i].vel_y, TrackLists_[i].acc_x,
@@ -171,12 +190,11 @@ void RadarTrackProcess::trackUpdate() {
       calculateJacobianMatrix(X_matrix);
       R_matrix = TrackLists_[i].R_matrix;
 
-      int idx = TrackLists_[i].match_index;
-
       Z_matrix << MeasLists_[idx].range, MeasLists_[idx].azimuth,
           MeasLists_[idx].speed;
 
-      double rho = sqrt(X_matrix(0) * X_matrix(0) + X_matrix(1) * X_matrix(1));
+      double rho =
+          std::sqrt(X_matrix(0) * X_matrix(0) + X_matrix(1) * X_matrix(1));
       double theta = atan2(X_matrix(1), X_matrix(0));
       double rate =
           (X_matrix(0) * X_matrix(2) + X_matrix(1) * X_matrix(3)) / rho;
@@ -191,13 +209,6 @@ void RadarTrackProcess::trackUpdate() {
       X_matrix = X_matrix + K_matrix * y_matrix;
       P_matrix = P_matrix - K_matrix * H_matrix_ * P_matrix;
 
-      TrackLists_[i].speed = MeasLists_[idx].speed;
-
-      if (fabs(MeasLists_[idx].pos_z) > 0.0001) {
-        TrackLists_[i].pos_z = MeasLists_[idx].pos_z;
-      }
-      TrackLists_[i].rcs = MeasLists_[idx].rcs;
-
       TrackLists_[i].P_matrix = P_matrix;
       TrackLists_[i].pos_x = X_matrix(0);
       TrackLists_[i].pos_y = X_matrix(1);
@@ -205,6 +216,9 @@ void RadarTrackProcess::trackUpdate() {
       TrackLists_[i].vel_y = X_matrix(3);
       TrackLists_[i].acc_x = X_matrix(4);
       TrackLists_[i].acc_y = X_matrix(5);
+      if (Flag_2D_) {
+        TrackLists_[i].pos_z = MeasLists_[idx].pos_z;
+      }
     }
   }
 }
@@ -216,11 +230,11 @@ void RadarTrackProcess::calculateJacobianMatrix(Eigen::Matrix<double, 6, 1> x_ma
   float vy = x_matrix(3);
 
   float c1 = px * px + py * py;
-  float c2 = sqrt(c1);
+  float c2 = std::sqrt(c1);
   float c3 = c1 * c2;
 
   Eigen::MatrixXd Hj(3, 6);
-  if (fabs(c1) < 0.001f) {
+  if ( std::fabs(c1) < 0.001f) {
     H_matrix_ = Hj;
     return;
   }
@@ -232,47 +246,70 @@ void RadarTrackProcess::calculateJacobianMatrix(Eigen::Matrix<double, 6, 1> x_ma
   H_matrix_ = Hj;
 }
 
-
 void RadarTrackProcess::trackManage() {
-  int lock_thre = 4;
-  int lost_thre = 3;
-  int lock_bit = 6;
+  uint16_t lock_thre = 3;
+  uint16_t lock_bit = 6;
 
-  uint32_t countThre = (1 << 15) -1;
-  
-  int lockCount = 0;
-  int lostCount = 0;
+  uint16_t lost_thre = 5;
+
+  uint32_t countThre = (1 << 15) - 1;
+
+  uint16_t lockCount = 0;
+  uint16_t lostCount = 0;
 
   int track_size = TrackLists_.size();
-  for(int i = 0; i < track_size; i++){
-    if(TrackLists_[i].match_status == true){
+  for (int i = 0; i < track_size; i++) {
+    if (TrackLists_[i].match_status == true) {
       TrackLists_[i].count = (TrackLists_[i].count << 1) + 1;
       TrackLists_[i].count = (TrackLists_[i].count & countThre);
-    } else{
-      TrackLists_[i].count = (TrackLists_[i].count << 1) + 0;
-      TrackLists_[i].count = (TrackLists_[i].count & countThre);
+    } else {
+      if (!Flag_2D_) {
+        TrackLists_[i].count = (TrackLists_[i].count << 1) + 0;
+        TrackLists_[i].count = (TrackLists_[i].count & countThre);
+      }
     }
-    
-    TrackLists_[i].lifetime += delta_time_;
-  
-    lostCount = countframes(TrackLists_[i].count,lost_thre);
-    lockCount = countframes(TrackLists_[i].count,lock_bit);
 
-    if(TrackLists_[i].track_status == DETECTED){
-      if(lostCount == 0){
+    TrackLists_[i].lifetime += delta_time_;
+    TrackLists_[i].lifecycle++;
+
+    lockCount = countframes(TrackLists_[i].count, lock_bit);
+    lostCount = countframes(TrackLists_[i].count, lost_thre);
+
+    if (TrackLists_[i].track_status == DETECTED) {
+      if (lostCount == 0) {
         TrackLists_[i].track_status = LOST;
       }
-      if(lockCount >= lock_thre){
+      if (lockCount >= lock_thre) {
         TrackLists_[i].track_status = LOCKED;
         TrackLists_[i].id = id_;
         id_++;
-        if(id_ >= 65535){
+        if (id_ >= 32767) {
           id_ = 0;
         }
       }
-    } else if(TrackLists_[i].track_status == LOCKED){
-      if(lostCount == 0){
+    } else if (TrackLists_[i].track_status == LOCKED) {
+      if (lostCount == 0) {
         TrackLists_[i].track_status = LOST;
+      }
+    }
+  }
+
+  for (int i = 0; i < track_size; i++) {
+    if (TrackLists_[i].track_status == LOCKED) {
+      for (int j = i + 1; j < track_size; j++) {
+        if (TrackLists_[j].track_status == LOCKED) {
+          float dr = sqrt((TrackLists_[i].pos_x - TrackLists_[j].pos_x) *
+                              (TrackLists_[i].pos_x - TrackLists_[j].pos_x) +
+                          (TrackLists_[i].pos_y - TrackLists_[j].pos_y) *
+                              (TrackLists_[i].pos_y - TrackLists_[j].pos_y));
+          if (dr < 0.465) {
+            if (TrackLists_[i].lifetime > TrackLists_[j].lifetime) {
+              TrackLists_[j].track_status = LOST;
+            } else {
+              TrackLists_[i].track_status = LOST;
+            }
+          }
+        }
       }
     }
   }
@@ -283,7 +320,6 @@ void RadarTrackProcess::trackManage() {
     } else {
       ++it;
     }
-    
   }
 
   for (auto it = TrackLists_.begin(); it != TrackLists_.end();) {
@@ -291,16 +327,12 @@ void RadarTrackProcess::trackManage() {
                    it->pos_y * sin(install_ang_) + install_x_;
     float vcs_py = it->pos_x * sin(install_ang_) +
                    it->pos_y * cos(install_ang_) + install_y_;
-    if (vcs_px > 60.0 || fabs(vcs_py) > 6.0) {
+    if (vcs_px > 50.0 || std::fabs(vcs_py) > 6.0) {
       it = TrackLists_.erase(it);
     } else {
       ++it;
     }
   }
-  
-  if(TrackLists_.size() > 1000){
-     TrackLists_.clear();
- }
 }
 
 int RadarTrackProcess::countframes(uint32_t count, int frames){
@@ -315,51 +347,46 @@ int RadarTrackProcess::countframes(uint32_t count, int frames){
 }
 
 void RadarTrackProcess::trackAddNew() {
-  Eigen::Matrix3d r;
-  Eigen::Matrix<double, 6, 6> p;
-  Eigen::Matrix<double, 6, 6> q;
-  r << 0.25, 0.0, 0.0,
-       0.0 , 0.0016, 0.0,
-       0.0 , 0.0, 0.25;
-  p << 1, 0, 0, 0, 0, 0,
-       0, 1, 0, 0, 0, 0,
-       0, 0, 1, 0, 0, 0,
-       0, 0, 0, 1, 0, 0,
-       0, 0, 0, 0, 1, 0,
-       0, 0, 0, 0, 0, 1;
-  q << 0.16, 0, 0, 0, 0, 0,
-       0, 0.16, 0, 0, 0, 0,
-       0, 0, 0.16, 0, 0, 0,
-       0, 0, 0, 0.16, 0, 0,
-       0, 0, 0, 0, 0.16, 0,
-       0, 0, 0, 0, 0,  0.16;
-  
-  int meas_num = MeasLists_.size();
-  for(int i = 0; i < meas_num; i++){
-    if (MeasLists_[i].match_status == false) {
-      track trackObj;
+  if(!Flag_2D_){
+    Eigen::Matrix3d r;
+    Eigen::Matrix<double, 6, 6> p;
+    Eigen::Matrix<double, 6, 6> q;
+    r << 0.09, 0.0, 0.0, 0.0, 0.0016, 0.0, 0.0, 0.0, 0.09;
+    p << 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+        0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1;
+    q << 0.16, 0, 0, 0, 0, 0, 0, 0.16, 0, 0, 0, 0, 0, 0, 0.16, 0, 0, 0, 0, 0, 0,
+        0.16, 0, 0, 0, 0, 0, 0, 0.16, 0, 0, 0, 0, 0, 0, 0.16;
 
-      trackObj.id = -1;
-      trackObj.pos_x = MeasLists_[i].pos_x;
-      trackObj.pos_y = MeasLists_[i].pos_y;
-      trackObj.pos_z = MeasLists_[i].pos_z;
-      trackObj.vel_x = MeasLists_[i].speed * cos(MeasLists_[i].azimuth);
-      trackObj.vel_y = MeasLists_[i].speed * sin(MeasLists_[i].azimuth);
-      trackObj.match_index = -1;
-      trackObj.match_status = false;
-      trackObj.count = 1;
-      trackObj.track_status = DETECTED;
-      trackObj.match_error = 0;
-      trackObj.match_dx = 0;
-      trackObj.match_dy = 0;
-      trackObj.match_dv = 0;
-      trackObj.speed = MeasLists_[i].speed;
-      trackObj.P_matrix = p;
-      trackObj.Q_matrix = q;
-      trackObj.R_matrix = r;
-      trackObj.lifetime = 0;
-      trackObj.rcs = MeasLists_[i].rcs;
-      TrackLists_.push_back(trackObj);
+    int meas_num = MeasLists_.size();
+    for (int i = 0; i < meas_num; i++) {
+      if (MeasLists_[i].match_status == false) {
+        track trackObj;
+
+        trackObj.id = -1;
+        trackObj.pos_x = MeasLists_[i].pos_x;
+        trackObj.pos_y = MeasLists_[i].pos_y;
+        trackObj.pos_z = MeasLists_[i].pos_z;
+        trackObj.vel_x = MeasLists_[i].speed * cos(MeasLists_[i].azimuth);
+        trackObj.vel_y = 0;
+        trackObj.match_index = -1;
+        trackObj.match_status = false;
+        trackObj.count = 1;
+        trackObj.track_status = DETECTED;
+        trackObj.match_error = 0;
+        trackObj.match_dx = 0;
+        trackObj.match_dy = 0;
+        trackObj.match_dv = 0;
+        trackObj.speed = MeasLists_[i].speed;
+        trackObj.P_matrix = p;
+        trackObj.Q_matrix = q;
+        trackObj.R_matrix = r;
+        trackObj.lifetime = 0;
+        trackObj.lifecycle = 0;
+        trackObj.rcs = MeasLists_[i].rcs;
+        trackObj.acc_x = 0;
+        trackObj.acc_y = 0;
+        TrackLists_.push_back(trackObj);
+      }
     }
   }
 }

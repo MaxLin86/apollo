@@ -46,5 +46,7 @@ message FusionCameraDetection {
   optional bool image_based_cipv = 30 [default = false];
   optional int32 debug_level = 31 [default = 0];
   optional bool enable_cipv = 32 [default = false];
-  optional string lane_detect_camera = 33 [default = "front_6mm_3"];
+  optional string obstacle_detect_camera = 33 [default = "front_6mm_1"];
+  optional string guide_post_detect_camera = 34[default = "front_6mm_3"];
+
 }

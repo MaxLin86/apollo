@@ -1,0 +1,16 @@
+syntax = "proto2";
+
+package apollo.lidar; 
+
+import "modules/common/proto/header.proto"; 
+message BenewakeLidar {
+  optional apollo.common.Header header = 1;
+  optional double distance = 2;        //距离(cm)
+  optional double strength = 3;        //信号强度(大于60，数据可信)
+  optional double temperature = 4;    //温度 
+}
+
+
+message LidarConf { 
+  optional string dev_serial_name = 1;  //串口设备名称
+}

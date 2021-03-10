@@ -1,35 +1,15 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_UHNDER_PART_H
 #define SRS_HDR_UHNDER_PART_H 1
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/engine-defs.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/engine-defs.h"
 
 /*! Uhnder partition manager*/
 #define UART_CHUNK_SIZE 512
 
+#define UART_SECTOR_SIZE 256U
 #define SECTOR_SIZE 4096U
 #define PAGE_SIZE 256U
 
@@ -54,6 +34,7 @@
 #define UHNDER_PARTITION_HEADER_MAGIC 0x48504855UL // "UHPH"
 #define UHNDER_PARTITION_HEADER_MAGIC_LEN 4
 #define UHNDER_IMAGE_MAGIC 0x4D494855UL // "UHIM"
+#define UHNDER_B2_MAGIC 0x32424855UL // "UHB2"
 #define UHNDER_IMAGE_MAGIC_LEN 4
 
 // Flash driver shared structures between SCP and HSM
@@ -62,6 +43,7 @@
 #define TYPE_SYSTEM TYPE_UHNDER_B2 /*! B2 parition*/
 #define TYPE_USER   7U /*! User data parition*/
 #define TYPE_UHNDER_B1 1U/*!B1 parition*/
+#define TYPE_UHNDER_EFUSE 2U/*!EFUSE parition*/
 #define TYPE_UHNDER_B2 6U/*!B2 parition*/
 #define TYPE_CUSTM_IMG 3U/*!Customer image */
 #define TYPE_DATA 4 /*! Customer data, RDC data*/
@@ -117,8 +99,8 @@ struct partition_table
     uint32_t sector_size;   /*! 4096 */
     uint32_t sector_count;  /*! total sectors on this device */
     uint32_t num_entries;   /*! how many partitions */
-    uint32_t warm_boot_count; /*! how many times can we reboot until we fall back onto the previous boot image */
-    uint32_t min_uptime;    /*! how long should a new image have been running until we deem it bad and fall back on previous boot image */
+    uint32_t version;  /*! Version info should start with 0x101U */
+    uint32_t reserved;    /*! reserved */
     uint32_t spi_clk;   /*! what clk to run the QSPI/SSPI0 sclk */
     uint32_t wdt_load;  /*! what value to load into the WDT */
     uint32_t qspi_mode;     /*! if 4bit qspi mode is requested, this value is the non-zero read setting, for winbond 25q64 this value would be 0x080220EBUL */
@@ -190,14 +172,19 @@ enum
  *     -------------------------------
  */
 /*NOTE:Maintain the size of this struct to multiple of 32 bytes*/
+//There can multiple B2 blocks
+//Example   with two B2
+//CCP image -  Smaller image and resp for sending CAN HELLO message(should boot in 200ms)
+//SCP,HSM,P5 (radar SW) can be another B2
 struct uhnder_b2_block
 {
     uint32_t magic; /*! 'UHB2' */
     uint32_t key_mod_size; /*! RSA Pub Key  modulous size in bytes for customer key, 0 for Uhnder key*/
     uint32_t key_exp_size; /*! RSA Pub Key exponent size in bytes for customer key, 0 for Uhnder key*/
     uint32_t signature_size; /*! Size of signature in bytes*/
-    uint32_t reserved0;
-    uint32_t reserved1;
+    uint16_t lbist_mask;/*! Supports only SCP LBIST, Should be set only last B2 block*/
+    uint16_t last_b2_img;/*! Indicate last B2 block of the B2 image */
+    uint32_t mbist_mask; /*! Depricated, we don't support MBIST */
     uint32_t reserved2;
     uint32_t reserved3;
 };

@@ -63,4 +63,11 @@ message ControlConf {
   optional double minimum_speed_protection = 36;
 
   optional double max_path_remain_when_stopped = 37 [default = 0.3];
+
+  optional int32 open_highbeam_minute = 38[default = 1110];
+  optional int32 close_highbeam_minute = 39[default = 480];
+
+  optional int32 test_brake = 40;
+  optional float test_speed = 41;
+  optional int32 test_throttle = 42;
 }

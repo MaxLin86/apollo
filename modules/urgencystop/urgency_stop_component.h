@@ -54,6 +54,8 @@ class UrgencyStop : public cyber::Component<Ultra_Radar> {
 
   bool ultrasonicJudge(drivers::Ultrasonic& message);
   void outputFusedObj(drivers::ContiRadar& message);
+  
+  bool polyfitLine(drivers::ContiRadar& message);
 
   safeStopConf urgenStopConf_;
   std::vector<drivers::ContiRadarObs> leftObs_;
@@ -73,8 +75,7 @@ class UrgencyStop : public cyber::Component<Ultra_Radar> {
   float origin_dist_;
   float safety_zone_left_;
   float safety_zone_right_;
-  float safety_dist_;
-  float turn_radius_;
+
   uint32_t check_frame_;
 
   uint32_t check_count_;
@@ -87,7 +88,6 @@ class UrgencyStop : public cyber::Component<Ultra_Radar> {
   float begin_stop_dis_;
   int16_t stop_count_;
   double time_;
-  double miss_time_;
 
   bool radarBrakeFlag_;
   bool ultraBrakeFlag_;
@@ -103,6 +103,17 @@ class UrgencyStop : public cyber::Component<Ultra_Radar> {
   float thw_;
   float ratio_;
   float dy_;
+
+  float fence_ratio_;
+  float fence_dist_;
+  float dis2fence_;
+  float fence_begin_stop_dis_;
+  bool fence_flag_;
+  bool steer_flag_;
+  bool CorD_; // C:true; D:false;
+
+//   int16_t idx ;
+
 };
 CYBER_REGISTER_COMPONENT(UrgencyStop)
 }

@@ -5,9 +5,9 @@
 #include <vector>
 #include <algorithm>
 
-#define imu_px_offset 2.393
+#define imu_px_offset 1.705//2.393
 //#define imu_py_offset -0.535
-#define imu_py_offset 0.835
+#define imu_py_offset 0.8715//0.835
 
 #define use_rear_wheel_center true
 

@@ -52,7 +52,7 @@ message RSSInfo {
   optional double acc_lat_right_range_maximum = 9;
 }
 
-// next id: 26
+// next id: 32
 message ADCTrajectory {
   optional apollo.common.Header header = 1;
 
@@ -89,6 +89,15 @@ message ADCTrajectory {
     optional double steering_target = 4; //
   }
   optional SimpleControlCmd simple_control_cmd = 25;
+
+    // target position
+    optional apollo.common.Point2D target_position_coord = 26;
+    optional int32 box_position = 27;
+    optional int32 machine_type = 28;
+    optional int32 task_type  = 29;
+    optional bool pad_msg_valid = 30;
+    optional double target_speed_kmh = 31;
+    
   //------------------------------------------------------------------------------------
 
 

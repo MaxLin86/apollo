@@ -50,7 +50,9 @@ typedef struct{
     float   speed;
     float   rcs;
     double  lifetime;
-    uint32_t count; 
+    float   snr;
+    uint32_t count;
+    uint32_t lifecycle; 
     int16_t     match_index;
     bool    match_status;
     TRACKSTATUS track_status;
@@ -70,7 +72,7 @@ class RadarTrackProcess {
   float install_ang_;
   void radarTrackMainProcess(std::vector<track> &tracks);
   void initRadarTrack(float pos_x, float pos_y,float angle);
-
+  bool Flag_2D_;
  private:
 
   Eigen::MatrixXd H_matrix_;

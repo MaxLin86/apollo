@@ -1,0 +1,12 @@
+# Define all coms in DAG streaming.
+module_config {
+        module_library : "/apollo/bazel-bin/modules/rms/lib_rms.so"
+        timer_components {
+                class_name: "netRms"
+                config {
+                        name: "rms"
+                        config_file_path: "/apollo/modules/rms/conf/rms_conf.pb.txt"
+                        interval: 10
+                }
+        }
+}

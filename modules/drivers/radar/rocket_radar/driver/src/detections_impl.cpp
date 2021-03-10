@@ -1,4 +1,4 @@
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/detections_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/scanobject_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/rdc-structs.h"
@@ -17,13 +17,13 @@ Detections_Impl::~Detections_Impl()
 
 uint32_t             Detections_Impl::get_count() const
 {
-    return num_detections;
+    return myscan.scan_info.num_detections;
 }
 
 
 const DetectionData& Detections_Impl::get_detection(uint32_t idx) const
 {
-    if (idx < num_detections)
+    if (idx < myscan.scan_info.num_detections)
     {
         last_err = DET_NO_ERROR;
         return dets[idx];
@@ -36,7 +36,7 @@ const DetectionData& Detections_Impl::get_detection(uint32_t idx) const
 
 void                 Detections_Impl::allocate()
 {
-    num_detections = myscan.scan_info.num_detections;
+    const uint32_t num_detections = myscan.scan_info.num_detections;
 
     if (num_detections)
     {
@@ -97,13 +97,18 @@ void                 Detections_Impl::release()
 
 bool                 Detections_Impl::serialize(ScanSerializer& s) const
 {
-    char fname[128];
-    sprintf(fname, "scan_%06d_detectreport.bin", myscan.scan_info.scan_sequence_number);
-    bool ok = s.begin_write_scan_data_type(fname);
-    if (ok)
+    bool ok = true;
+
+    if (get_count())
     {
-        ok &= s.write_scan_data_type(dets, sizeof(DetectionData), get_count());
-        s.end_write_scan_data_type(!ok);
+        char fname[128];
+        sprintf(fname, "scan_%06d_detectreport.bin", myscan.scan_info.scan_sequence_number);
+        ok = s.begin_write_scan_data_type(fname);
+        if (ok)
+        {
+            ok &= s.write_scan_data_type(dets, sizeof(DetectionData), get_count());
+            s.end_write_scan_data_type(!ok);
+        }
     }
 
     return ok;
@@ -130,6 +135,7 @@ bool                 Detections_Impl::deserialize(ScanSerializer& s)
 {
     char fname[128];
 
+    const uint32_t num_detections = myscan.scan_info.num_detections;
     sprintf(fname, "scan_%06d_detectreport.bin", myscan.scan_info.scan_sequence_number);
     size_t len = s.begin_read_scan_data_type(fname);
     if (len == num_detections * sizeof(DetectionData))

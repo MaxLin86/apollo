@@ -1,30 +1,9 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_UHDP_MSG_STRUCTS_H
 #define SRS_HDR_UHDP_MSG_STRUCTS_H 1
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/uhtypes.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/rdc-structs.h" // DetectionData
 
@@ -109,12 +88,16 @@ enum UhdpMessageTypeEnum
     UHDP_TYPE_DPROBE_CONFIG    = 59,  //! 3B from data logger to radar
     UHDP_TYPE_DC_MEAS_CONFIG   = 60,  //! 3C from data logger to radar
     UHDP_TYPE_RDC1_DATA_READY  = 61,  //! 3D from data logger to radar
+    UHDP_TYPE_TELEMETRY_ASYNC  = 62,  //! 3E to radar from data logger (no connection)
 
     UHDP_TYPE_CAN_MSG_RX       = 80,  //! 50 bidirectional request/response
     UHDP_TYPE_CAN_MSG_TX       = 81,  //! 51 bidirectional request/response
 
     UHDP_TYPE_ENV_CONTROL_DATA = 90,  //! 5A bidirectional environment data
     UHDP_TYPE_ENV_CONTROL_ACK  = 91,  //! 5B bidirectional environment data
+
+    UHDP_TYPE_FAST_CAPTURE     = 100, //! 64 from radar to data logger
+    UHDP_TYPE_FAST_CAPTURE_ACK = 101, //! 65 from data logger to radar
 
     UHDP_TYPE_APPLICATION_DATA = 255, //! FF bidirectional environment data
 };
@@ -189,28 +172,30 @@ enum DataLogModeEnum
 /* mask for data log enabling/disabling */
 enum DataLogMaskEnum
 {
-    DL_ADC            = 1 << 0,  // ADC
-    DL_RDC1           = 1 << 1,  // RDC1
-    DL_RDC2           = 1 << 2,  // RDC2
-    DL_RDC3           = 1 << 3,  // RDC3
-    DL_SS             = 1 << 4,  // Static Slice
-    DL_DET            = 1 << 5,  // Detections
-    DL_CI             = 1 << 6,  // Clutter Image
-    DL_CAN_RX         = 1 << 7,  // Can Message Rx
-    DL_CAN_TX         = 1 << 8,  // Can Message Tx
-    DL_APP_DATA       = 1 << 9,  // Application Data
-    DL_SCAN_CORE_DUMP = 1 << 10, // Register dumps from digital front end
-    DL_PROC_CORE_DUMP = 1 << 11, // Register dumps from digital back end
-    DL_COV            = 1 << 12, // Outputs of spatial smoothing and covariance (debug)
-    DL_SVD            = 1 << 13, // Outputs of singular value decomposition (debug)
-    DL_MUSIC          = 1 << 14, // MUSIC angle sample magnitudes
-    DL_ZERO_DOPPLER   = 1 << 15, // RDC2 Zero Doppler (derived from RDC1 coherent sum)
-    DL_HISTOGRAM      = 1 << 16, // Per-Range Histograms
-    DL_DC_MEASURE     = 1 << 17, // Measure DC per rx per lane
-    DL_POINT_CLOUD    = 1 << 18, // Dynamic point cloud
-    DL_RDC1_PLAYBACK  = 1 << 19, // Raw RDC1 capture (for playback)
-    DL_REPLAY_RDC1    = 1 << 20, // Replay Raw RDC1 capture (allow RDC1 to be uploaded by tftp)
-    DL_DPROBE         = 1 << 21, // Enable D-Probes regitered with data agent
+    DL_ADC            = 1 << 0,  //!< ADC samples
+    DL_RDC1           = 1 << 1,  //!< RDC1
+    DL_RDC2           = 1 << 2,  //!< RDC2
+    DL_RDC3           = 1 << 3,  //!< RDC3 dynamic activations
+    DL_SS             = 1 << 4,  //!< Static Slice
+    DL_DET            = 1 << 5,  //!< Radar Detections
+    DL_CI             = 1 << 6,  //!< Clutter Image
+    DL_CAN_RX         = 1 << 7,  //!< Can Message Rx
+    DL_CAN_TX         = 1 << 8,  //!< Can Message Tx
+    DL_APP_DATA       = 1 << 9,  //!< Application Data
+    DL_SCAN_CORE_DUMP = 1 << 10, //!< Register dumps from digital front end
+    DL_PROC_CORE_DUMP = 1 << 11, //!< Register dumps from digital back end
+    DL_COV            = 1 << 12, //!< Outputs of spatial smoothing and covariance (debug)
+    DL_SVD            = 1 << 13, //!< Outputs of singular value decomposition (debug)
+    DL_MUSIC          = 1 << 14, //!< MUSIC angle sample magnitudes
+    DL_ZERO_DOPPLER   = 1 << 15, //!< RDC2 Zero Doppler (derived from RDC1 coherent sum)
+    DL_HISTOGRAM      = 1 << 16, //!< Per-Range Histograms
+    DL_DC_MEASURE     = 1 << 17, //!< Measure DC per rx per lane
+    DL_POINT_CLOUD    = 1 << 18, //!< Dynamic point cloud
+    DL_RDC1_PLAYBACK  = 1 << 19, //!< Raw RDC1 capture (for playback)
+    DL_REPLAY_RDC1    = 1 << 20, //!< Replay Raw RDC1 capture (allow RDC1 to be uploaded by tftp)
+    DL_DPROBE         = 1 << 21, //!< Enable D-Probes regitered with data agent
+    DL_SPARSE_RDC3    = 1 << 22, //!< Capture sparisified RDC3 for rapid replay
+    DL_NO_SUMMARY     = 1 << 23, //!< Don't print detections and activations summary to log
 };
 
 /*! Structure which controls the scan data which is output from the radar */
@@ -258,7 +243,10 @@ struct UhdpCaptureControl /* UHDP_TYPE_CAPTURE_CONTROL */
     uint16_t   rdc3_num_range_bins;
     uint16_t   rdc3_num_doppler_bins;
 
-    uint32_t   reserved_u32[8];
+    uint16_t   peak_det_channel_bitmap; // 0 implies no peak detect request
+    uint16_t   peak_det_measure_point;  // enum PeakDetector
+
+    uint32_t   reserved_u32[7];
 
     void set_defaults()
     {
@@ -292,14 +280,15 @@ struct UhdpRangeBinInfo    /* UHDP_TYPE_RANGE_BINS */
 
 struct UhdpTelemetryData   /* UHDP_TYPE_TELEMETRY_DATA */
 {
-    vec3f_t  ego_velocity;             //!< meters per second of world relative to radar
+    vec3f_t  ego_linear_velocity;      //!< meters per second of world relative to radar
     vec3f_t  ego_acceleration;         //!< meters per second per second of world relative to radar
-    FLOAT    yaw_rate;                 //!< radians per second
+    FLOAT    yaw_rate;                 //!< radians per second - DEPRECATED, NEVER USED
     FLOAT    steering_turn_angle;      //!< radians, 0 at boresight
     FLOAT    braking_pressure;         //!< bars
     FLOAT    external_temp_C;          //!< celcius
     uint32_t telemetry_age_us;         //!< age of telemetry data, in microseconds
     FLOAT    phased_array_azimuth;     //!< phased array transmitter array steering azimuth angle (radians)
+    vec3f_t  ego_angular_velocity;     //!< roll, pitch, yaw rates (radians per second)
 };
 
 struct UhdpScanInformation /* UHDP_TYPE_SCAN_INFORMATION */
@@ -314,12 +303,12 @@ struct UhdpScanInformation /* UHDP_TYPE_SCAN_INFORMATION */
     uint32_t   scan_timestamp;          // radar time at scan end
     uint32_t   current_time;            // radar time at info message send
 
-    FLOAT      estimated_ego_velocity_X;
+    FLOAT      estimated_ego_velocity_X; // ego linear vel estimated from analyzing RDC3
     FLOAT      estimated_ego_velocity_Y;
     FLOAT      estimated_ego_velocity_Z;
-    FLOAT      ego_velocity_X;
-    FLOAT      ego_velocity_Y;
-    FLOAT      ego_velocity_Z;
+    FLOAT      ego_linear_velocity_X;    // extrapolated external linear velocity at scan time
+    FLOAT      ego_linear_velocity_Y;
+    FLOAT      ego_linear_velocity_Z;
 
     uint32_t   device_id;
     FLOAT      scan_time;               // dwell time
@@ -331,15 +320,17 @@ struct UhdpScanInformation /* UHDP_TYPE_SCAN_INFORMATION */
     int32_t    chips_per_pulse;
 
     uint16_t   num_tx_prn;              // number of tx codes that were active in this scan
-    int16_t    vp_scan_mode;            // enum RHAL_ScanModes VP_INVALID(-1) if not variable power
+    uint8_t    preset_applied;
+    uint8_t    preset_diff_flags;       // bit 0 = preset diffs, bit 1 = non-preset diffs
     int16_t    code_type;
     uint16_t   total_vrx;
     uint16_t   num_range_bins;
     uint16_t   num_pulses;
     uint16_t   num_channelizer_iters;
     uint16_t   num_channelizer_doppler_bins;
-    uint16_t   num_beamforming_angles;
-    uint16_t   num_azimuth_angles;      // num_el = num_beamforming_angles / num_azimuth_angles
+    uint16_t   num_beamforming_angles;  // Total number of angle-bins including padding (ss2_num_angles)
+    uint16_t   num_azimuth_angles;      // In-use azimuth angles
+                                        // Total in-use angles (num_angles) = num_azimuth_angles * num_elevation_angles
     uint8_t    num_angle_groups;        // number of RAU passes on RDC2
     uint8_t    azimuth_nyquist_oversampling_factor;
     uint8_t    elevation_nyquist_oversampling_factor;
@@ -382,7 +373,7 @@ struct UhdpScanInformation /* UHDP_TYPE_SCAN_INFORMATION */
     uint8_t    rb_combine;
     uint8_t    complex_rdc3;           // RDC_rdc3_complex bits
     uint8_t    ss_doppler_0_only;
-    uint8_t    future_use_u8;
+    uint8_t    num_elevation_angles;
 
     FLOAT      vrx_position_offset_X;
     FLOAT      vrx_position_offset_Y;
@@ -392,7 +383,40 @@ struct UhdpScanInformation /* UHDP_TYPE_SCAN_INFORMATION */
     uint16_t   tx_power_map;           // bitmap of TX powered on (HW12); 1 bit means ON
     uint16_t   tx_prn_map;             // bitmap of TX transmiting (HW12); 1 bit means ON
 
-    uint32_t   reserved_u32[15];
+    FLOAT      peak_detector_output;
+    FLOAT      dop_rotator_shift;      // meters per second
+
+    uint8_t    scan_loop_size;         // number of scans in frame (scan loop)
+    uint8_t    scan_loop_idx;          // 0 .. scan_loop_size - 1
+    uint16_t   num_RD_lower;
+
+    uint16_t   clock_tick_numerator;
+    uint16_t   clock_tick_denominator;
+
+    uint16_t   num_RD_upper;
+    uint16_t   num_RD_above_cutoff;
+
+    FLOAT      ego_angular_velocity_X;     // extrapolated external angular velocity at scan time
+    FLOAT      ego_angular_velocity_Y;
+    FLOAT      ego_angular_velocity_Z;
+
+    uint8_t    estimated_ego_flag;
+    uint8_t    connection_uhdp_version;
+    uint8_t    reserved_u8[2];
+
+    FLOAT      az_vrx_spacing_lambda;
+    FLOAT      el_vrx_spacing_lambda;
+
+    uint16_t   az_uniform_vrx;
+    uint16_t   el_uniform_vrx;
+
+    FLOAT      extrapolated_ego_velocity_X; // equals to si_linear_velocity, the one used to set static slice
+    FLOAT      extrapolated_ego_velocity_Y;
+    FLOAT      extrapolated_ego_velocity_Z;
+
+    uint32_t   user_data;                   //!< user_data copied from RDC_ScanDescriptor
+
+    uint32_t   reserved_u32[45];
     // Note!  This structure must be a multiple of 64 bits!
 
     // followed by:
@@ -458,7 +482,7 @@ struct UhdpRDC3Header /* UHDP_TYPE_RDC3 */
     uint16_t   per_tuple_size;
     uint8_t    bucket_index;
     uint8_t    angle_group_id;
-    uint16_t   reserved;
+    uint16_t   range_bin_start;
 };
 
 struct UhdpCoreDumpHeader /* UHDP_TYPE_REG_CORE_DUMP */

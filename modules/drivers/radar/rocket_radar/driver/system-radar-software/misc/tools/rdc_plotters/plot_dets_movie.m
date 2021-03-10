@@ -1,3 +1,5 @@
+% Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+% Refer to SOFTWARE_LICENSE file for details
 % sam=loadDetectionData('C:\Uhnder\BitBucket\sam-sim\testVectors\verifVectors\OEMscan1case2_BPSK_Lc4096_N360_forSoC\scan_000001_detectreport.bin')
 %scannums=1:207;
 %socpath='~/Documents/Uhnder/Bitbucket/sabine-radar-sw/build-x86';

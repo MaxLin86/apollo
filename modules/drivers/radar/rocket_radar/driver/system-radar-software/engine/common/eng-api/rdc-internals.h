@@ -1,31 +1,10 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_RDC_INTERNALS_H
 #define SRS_HDR_RDC_INTERNALS_H 1
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
 /*! \file */
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/rhal_out.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/rdc-structs.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/rdc-common.h"
@@ -58,12 +37,6 @@ enum { MAX_GIANT_TARGET_NUM = 3 };
 
 enum { MAX_POINT_CLOUDS = 16384 };   // Maximum number of point cloud points per scan
 
-enum { MAX_RD_SPLITS =      32 };   // Maximum number of groups of RD bins that RDC3 can be split into.
-#if SABINE_A
-enum { MAX_RD_PER_SPLIT =  128 };   // Max size of a group of RD bins.  (128 RD bins requires 64KB of P5 Data RAM)
-#elif SABINE_B
-enum { MAX_RD_PER_SPLIT =  64 };   // Max size of a group of RD bins.  (64 RD bins requires 64KB of P5 Data RAM)
-#endif
 enum { MAX_MUSIC_PEAKS =     8 };   // Maximum nuber of MUSIC peaks per [R,D] bin
 
 enum { MAX_MUSIC_RDBINS =    8 };   // Maximum nuber of MUSIC [R,D] bins in flight for processing on P5
@@ -103,30 +76,21 @@ struct RDC_RDC3_raw_data
     // Raw RDC3 data from RHAL
     uint16_t                rd_num_total;
     uint32_t                rd_num[NUM_RD_BUF];
+    uint16_t                rb_start[NUM_RD_BUF];
     RDC_RDsummary          *rd_info[NUM_RD_BUF];    // Pointer to RHAL data:  RDC3 (R,D) summary structures
     uint16_t               *rd_bins[NUM_RD_BUF];    // Pointer to RHAL data:  RDC3 (R,D) magnitude data
 
     uint16_t                num_splits;             // Number of groups of RD bins
 
     enum { ACT_IDX_BITS = 13 };                     // 13 bits means up to 8K activations are supported in each of the NUM_RD_BUF buckets
-    enum { MAX_SEGMENTS_PER_SPLIT = 64 };
-
-#if SABINE_B
-    enum { MAX_ACTIVATIONS_PER_SPLIT = 64 };
-#elif SABINE_A
-    enum { MAX_ACTIVATIONS_PER_SPLIT = 128 };
-#endif
-
+    enum { BKT_IDX_BITS = 3 };                      // NUM_RD_BUF must fit in this many bits
+    enum { MAX_ACTIVATIONS_PER_SPLIT = 32 };
     enum { MAX_ACT_HASH_SIZE = 8192 };              // MUST BE A POWER OF TWO
 
     static const uint16_t UNUSED_HASH_KEY = 0xFFFFU; // Value of rd_hash[] entries when empty
 
     uint16_t                rd_hash[MAX_ACT_HASH_SIZE];
-#if SABINE_B
     enum { MAX_CLUSTERS = 128 };
-#else
-    enum { MAX_CLUSTERS = 256 };
-#endif
     enum { MAX_CLUSTER_ELEMS = 256 };
     RDC_RDsummary          *clusters[MAX_CLUSTERS][MAX_CLUSTER_ELEMS]; // Array of cluster for range doppler activations.
     uint16_t                clusters_length[MAX_CLUSTERS];
@@ -147,6 +111,9 @@ struct RDC_RDC3_raw_data
 
     uint32_t count_activations()
     {
+        StaticAssert<NUM_RD_BUF <= (1 << BKT_IDX_BITS)>::istrue();
+        StaticAssert<BKT_IDX_BITS + ACT_IDX_BITS == 16>::istrue();
+
         uint32_t count = 0;
 
         for (uint32_t i = 0; i < num_splits; i++)
@@ -160,7 +127,6 @@ struct RDC_RDC3_raw_data
         return count;
     }
 };
-
 
 
 //
@@ -199,38 +165,32 @@ struct  RDC_MusicPeakData
 // RPC Payload structures
 //
 
-//
-//! TODO
-//
-//
-//! RPC command structure
-//
+struct RDC_Point_Cloud_Data
+{
+    enum { PC_AZIMUTH_FRAC_BITS = 8 };
+
+    enum { PC_ELEVATION_FRAC_BITS = 8 };
+
+    enum { PC_SNR_FRAC_BITS = 8 };
+
+    uint16_t                range_bin;
+    uint16_t                azimuth_fbin;   //!< interpolated fractional azimuth bin ID
+    uint16_t                elevation_fbin; //!< interpolated fractional elevation bin ID
+    uint16_t                doppler_bin;    //!< doppler bin
+    uint16_t                snr_dB;         //!< snr in decibels with fractional bits
+    cint16                  complex;
+    int8_t                  exponent;
+    uint8_t                 flags;          //!< RDC_DET_FROM_SS or 0
+};
+
 struct RDC_RPC_Payload_Detections
 {
-    DEVPTR(RDC_ScanInstance_Impl) rdc_si;         // Not to be accessed by DSP
-    DEVPTR(RDC_RDC3_raw_data)     rdc3;           // Input data:   sparsified RDC3 from HW (in DCU or DRAM)
-    DEVPTR(RDC_ScanMgrParams)     scan_params;    // Parameters from RDC_ScanMgr
-    DEVPTR(RDC_ScanInstParams)    inst_params;    // Parameters from RDC_ScanInstance_Impl
-};
-
-//
-//! RPC command structure
-//
-struct RDC_RPC_Payload_Sva                  //!< Only used for testing
-{
-    uint16_t               *data;           //!< Not to be accessed by DSP
-    void                   *param;          //!< User defined parameters
-    uint16_t                num_angles;     //!< Number of sva groups
-    uint16_t                nyq_factor;     //!< SVA Nyquist factor
-};
-
-//
-//! RPC command structure
-//
-struct RDC_RPC_Payload_Virus
-{
-    uint16_t                num_loops;      //!< Number of virus loop
-    uint16_t                nyq_factor;     //!< SVA Nyquist factor
+    DEVPTR(RDC_ScanInstance_Impl) rdc_si;           // Not to be accessed by DSP
+    DEVPTR(RDC_RDC3_raw_data)     rdc3;             // Input data:   sparsified RDC3 from HW (in DCU or DRAM)
+    DEVPTR(RDC_ScanMgrParams)     scan_params;      // Parameters from RDC_ScanMgr
+    DEVPTR(RDC_ScanInstParams)    inst_params;      // Parameters from RDC_ScanInstance_Impl
+    DEVPTR(RDC_Point_Cloud_Data)  point_cloud_data; // Output point cloud list
+    uint16_t                      pt_count;         // Ouput point cloud number
 };
 
 //
@@ -250,18 +210,12 @@ struct RDC_RPC_Payload_Histograms
     DEVPTR(uint16_t)                compressed_static_slice; //!< the output compressed static slice
     int32_t                         compress_ss_size;  //!< the size of output compressed static slice
 
+    // rdc3 special
+    DEVPTR(uint16_t)                rdc3_special_bins;
+
     // giant target
     DEVPTR(RDC_GiantTargetData)     giant_target_data; //!< output
     uint16_t                        giant_target_num;  //!< ouptut
-};
-
-struct RDC_Point_Cloud_Data
-{
-    uint16_t                range_bin;
-    uint16_t                angle_bin;
-    uint16_t                doppler_bin;
-    int16_t                 exponent;
-    uint32_t                magnitude;
 };
 
 struct RDC_RPC_Payload_PointCloud
@@ -301,22 +255,6 @@ struct RDC_RPC_Payload_MUSIC
 //
 //! RPC command structure
 //
-struct RDC_RPC_Payload_Ego_Velocity
-{
-    DEVPTR(RDC_ScanInstance_Impl) rdc_si;         //!< Not to be accessed by DSP
-    DEVPTR(RDC_EgoVelocityData)   ego_vel_data;   //!< output histogram and top points list.
-    DEVPTR(uint16_t)              st_slice;       //!< Static slice data from HW (input)
-    DEVPTR(uint16_t)              combine_cosQ14; //!< cos(theta) * cos(phi) in Q14 format(input).
-    DEVPTR(int16_t)               combine_sinQ14; //!< cos(theta) * sin(phi) in Q14 format(input).
-    DEVPTR(RDC_ScanMgrParams)     scan_params;    //!< Parameters from RDC_ScanMgr
-    DEVPTR(RDC_ScanInstParams)    inst_params;    //!< Parameters from RDC_ScanInstance_Impl (for SVA and Adaptive Thresholding)
-    uint16_t                      D_bins;         //!< Number of doppler bins in input
-    int32_t                       in_ego_velQ14[2]; //!< Inlcude both x and y ego velocity
-};
-
-//
-//! RPC command structure
-//
 struct RDC_RPC_Payload_ClutterImage
 {
     DEVPTR(RDC_ScanInstance_Impl) rdc_si;       //!< Not to be accessed by DSP
@@ -326,8 +264,11 @@ struct RDC_RPC_Payload_ClutterImage
                                                 //!< 2:7:7 bits for flag, elevation and doppler, flag:1-3 express 1-3 peaks, 0 for 4 or more
     DEVPTR(RDC_ScanMgrParams)     scan_params;  //!< Parameters from RDC_ScanMgr
     DEVPTR(RDC_ScanInstParams)    inst_params;  //!< Parameters from RDC_ScanInstance_Impl (for SVA and Adaptive Thresholding)
-    int16_t                 image_exponent;     //!< exponent for the image (output)
-    uint16_t                D_bins;             //!< Number of doppler bins in input
+    int16_t                       image_exponent;     //!< exponent for the image (output)
+
+    // ego velocity
+    DEVPTR(RDC_EgoVelocityData)   ego_vel_data;   //!< output histogram and top points list.
+    int32_t                       in_ego_velQ14[2]; //!< Inlcude both x and y ego velocity
 };
 
 //
@@ -371,8 +312,22 @@ struct RDC_RPC_Payload_Zero_Doppler
     uint8_t                             rdc1_stride_en;
 };
 
+
+// Member of RDC_ScanConfig_Impl that contains large vectors that are
+// NOT accessed by the P5 and can therefore be cached (so NOT in USER_SRAM_UNCACHED).
+struct RDC_SC_Cached
+{
+    FLOAT                   range_mag2rcs[MAX_RANGE_BINS];      // Offset (dB) from dBFS to RCS (dBsm) vs. range (boresight, zero Doppler)
+    FLOAT                   angle_loss[MAX_ROUGH_ANGLES];       // Antenna pattern loss (in dB, negative), relative to boresight vs. AOA
+    FLOAT                   azimuth_angles[MAX_ROUGH_ANGLES];   // Azimuth angles to beamform (in Radians)
+    FLOAT                   elev_angles[MAX_ROUGH_ANGLES];      // Elevation angles to beamform (in Radians)
+};
+
 //
-//! TODO
+//! Base class for RDC_ScanConfig_Impl that contains all fields that have to be
+//! accessed by the P5, and therefore located in USER_SRAM_UNCACHED.
+// TODO: Should be moved from a base class to a member of RDC_ScanConfig_Impl so that
+//       the rest of RDC_ScanConfig_Impl can be moved out of USER_SRAM_UNCACHED memory.
 //
 struct RDC_ScanMgrParams                    // This struct is a member of class RDC_ScanMgr : scan_mgr_params
 {
@@ -387,14 +342,11 @@ struct RDC_ScanMgrParams                    // This struct is a member of class 
     uint16_t                az_nyq_factor;  // Azimuth Nyquist factor for SVA (0 disables SVA)
     uint16_t                el_nyq_factor;  // Elevation Nyquist factor for SVA (0 disables SVA)
     uint16_t                sva_second_pass_factor; // for dual sva
-    uint16_t                az_per_voxel;   // Azimuth angle per CI voxel
-    uint16_t                el_per_voxel;   // Elevation angle per CI voxel
     RDC_clutter_image_format ci_format;      // Format of clutter image output
     bool                    variable_power_mode; // flag for variable power mode
     bool                    detection_bypass_sva;       // bypass sva when perform detection
     RDC_ThresholdType       detection_thresh_type;      // select adaptive threshold for detection
-    bool                    ego_vel_bypass_sva;         // bypass sva when perform ego velocity
-    RDC_ThresholdType       ego_vel_thresh_type;        // select adaptive threshold for ego velocity
+    bool                    ego_velocity_detection;
     bool                    suppress_radials;           // for adapt threshold SLR
     uint16_t                db2mag_table[768];          // magnitude table for each DB, precision 0.125f
     bool                    clutter_image_bypass_sva;   // bypass sva and adapt threshold when perform clutter image.
@@ -406,8 +358,6 @@ struct RDC_ScanMgrParams                    // This struct is a member of class 
     int16_t                 rbin_map[MAX_RANGE_BINS];       // map for range bin:  distance_rb_order = rbin_map[RDC_rb_order]
     int16_t                 rev_rbin_map[MAX_RANGE_BINS];   // reverse range map:  RDC_rb_order = rev_rbin_map[distance_rb_order]
     FLOAT                   tx_boresight_phase[NUM_TX]; // For phased array, a vector of phase rotations to apply to the Tx (radians)
-    FLOAT                   range_mag2rcs[MAX_RANGE_BINS];  // Offset (dB) from dBFS to RCS (dBsm) vs. range (boresight, zero Doppler)
-    FLOAT                   angle_loss[MAX_ROUGH_ANGLES];   // Antenna pattern loss (in dB, negative), relative to boresight vs. AOA
     uint16_t                range_bin_start; // start range number
     FLOAT                   lambda;         // Wavelength for current scan, in meters
     vec3f_t                *vrx_pos;        // [MAX_VRX]  Position (in meters) of each Virtual Receiver (Rx-major)
@@ -415,28 +365,37 @@ struct RDC_ScanMgrParams                    // This struct is a member of class 
     int8_t                 *rev_map;        // [MAX_VRX]  Map from Y-major index to Rx-major
     uint8_t                 active_vrx[MAX_VRX / 8];  // Bitmap of enabled VRx, in Y-major VRx order
     int32_t                 tx_rx_pos[MAX_VRX * 6]; // Q7.24
+    uint16_t                num_vrx;
     bool                    use_dsp_stv;
+    bool                    enable_dsp_point_cloud;
     uint16_t                ss_doppler_halfwidth;       // # Doppler bins in half the static slice: total bins is (2 * ss_doppler_halfwidth) + 1
     INT                     az_uniform_vrx;             // Number of VRx in azimuth in fully filled VRx array
     INT                     el_uniform_vrx;             // Number of VRx in elevation in fully filled VRx array
-    FLOAT                   azimuth_angles[MAX_ROUGH_ANGLES];       // Azimuth angles to beamform (in Radians)
-    FLOAT                   elev_angles[MAX_ROUGH_ANGLES];          // Elevation angles to beamform (in Radians)
     int16_t                 azimuth_angles_Q14[MAX_ROUGH_ANGLES];   // Azimuth angles, in Q14 format. -PI/2 to PI/2
     int16_t                 elev_angles_Q14[MAX_ROUGH_ANGLES];      // Elevation angles, in Q14 format. -PI/2 to PI/2
+    uint16_t                ang_sl_thresh_mask[4*MAX_ROUGH_ANGLES]; // Threshold mask (dB) from AntennaConfig::get_angle_sidelobe_masks(), Q1.15
+    uint16_t                ang_sl_shift_mask[MAX_ROUGH_ANGLES];    // Shift mask (dB) from AntennaConfig::get_angle_sidelobe_masks(),Q8.8
     uint16_t               *clutter_image_coeff;         // UNUSED (Deprecated)
     bool                    use_sinc_interp;
     bool                    ssr_summary_present;          // if true, RDC_SSRsummary in the static slice
-    uint16_t                ang_sl_thresh_mask[4*MAX_ROUGH_ANGLES]; // Threshold mask (dB) from AntennaConfig::get_angle_sidelobe_masks(), Q1.15
-    uint16_t                ang_sl_shift_mask[MAX_ROUGH_ANGLES];    // Shift mask (dB) from AntennaConfig::get_angle_sidelobe_masks(),Q8.8
     bool                    enable_compress_ss;       // flag for static slice compression.
     uint32_t                compress_ss_threshold_Q8;    // threshold for compressing the compressed static slice, linear format Q8.8
     uint16_t                clutter_image_thresh_Q8;  // slr base threshold for clutter image, linear format Q8.8
     uint16_t                detection_thresh_Q8;  // slr base threshold for detection, linear format Q8.8
     uint16_t                point_cloud_thresh_Q8;  // slr base threshold for point cloud, linear format Q8.8
     FLOAT                   giant_target_thresh_db; // giant target threshold, db scale
+    uint32_t                giant_target_thresh_mag_Q8; // giant target threshold, db scale, in Q.8 format
     uint16_t                ridge_det_dop_bins;     // number of the doppler bins to compute the histogram on both side, 1 use dopper 0 and doppler 18
     bool                    complex_ss;             // complex input for static slice
     bool                    complex_act;            // complex input for rdc3 activations
+    bool                    complex_ptcloud;
+    uint16_t                ss2_num_angles;
+    uint16_t                combine_cosQ14[MAX_ROUGH_ANGLES];   // cos(theta) * cos(phi) in Q15 format.(dsp input)
+    int16_t                 combine_sinQ14[MAX_ROUGH_ANGLES];   // cos(theta) * sin(phi) in Q15 format.(dsp input)
+    RDC_WindowType          beamforming_window_type;      // actual beamforming window type
+    bool                    compute_dlcr_angle_hist;       // Ridge detection with SS or SPL data
+    uint16_t                spl_doppler_bins;    // SabineB only: Number of doppler bins for special Magnitude RDC3 capture for angle hist computation
+    uint16_t                special_rdc3_angle_rotate_bins; // special rdc3 rotate by HW SVA
 };
 
 //
@@ -462,13 +421,13 @@ struct  RDC_ScanInstParams                  // This struct is a member of class 
     int16_t                 mag32_exponent;                 // Global exponent for uint32_t magnitudes (0..6)
     uint16_t                detection_doppler_combine;      // combine the detection when the distance of doppler
                                                             // is smaller than it and the other direction is smaller than 1.
+    uint16_t                rsvd_align;
     int16_t                 ss_exponents[MAX_RANGE_BINS];   // the exponents of the static slice per range in hw range order
 
     int32_t                 angle_noise_floorQ8[MAX_ROUGH_ANGLES]; // point to RDCScanInstance angle noise floor. 8 bit frac
     RDC_DetectionData      *detections;                     // pointer to detection list for current scan
     uint16_t                num_static_detections;          // number of static detections.
     uint16_t                num_moving_detections;          // number of moving detections.
-
     uint16_t                reserved;
 };
 
@@ -476,11 +435,9 @@ struct  RDC_ScanInstParams                  // This struct is a member of class 
 PACK(
 struct RDC_DSP_Config
 {
-    // Histogram processing
-    uint16_t                num_hist;       // Number of input histograms (up to number of range bins)
-    uint16_t                cfar_rgbinsgroup; // noisefloor group number in range bins
-    uint16_t                nu;             //
-    uint32_t                cfar_pfa_log10; // cfar parameter.
+    // Magic Number and Version ID
+    uint32_t                magic_number;                         //ASCII value of 'D' 'S' 'P' 'C'
+    uint32_t                version_id;                           //Set to a value of 3
 
     // RDC3 detections
     uint16_t                num_range_bin;          // Number of range bins
@@ -492,10 +449,9 @@ struct RDC_DSP_Config
     // Raw RDC3 data from RHAL
     uint16_t                rd_num_total;
     uint32_t                rd_num[NUM_RD_BUF];
-
+    uint16_t                rb_start[NUM_RD_BUF];
     uint16_t                num_splits;                                 // Number of groups of RD bins
 
-    enum { MAX_SEGMENTS_PER_SPLIT = 64 };
     uint16_t                num_segments[MAX_RD_SPLITS];
     uint16_t                refilter_ID[MAX_RD_SPLITS][MAX_SEGMENTS_PER_SPLIT];
     uint16_t                refilter_segment_len[MAX_RD_SPLITS][MAX_SEGMENTS_PER_SPLIT]; // number of activations in the segment
@@ -518,22 +474,7 @@ struct RDC_DSP_Config
     int16_t                 mag32_exponent;                 // Global exponent for uint32_t magnitudes (0..6)
     uint16_t                detection_doppler_combine;      // combine the detection when the distance of doppler
                                                             // is smaller than it and the other direction is smaller than 1.
-                                                            // Dynamic Adaptive Thresholding
-    uint16_t                moving_nstdv;                   // Q7.8
-    uint16_t                moving_thres_margin;            // Q8.8 (linear)
-    uint32_t                moving_dynamic_range;           // Q24.8 (linear)
 
-    // Static (CI) Adaptive Thresholding
-    uint16_t                static_nstdv;                   // Q7.8
-    uint16_t                static_thres_margin;            // Q8.8 (linear)
-    uint32_t                static_dynamic_range;           // Q24.8 (linear)
-
-    uint16_t                slr_static_base_offset;         // linear  Q8.8
-    uint16_t                slr_moving_base_offset;         // linear  Q8.8
-    uint16_t                notch_width_rad;                // radians Q8.8
-    uint16_t                notch_depth;                    // linear  Q8.8
-    uint16_t                outer_depth;                    // linear  Q8.8
-    uint16_t                ridge_threshold;                // linear  Q8.8
     int32_t                 angle_noise_floorQ8[MAX_ROUGH_ANGLES]; // noise floor for each angles.
     uint16_t                ss_zero_bin[MAX_RANGE_BINS];
 
@@ -548,13 +489,9 @@ struct RDC_DSP_Config
     uint16_t                az_nyq_factor;  // Azimuth Nyquist factor for SVA (0 disables SVA)
     uint16_t                el_nyq_factor;  // Elevation Nyquist factor for SVA (0 disables SVA)
     uint16_t                sva_second_pass_factor;
-    uint16_t                az_per_voxel;   // Azimuth angle per CI voxel
-    uint16_t                el_per_voxel;   // Elevation angle per CI voxel
     RDC_clutter_image_format ci_format;      // Format of clutter image output
     bool                    detection_bypass_sva;       // bypass sva when perform detection
     RDC_ThresholdType       detection_thresh_type;      // select adaptive threshold for detection
-    bool                    ego_vel_bypass_sva;         // bypass sva when perform ego velocity
-    RDC_ThresholdType       ego_vel_thresh_type;        // select adaptive threshold for ego velocity
     bool                    suppress_radials;           // for adapt threshold SLR
     uint16_t                db2mag_table[768];          // magnitude table for each DB, precision 0.125f
     bool                    clutter_image_bypass_sva;   // bypass sva and adapt threshold when perform clutter image.
@@ -562,11 +499,16 @@ struct RDC_DSP_Config
     bool                    wrap_azimuth_detections;    // azimuth angles wrap around because of ambiguity
     bool                    wrap_elevation_detections;  // elevation angles wrap around because of ambiguity
     bool                    dsp_clutter_image_detection; // using DSP to compute the clutter image detection.
-    int16_t                 azimuth_anglesQ7_8[MAX_ROUGH_ANGLES]; // remove in next version of DSP_config_structure
-    int16_t                 elev_anglesQ7_8[MAX_ROUGH_ANGLES];    // remove in next version of DSP_config_structure
+    bool                    enable_ridge_detect;
     int16_t                 rbin_map[MAX_RANGE_BINS];   // map for range bin - distance_rb_order = rev_rbin_map[RDC_rb_order]
     int16_t                 rev_rbin_map[MAX_RANGE_BINS];   // Reverse range bin map - RDC_rb_order = rev_rbin_map[distance_rb_order]
     uint16_t                range_bin_start; // start range number
+    uint16_t                ridge_det_dop_bins;
+    uint32_t                giant_target_thresh_mag_Q8;
+    bool                    complex_ss;             // complex input for static slice
+    bool                    complex_act;            // complex input for rdc3 activations
+    bool                    enable_dsp_point_cloud;
+    uint16_t                ss2_num_angles;         // Total number of angle bins given by NSU (some of these bins can be invalid)
 
     bool                    use_sinc_interp;
     bool                    ssr_summary_present;
@@ -582,6 +524,7 @@ struct RDC_DSP_Config
 
     // static slice processing
     uint16_t                ss_doppler_halfwidth;         // Number of half doppler bins in static slice
+    bool                    ego_velocity_detection;
     uint16_t                combine_cosQ14[MAX_ROUGH_ANGLES];
     int16_t                 combine_sinQ14[MAX_ROUGH_ANGLES];
     int32_t                 in_ego_velQ14[2];
@@ -602,6 +545,10 @@ struct RDC_DSP_Config
 
     int16_t                 ciu_exponent;
     uint8_t                 rdc1_stride_en;
+
+    bool                    compute_dlcr_angle_hist;   // Ridge detection with SS or SPL data
+    uint16_t                spl_doppler_bins;
+    bool                    complex_ptcloud;
 }
 );
 
@@ -636,6 +583,7 @@ struct MUSIC_DSP_Config
     int32_t                 sinaz_cosel[NUM_MUSIC_1D_SAMPLES]; //!<
     int32_t                 sinel[NUM_MUSIC_1D_SAMPLES]; //!<
     int32_t                 tx_rx_pos[MAX_VRX * 6];     //!< Q7.24
+    uint16_t                num_vrx;
     bool                    use_dsp_stv;                //!<
     uint32_t                sequence;                   //!< sequence number
 };
@@ -645,12 +593,13 @@ struct MUSIC_DSP_Config
 //
 struct RDC_SpecialCaptureData
 {
-    bool                    point_cloud_enable;         //!<
-    bool                    dc_measure;                 //!<
-    bool                    rdc2_zd_enable;             //!<
     bool                    rdc1_capture;               //!<
+    bool                    rdc2_zd_enable;             //!<
+    bool                    rdc3_capture;               //!<
+    bool                    point_cloud_enable;         //!<
     bool                    scan_coredump;              //!<
     bool                    proc_coredump;              //!<
+    bool                    dc_measure;                 //!<
     int16_t                 rdc2_zd_rb_center;          //!<
     int16_t                 rdc2_zd_rb_halfwidth;       //!<
     int16_t                 siggen;                     //!<
@@ -664,8 +613,7 @@ struct RDC_SpecialCaptureData
     uint8_t                dprobe_rx_select[DPROBE_MEAS_COUNT];         //!<
     uint32_t               dprobe_cnt;                  //!<
 
-    RDC_DCMeasure_config   dc_measure_config;           //!<
-
+    RDC_DCMeasure_config     dc_measure_config;           //!<
     // ADC (QDU) playback data
     int8_t*                 adc_playback_data;          //!< ADC data for QDU playback: [Rx][N][Lc][IQ](signed 8 bits)
     uint32_t                adc_playback_len;           //!< Length in bytes
@@ -687,14 +635,15 @@ struct RDC_SpecialCaptureData
 
         dc_measure_config.set_defaults();
 
-        point_cloud_enable = false;
-        dc_measure = false;
         rdc1_capture = false;
+        rdc3_capture = false;
+        point_cloud_enable = false;
         rdc2_zd_enable = false;
-        scan_coredump = false;
-        proc_coredump = false;
         rdc2_zd_rb_center = 0U;
         rdc2_zd_rb_halfwidth = 0U;
+        scan_coredump = false;
+        proc_coredump = false;
+        dc_measure = false;
 
         adc_playback_len = 0U;
         prn_playback_len = 0U;
@@ -704,7 +653,11 @@ struct RDC_SpecialCaptureData
         dummy_scan_mode = NO_DUMMY_SCAN;
     }
 
-    //!
+    bool keep_pi() const
+    {
+        return rdc2_zd_enable || proc_coredump || rdc3_capture || keep_si();
+    }
+
     bool keep_si() const
     {
         return rdc1_capture || scan_coredump || rdc2_zd_enable || (NO_ADC_CAPTURE != adc_params.adc_capture_mode);

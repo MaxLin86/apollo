@@ -82,7 +82,7 @@ message Vcu_vehicleinfo3_98f003d0 {
   }
   // [] [0|15]
   optional int32 vcu_lifecounter = 1;
-  // [��] [-100|155]
+  // [��] [-100|155]
   optional int32 vcu_batterytemp = 2;
   // [V] [0|765]
   optional double vcu_batteryvoltage = 3;
@@ -91,47 +91,49 @@ message Vcu_vehicleinfo3_98f003d0 {
   // [km/h] [0|255]
   optional double vcu_vehiclespeed = 5;
   // [] [0|3]
-  optional Vcu_coolantstatusType vcu_coolantstatus = 6;
+  optional int32 vcu_handbrakestatus = 6;
   // [] [0|3]
-  optional Vcu_vehiclepowerstatusType vcu_vehiclepowerstatus = 7;
+  optional Vcu_coolantstatusType vcu_coolantstatus = 7;
   // [] [0|3]
-  optional Vcu_gearstatusType vcu_gearstatus = 8;
+  optional Vcu_vehiclepowerstatusType vcu_vehiclepowerstatus = 8;
+  // [] [0|3]
+  optional Vcu_gearstatusType vcu_gearstatus = 9;
 }
 
-message Adu_steeringctrl_8cff1500 {
+//message Adu_steeringctrl_8cff1500 {
 // Control Message
-  enum Ad_turncmdvalidType {
-    AD_TURNCMDVALID_ABNORMAL = 0;
-    AD_TURNCMDVALID_NORMAL = 1;
-  }
-  enum Ad_adustatusType {
-    AD_ADUSTATUS_ABNORMAL = 0;
-    AD_ADUSTATUS_NORMAL = 1;
-  }
-  enum Ad_workmodeType {
-    AD_WORKMODE_READY = 0;
-    AD_WORKMODE_AD_MODE = 1;
-    AD_WORKMODE_RESERVE = 2;
-    AD_WORKMODE_TORQUE_ADDED = 3;
-    AD_WORKMODE_MANUAL_CONTROL = 4;
-    AD_WORKMODE_MANUAL_RETURN = 5;
-    AD_WORKMODE_FAULT_RESET = 6;
-  }
+//  enum Ad_turncmdvalidType {
+//    AD_TURNCMDVALID_ABNORMAL = 0;
+//    AD_TURNCMDVALID_NORMAL = 1;
+//  }
+//  enum Ad_adustatusType {
+//    AD_ADUSTATUS_ABNORMAL = 0;
+//    AD_ADUSTATUS_NORMAL = 1;
+//  }
+//  enum Ad_workmodeType {
+//    AD_WORKMODE_READY = 0;
+//    AD_WORKMODE_AD_MODE = 1;
+//    AD_WORKMODE_RESERVE = 2;
+//    AD_WORKMODE_TORQUE_ADDED = 3;
+//    AD_WORKMODE_MANUAL_CONTROL = 4;
+//    AD_WORKMODE_MANUAL_RETURN = 5;
+//    AD_WORKMODE_FAULT_RESET = 6;
+//  }
   // [] [0|255]
-  optional int32 ad_counter = 1;
-  // [��/s] [50|540]
-  optional double ad_wheelspeed = 2;
+//  optional int32 ad_counter = 1;
+  // [��/s] [50|540]
+//  optional double ad_wheelspeed = 2;
   // [] [0|255]
-  optional int32 ad_turnaddedtorque = 3;
+//  optional int32 ad_turnaddedtorque = 3;
   // [] [0|1]
-  optional Ad_turncmdvalidType ad_turncmdvalid = 4;
+//  optional Ad_turncmdvalidType ad_turncmdvalid = 4;
   // [] [0|1]
-  optional Ad_adustatusType ad_adustatus = 5;
+//  optional Ad_adustatusType ad_adustatus = 5;
   // [] [0|15]
-  optional Ad_workmodeType ad_workmode = 6;
-  // [��] [-850|850]
-  optional double ad_steeringturnangle = 7;
-}
+//  optional Ad_workmodeType ad_workmode = 6;
+  // [��] [-850|850]
+//  optional double ad_steeringturnangle = 7;
+//}
 
 message Vcu_vehicleinfo1_98f001d0 {
 // Report Message
@@ -153,56 +155,317 @@ message Vcu_vehicleinfo1_98f001d0 {
     VCU_VEHICLETYPE_TRUCK_40 = 1;
     VCU_VEHICLETYPE_TRUCK_20 = 2;
   }
+
+  enum Vcu_dtcType {
+    VCU_DTC_NONE = 0;
+    //L0
+    VCU_DTC_L0_B_1_GET_ON_DOOR_OPEN = 1;
+    VCU_DTC_L0_B_2_MIDDLE_DOOR_OPEN = 2;
+    VCU_DTC_L0_B_3_GET_OFF_DOOR_OPEN = 3;
+    VCU_DTC_L0_B_4_REAR_HATCH_OPEN = 4;
+    VCU_DTC_L0_D_5_WARNING_LAMP_OPEN = 5;
+    VCU_DTC_L0_X_6_RESERVED  = 6;
+    VCU_DTC_L0_X_7_RESERVED  = 7;
+    VCU_DTC_L0_X_8_RESERVED  = 8;
+    VCU_DTC_L0_X_9_RESERVED  = 9;
+    VCU_DTC_L0_X_10_RESERVED = 10;
+    VCU_DTC_L0_X_11_RESERVED = 11;
+    VCU_DTC_L0_X_12_RESERVED = 12;
+    VCU_DTC_L0_X_13_RESERVED = 13;
+    VCU_DTC_L0_X_14_RESERVED = 14;
+    VCU_DTC_L0_X_15_RESERVED = 15;
+    VCU_DTC_L0_X_16_RESERVED = 16;
+    VCU_DTC_L0_X_17_RESERVED = 17;
+    VCU_DTC_L0_X_18_RESERVED = 18;
+    VCU_DTC_L0_X_19_RESERVED = 19;
+    VCU_DTC_L0_X_20_RESERVED = 20;
+    VCU_DTC_L0_X_21_RESERVED = 21;
+    VCU_DTC_L0_X_22_RESERVED = 22;
+    VCU_DTC_L0_X_23_RESERVED = 23;
+    VCU_DTC_L0_X_24_RESERVED = 24;
+    VCU_DTC_L0_X_25_RESERVED = 25;
+    VCU_DTC_L0_X_26_RESERVED = 26;
+    VCU_DTC_L0_X_27_RESERVED = 27;
+    VCU_DTC_L0_X_28_RESERVED = 28;
+    VCU_DTC_L0_X_29_RESERVED = 29;
+    VCU_DTC_L0_X_30_RESERVED = 30;
+    VCU_DTC_L0_X_31_RESERVED = 31;
+    VCU_DTC_L0_X_32_RESERVED = 32;
+    VCU_DTC_L0_X_33_RESERVED = 33;
+    VCU_DTC_L0_X_34_RESERVED = 34;
+    VCU_DTC_L0_X_35_RESERVED = 35;
+    VCU_DTC_L0_X_36_RESERVED = 36;
+    VCU_DTC_L0_X_37_RESERVED = 37;
+    VCU_DTC_L0_X_38_RESERVED = 38;
+    VCU_DTC_L0_X_39_RESERVED = 39;
+    VCU_DTC_L0_X_40_RESERVED = 40;
+    VCU_DTC_L0_X_41_RESERVED = 41;
+    VCU_DTC_L0_X_42_RESERVED = 42;
+    VCU_DTC_L0_X_43_RESERVED = 43;
+    VCU_DTC_L0_X_44_RESERVED = 44;
+    //L1
+    VCU_DTC_L1_D_45_LPDU_ERROR = 45;
+    VCU_DTC_L1_A_46_DRIVE_SELECTOR_SIGNAL_INVALID = 46;
+    VCU_DTC_L1_A_47_D_N_SIGNAL_ALL_VALID = 47;
+    VCU_DTC_L1_A_48_D_R_SIGNAL_ALL_VALID = 48;
+    VCU_DTC_L1_A_49_N_R_SIGNAL_ALL_VALID = 49;
+    VCU_DTC_L1_X_50_RESERVED = 50;
+    VCU_DTC_L1_X_51_RESERVED = 51;
+    VCU_DTC_L1_X_52_RESERVED = 52;
+    VCU_DTC_L1_X_53_RESERVED = 53;
+    VCU_DTC_L1_C_54_ACC_AND_BRAKE_SIGNAL_ALL_VALID = 54;
+    VCU_DTC_L1_X_55_RESERVED = 55;
+    VCU_DTC_L1_B_56_24V_LOW_FAULT = 56;
+    VCU_DTC_L1_D_57_AIR_PUMP_WORK_TOO_LONG = 57;
+    VCU_DTC_L1_D_58_AIR_PRESSURE_LOW_FAULT = 58;
+    VCU_DTC_L1_G_59_SOC_LOW_THAN_20_PERCENT = 59;
+    VCU_DTC_L1_D_60_LOW_VOLTAGE_OIL_PUMP_ERROR = 60;
+    VCU_DTC_L1_D_61_AIR_PUMP_ERROR = 61;
+    VCU_DTC_L1_D_62_OIL_PUMP_ERROR = 62;
+    VCU_DTC_L1_D_63_DCDC_ERROR = 63;
+    VCU_DTC_L1_X_64_RESERVED = 64;
+    VCU_DTC_L1_X_65_RESERVED = 65;
+    VCU_DTC_L1_X_66_RESERVED = 66;
+    VCU_DTC_L1_X_67_RESERVED = 67;
+    VCU_DTC_L1_X_68_RESERVED = 68;
+    VCU_DTC_L1_D_69_LF_BRAKE_SHOES_WARNING = 69;
+    VCU_DTC_L1_D_70_RF_BRAKE_SHOES_WARNING = 70;
+    VCU_DTC_L1_D_71_LR_BRAKE_SHOES_WARNING = 71;
+    VCU_DTC_L1_D_72_RR_BRAKE_SHOES_WARNING = 72;
+    VCU_DTC_L1_X_73_RESERVED = 73;
+    VCU_DTC_L1_X_74_RESERVED = 74;
+    VCU_DTC_L1_X_75_RESERVED = 75;
+    VCU_DTC_L1_X_76_RESERVED = 76;
+    VCU_DTC_L1_X_77_RESERVED = 77;
+    VCU_DTC_L1_X_78_RESERVED = 78;
+    VCU_DTC_L1_X_79_RESERVED = 79;
+    VCU_DTC_L1_X_80_RESERVED = 80;
+    VCU_DTC_L1_X_81_RESERVED = 81;
+    VCU_DTC_L1_X_82_RESERVED = 82;
+    VCU_DTC_L1_X_83_RESERVED = 83;
+    VCU_DTC_L1_X_84_RESERVED = 84;
+    VCU_DTC_L1_X_85_RESERVED = 85;
+    VCU_DTC_L1_X_86_RESERVED = 86;
+    VCU_DTC_L1_X_87_RESERVED = 87;
+    VCU_DTC_L1_X_88_RESERVED = 88;
+    VCU_DTC_L1_X_89_RESERVED = 89;
+    VCU_DTC_L1_X_90_RESERVED = 90;
+    VCU_DTC_L1_G_91_BMS_WARNING = 91;
+    VCU_DTC_L1_G_92_EXCESS_TEMPERATURE_ALARM = 92;
+    VCU_DTC_L1_G_93_EXCESSIVE_TEMPERATURE_DIFFERENTIALS_ALARM = 93;
+    VCU_DTC_L1_G_94_CELL_OVERHIGH_VOLTAGE_ALARM = 94;
+    VCU_DTC_L1_G_95_CELL_VOLTAGE_TOO_LOW_ALARM = 95;
+    VCU_DTC_L1_G_96_CELL_HIGH_CONSISTENCY_ALARM = 96;
+    VCU_DTC_L1_G_97_PACK_OVERHIGH_VOLTAGE_ALARM = 97;
+    VCU_DTC_L1_G_98_LOW_PACK_VOLTAGE_TOO_ALARM = 98;
+    VCU_DTC_L1_G_99_SOC_TOO_HIGH_ALARM = 99;
+    VCU_DTC_L1_G_100_SOC_TOO_LOW_ALARM = 100;
+    VCU_DTC_L1_G_101_INSULATION_RESISTANCE_TOO_LOW_ALARM = 101;
+    VCU_DTC_L1_G_102_PACK_OVERDISCHARGED_ALARM = 102;
+    VCU_DTC_L1_G_103_PACK_OVERCHARGED_ALARM = 103;
+    VCU_DTC_L1_G_104_CELL_OVERDISCHARGED_ALARM = 104;
+    VCU_DTC_L1_G_105_CELL_LOW_TEMPERATURE_ALARM = 105;
+    VCU_DTC_L1_G_106_HVIL_ALARM = 106;
+    VCU_DTC_L1_G_107_SOC_JUMP_ALARM = 107;
+    VCU_DTC_L1_G_108_ENERGY_SYSTEM_OVERCHARGED_ALARM = 108;
+    VCU_DTC_L1_G_109_BMS_NOT_MATCHED_ALARM = 109;
+    VCU_DTC_L1_G_110_CURRENT_SENSOR_FAULT = 110;
+    VCU_DTC_L1_G_111_TMS_FAULT = 111;
+    VCU_DTC_L1_G_112_THE_HEATING_FILE_FAULT = 112;
+    VCU_DTC_L1_G_113_BMS_LOW_VOLTAGE_POWER_ABNORMAL_ALARM = 113;
+    VCU_DTC_L1_G_114_FIRE_ALARM = 114;
+    VCU_DTC_L1_D_115_ADU_LEVEL1_FAULT = 115;
+    VCU_DTC_L1_X_116_RESERVED = 116;
+    VCU_DTC_L1_X_117_RESERVED = 117;
+    //L2
+    VCU_DTC_L2_M_118_EHPS_FAULT = 118;
+    VCU_DTC_L2_H_119_FRONT_BRAKE_SYSTEM_FAULT = 119;
+    VCU_DTC_L2_H_120_REAR_BRAKE_SYSTEM_FAULT = 120;
+    VCU_DTC_L2_G_121_BMS_FAULT = 121;
+    VCU_DTC_L2_G_122_EXCESS_TEMPERATURE_ALARM = 122;
+    VCU_DTC_L2_G_123_EXCESSIVE_TEMPERATURE_DIFFERENTIALS_ALARM = 123;
+    VCU_DTC_L2_G_124_CELL_OVERHIGH_VOLTAGE_ALARM = 124;
+    VCU_DTC_L2_G_125_CELL_VOLTAGE_TOO_LOW_ALARM = 125;
+    VCU_DTC_L2_G_126_CELL_HIGH_CONSISTENCY_ALARM = 126;
+    VCU_DTC_L2_G_127_PACK_OVERHIGH_VOLTAGE_ALARM = 127;
+    VCU_DTC_L2_G_128_LOW_PACK_VOLTAGE_TOO_ALARM = 128;
+    VCU_DTC_L2_G_129_SOC_TOO_HIGH_ALARM = 129;
+    VCU_DTC_L2_G_130_SOC_TOO_LOW_ALARM = 130;
+    VCU_DTC_L2_G_131_INSULATION_RESISTANCE_TOO_LOW_ALARM = 131;
+    VCU_DTC_L2_G_132_PACK_OVERDISCHARGED_ALARM = 132;
+    VCU_DTC_L2_G_133_PACK_OVERCHARGED_ALARM = 133;
+    VCU_DTC_L2_G_134_ACAN_LOST_ALARM = 134;
+    VCU_DTC_L2_G_135_BMS_INSIDE_COMMUNICATION_FAULT = 135;
+    VCU_DTC_L2_G_136_BMS_MAX_DISCHARGE_CURRENT_LOW = 136;
+    VCU_DTC_L2_F_137_BMS_MAX_DISCHARGE_CURRENT = 137;
+    VCU_DTC_L2_D_138_ABS_MALFUNCTION_INDICATOR_LAMP = 138;
+    VCU_DTC_L2_D_139_ABS_RED_STOP_LAMP = 139;
+    VCU_DTC_L2_D_140_ABS_AMBER_WARNING_LAMP = 140;
+    VCU_DTC_L2_D_141_ABS_PROTECT_LAMP = 141;
+    VCU_DTC_L2_X_142_RESERVED = 142;
+    VCU_DTC_L2_X_143_RESERVED = 143;
+    VCU_DTC_L2_I_144_MOTOR_OVER_SPEED = 144;
+    VCU_DTC_L2_F_145_DC_UNDER_VOLTAGE = 145;
+    VCU_DTC_L2_F_146_DC_OVER_VOLTAGE = 146;
+    VCU_DTC_L2_I_147_MOTOR_OVER_TEMPERATURE_SOFTWARE = 147;
+    VCU_DTC_L2_I_148_MCU_OVER_TEMPERATURE_SOFTWARE = 148;
+    VCU_DTC_L2_I_149_MCU_DERATING_STATUS_FAULT = 149;
+    VCU_DTC_L2_F_150_AIR_PRESSURE_LOW_FAULT = 150;
+    VCU_DTC_L2_D_151_LPDU_COMMUNICATION_FAULT = 151;
+    VCU_DTC_L2_F_152_PDU_COMMUNICATION_FAULT = 152;
+    VCU_DTC_L2_X_153_RESERVED = 153;
+    VCU_DTC_L2_X_154_RESERVED = 154;
+    VCU_DTC_L2_X_155_RESERVED = 155;
+    VCU_DTC_L2_I_156_MULTIPLE_RELAY_FAULT = 156;
+    VCU_DTC_L2_I_157_ACC_RELAY_FAULT = 157;
+    VCU_DTC_L2_I_158_DCDC_RELAY_FAULT = 158;
+    VCU_DTC_L2_I_159_DCAC1_RELAY_FAULT = 159;
+    VCU_DTC_L2_I_160_DCAC2_RELAY_FAULT = 160;
+    VCU_DTC_L2_I_161_AC_RELAY_FAULT = 161;
+    VCU_DTC_L2_I_162_DEFROST_RELAY_FAULT = 162;
+    VCU_DTC_L2_I_163_HEATER_RELAY_FAULT = 163;
+    VCU_DTC_L2_X_164_RESERVED = 164;
+    VCU_DTC_L2_X_165_RESERVED = 165;
+    VCU_DTC_L2_X_166_RESERVED = 166;
+    VCU_DTC_L2_X_167_RESERVED = 167;
+    VCU_DTC_L2_X_168_RESERVED = 168;
+    VCU_DTC_L2_X_169_RESERVED = 169;
+    VCU_DTC_L2_X_170_RESERVED = 170;
+    VCU_DTC_L2_X_171_RESERVED = 171;
+    VCU_DTC_L2_X_172_RESERVED = 172;
+    VCU_DTC_L2_X_173_RESERVED = 173;
+    VCU_DTC_L2_X_174_RESERVED = 174;
+    VCU_DTC_L2_X_175_RESERVED = 175;
+    VCU_DTC_L2_X_176_RESERVED = 176;
+    VCU_DTC_L2_X_177_RESERVED = 177;
+    VCU_DTC_L2_X_178_RESERVED = 178;
+    VCU_DTC_L2_X_179_RESERVED = 179;
+    VCU_DTC_L2_X_180_RESERVED = 180;
+    VCU_DTC_L2_X_181_RESERVED = 181;
+    VCU_DTC_L2_X_182_RESERVED = 182;
+    VCU_DTC_L2_X_183_RESERVED = 183;
+    VCU_DTC_L2_X_184_RESERVED = 184;
+    VCU_DTC_L2_X_185_RESERVED = 185;
+    VCU_DTC_L2_M_186_ADU_COMMUNICATION_FAULT = 186;
+    VCU_DTC_L2_H_187_EHPS_COMMUNICATION_FAULT = 187;
+    VCU_DTC_L2_D_188_LOW_OIL_PUMP_COMMUNICATION_FAULT = 188;
+    VCU_DTC_L2_D_189_ICM_COMMUNICATION_FAULT = 189;
+    VCU_DTC_L2_H_190_FRONT_BRAKE_COMMUNICATION_FAULT = 190;
+    VCU_DTC_L2_H_191_REAR_BRAKE_COMMUNICATION_FAULT = 191;
+    VCU_DTC_L2_H_192_LOW_OIL_PUMP_FAULT = 192;
+    VCU_DTC_L2_E_193_AIR_PUMP_FAULT = 193;
+    VCU_DTC_L2_E_194_OIL_PUMP_FAULT = 194;
+    VCU_DTC_L2_E_195_DC_DC_FAULT = 195;
+    VCU_DTC_L2_M_196_ADU_FAULT = 196;
+    VCU_DTC_L2_M_197_VMU_COMMUNICATION_FAULT_ADU_CHECK = 197;
+    VCU_DTC_L2_M_198_REMOTE_SHUTOFF_CONTROL = 198;
+    VCU_DTC_L2_M_199_EHPS_FAULT = 199;
+    VCU_DTC_L2_X_200_RESERVED = 200;
+    //L3
+    VCU_DTC_L3_J_201_DC_VOLTAGE_LOWER_THAN_250V = 201;
+    VCU_DTC_L3_J_202_BMS_FAULT = 202;
+    VCU_DTC_L3_J_203_BMS_REQUEST_POWER_OFF = 203;
+    VCU_DTC_L3_J_204_EXCESS_TEMPERATURE_ALARM = 204;
+    VCU_DTC_L3_J_205_EXCESSIVE_TEMPERATURE_DIFFERENTIALS_ALARM = 205;
+    VCU_DTC_L3_J_206_CELL_OVERHIGH_VOLTAGE_ALARM = 206;
+    VCU_DTC_L3_J_207_CELL_VOLTAGE_TOO_LOW_ALARM = 207;
+    VCU_DTC_L3_J_208_CELL_HIGH_CONSISTENCY_ALARM = 208;
+    VCU_DTC_L3_J_209_PACK_OVERHIGH_VOLTAGE_ALARM = 209;
+    VCU_DTC_L3_J_210_LOW_PACK_VOLTAGE_TOO_ALARM = 210;
+    VCU_DTC_L3_J_211_SOC_TOO_HIGH_ALARM = 211;
+    VCU_DTC_L3_J_212_SOC_TOO_LOW_ALARM = 212;
+    VCU_DTC_L3_J_213_INSULATION_RESISTANCE_TOO_LOW_ALARM = 213;
+    VCU_DTC_L3_J_214_PACK_OVERDISCHARGED_ALARM = 214;
+    VCU_DTC_L3_J_215_PACK_OVERCHARGED_ALARM = 215;
+    VCU_DTC_L3_X_216_RESERVED = 216;
+    VCU_DTC_L3_X_217_RESERVED = 217;
+    VCU_DTC_L3_X_218_RESERVED = 218;
+    VCU_DTC_L3_X_219_RESERVED = 219;
+    VCU_DTC_L3_J_220_MCU_FAULT = 220;
+    VCU_DTC_L3_J_221_SELF_CHECK_FAULT = 221;
+    VCU_DTC_L3_J_222_DC_OVER_CURRENT = 222;
+    VCU_DTC_L3_J_223_LOCKED_ROTOR_FAULT = 223;
+    VCU_DTC_L3_J_224_DC_OVER_VOLTAGE = 224;
+    VCU_DTC_L3_J_225_DC_VOLTAGE_TOO_LOW = 225;
+    VCU_DTC_L3_J_226_MOTOR_RESOLVER_SENSOR_FAULT = 226;
+    VCU_DTC_L3_J_227_MCU_COMMUNICATION_FAULT = 227;
+    VCU_DTC_L3_J_228_COOLING_SYSTEM_FAULT = 228;
+    VCU_DTC_L3_J_229_MOTOR_OVER_LOAD = 229;
+    VCU_DTC_L3_J_230_MCU_FAULT = 230;
+    VCU_DTC_L3_J_231_HV_CUT_PIN_VALID = 231;
+    VCU_DTC_L3_X_232_RESERVED = 232;
+    VCU_DTC_L3_X_233_RESERVED = 233;
+    VCU_DTC_L3_J_234_MAIN_RELAY_FAULT = 234;
+    VCU_DTC_L3_J_235_PRECHARGE_RELAY_FAULT = 235;
+    VCU_DTC_L3_J_236_BATTERY_RELAY_FAULT = 236;
+    VCU_DTC_L3_L_237_PRECHARGE_FAILURE = 237;
+    VCU_DTC_L3_X_238_RESERVED = 238;
+    VCU_DTC_L3_X_239_RESERVED = 239;
+    VCU_DTC_L3_X_240_RESERVED = 240;
+    VCU_DTC_L3_X_241_RESERVED = 241;
+    VCU_DTC_L3_J_242_LOW_OIL_PUMP_FAULT = 242;
+    VCU_DTC_L3_J_243_AIR_PUMP_FAULT = 243;
+    VCU_DTC_L3_J_244_OIL_PUMP_FAULT = 244;
+    VCU_DTC_L3_J_245_DCDC_FAULT = 245;
+    VCU_DTC_L3_X_246_RESERVED = 246;
+    VCU_DTC_L3_X_247_RESERVED = 247;
+    VCU_DTC_L3_X_248_RESERVED = 248;
+    VCU_DTC_L3_X_249_RESERVED = 249;
+    VCU_DTC_L3_J_250_AIR_PUMP_COMMUNICATION_FAULT = 250;
+    VCU_DTC_L3_J_251_OIL_PUMP_COMMUNICATION_FAULT = 251;
+    VCU_DTC_L3_J_252_DCDC_COMMUNICATION_FAULT = 252;
+    VCU_DTC_L3_J_253_PDU_COMMUNICATION_FAULT = 253;
+    VCU_DTC_L3_X_254_BRAKE_STOP_HV_DOWN = 254;
+    VCU_DTC_L3_J_255_BMS_COMMUNICATION_FAULT = 255;
+  }
   // [] [0|255]
-  optional int32 vcu_dtc = 1;
-  // [km] [0|1310000]
-  optional double vcu_cumulatedmileage = 2;
+  optional Vcu_dtcType vcu_dtc = 1;
   // [] [0|7]
-  optional Vcu_modulestatusType vcu_modulestatus = 3;
+  optional Vcu_modulestatusType vcu_modulestatus = 2;
   // [%] [0|100]
-  optional int32 vcu_batterysoh = 4;
+  optional int32 vcu_batterysoh = 3;
   // [%] [0|100]
-  optional int32 vcu_batterysoc = 5;
+  optional int32 vcu_batterysoc = 4;
   // [%] [0|100]
-  optional int32 vcu_availabletorque = 6;
+  optional int32 vcu_availabletorque = 5;
   // [] [0|3]
-  optional Vcu_vehiclemodeType vcu_vehiclemode = 7;
+  optional Vcu_vehiclemodeType vcu_vehiclemode = 6;
   // [] [0|31]
-  optional Vcu_vehicletypeType vcu_vehicletype = 8;
+  optional Vcu_vehicletypeType vcu_vehicletype = 7;
 }
 
-message Asc_steeringinfo_8c02a0a2 {
+//message Asc_steeringinfo_8c02a0a2 {
 // Report Message
-  enum Asc_faultlevelType {
-    ASC_FAULTLEVEL_NO_FAILURE = 0;
-    ASC_FAULTLEVEL_L1_FAULT = 1;
-    ASC_FAULTLEVEL_L2_FAULT = 2;
-  }
-  enum Asc_ascstatusType {
-    ASC_ASCSTATUS_MANUAL_CONTROL_MODE = 0;
-    ASC_ASCSTATUS_AD_MODE = 1;
-    ASC_ASCSTATUS_RESERVE = 2;
-    ASC_ASCSTATUS_TORQUE_ADDED_MODE = 3;
-    ASC_ASCSTATUS_EPS_ASSIST_MODE = 4;
-    ASC_ASCSTATUS_HUMAN_INTERRUPT_MODE = 5;
-    ASC_ASCSTATUS_WARNING_MODE = 6;
-    ASC_ASCSTATUS_FAULT = 7;
-  }
+//  enum Asc_faultlevelType {
+//    ASC_FAULTLEVEL_NO_FAILURE = 0;
+//    ASC_FAULTLEVEL_L1_FAULT = 1;
+//    ASC_FAULTLEVEL_L2_FAULT = 2;
+//  }
+//  enum Asc_ascstatusType {
+//    ASC_ASCSTATUS_MANUAL_CONTROL_MODE = 0;
+//    ASC_ASCSTATUS_AD_MODE = 1;
+//    ASC_ASCSTATUS_RESERVE = 2;
+//    ASC_ASCSTATUS_TORQUE_ADDED_MODE = 3;
+//    ASC_ASCSTATUS_EPS_ASSIST_MODE = 4;
+//    ASC_ASCSTATUS_HUMAN_INTERRUPT_MODE = 5;
+//    ASC_ASCSTATUS_WARNING_MODE = 6;
+//    ASC_ASCSTATUS_FAULT = 7;
+//  }
   // [] [0|255]
-  optional int32 asc_counter = 1;
+//  optional int32 asc_counter = 1;
   // [] [0|15]
-  optional Asc_faultlevelType asc_faultlevel = 2;
+//  optional Asc_faultlevelType asc_faultlevel = 2;
   // [] [0|15]
-  optional Asc_ascstatusType asc_ascstatus = 3;
+//  optional Asc_ascstatusType asc_ascstatus = 3;
   // [] [0|255]
-  optional int32 asc_wheeltorque = 4;
-  // [��/s] [50|540]
-  optional double asc_wheelspeedfeedback = 5;
+//  optional int32 asc_wheeltorque = 4;
+  // [��/s] [50|540]
+//  optional double asc_wheelspeedfeedback = 5;
   // [nm] [-5|5]
-  optional double asc_assisttorque = 6;
-  // [��] [-1575|1575]
-  optional double asc_steeringwheelturnangle = 7;
-}
+//  optional double asc_assisttorque = 6;
+  // [��] [-1575|1575]
+//  optional double asc_steeringwheelturnangle = 7;
+//}
 
 message Adu_bodyctrl_8cff1600 {
 // Control Message
@@ -217,6 +480,13 @@ message Adu_bodyctrl_8cff1600 {
     AD_FRONTFOGLAMPREQ_OPEN = 1;
     AD_FRONTFOGLAMPREQ_RESERVE1 = 2;
     AD_FRONTFOGLAMPREQ_RESERVE2 = 3;
+  }
+//head lamp: headlightfullbeam & dippedheadlamp
+  enum Ad_headlampreqType {
+    AD_HEADLAMPREQ_CLOSE = 0;
+    AD_HEADLAMPREQ_DIPPEDHEADLAMP = 1;
+    AD_HEADLAMPREQ_HEADLIGHTFULLBEAM = 2;
+    AD_HEADLAMPREQ_RESERVE2 = 3;
   }
   enum Ad_headlightfullbeamreqType {
     AD_HEADLIGHTFULLBEAMREQ_CLOSE = 0;
@@ -254,34 +524,61 @@ message Adu_bodyctrl_8cff1600 {
     AD_WARNINGLAMPREQ_RESERVE1 = 2;
     AD_WARNINGLAMPREQ_RESERVE2 = 3;
   }
+  enum AD_LEDscreenreqType {
+    AD_LEDSCREENREQ_CLOSE = 0;
+    AD_LEDSCREENREQ_OPEN = 1;
+    AD_LEDSCREENREQ_RESERVE1 = 2;
+    AD_LEDSCREENREQ_RESERVE2 = 3;
+  }
+  enum AD_hornreqType {
+    AD_HORNREQ_CLOSE = 0;
+    AD_HORNREQ_OPEN = 1;
+    AD_HORNREQ_RESERVE1 = 2;
+    AD_HORNREQ_RESERVE2 = 3;
+  }
+  enum AD_topwarninglampreqType {
+    AD_TOPWARNINGLAMPREQ_CLOSE = 0;
+    AD_TOPWARNINGLAMPREQ_RED = 1;
+    AD_TOPWARNINGLAMPREQ_GREEN = 2;
+    AD_TOPWARNINGLAMPREQ_RESERVE = 3;
+  }
+  
   // [] [0|3]
   optional Ad_rearfoglampreqType ad_rearfoglampreq = 1;
   // [] [0|3]
   optional Ad_frontfoglampreqType ad_frontfoglampreq = 2;
+
+  // [] [0|3] head lamp: headlightfullbeam & dippedheadlamp
+  optional Ad_headlampreqType ad_headlampreq = 3;
   // [] [0|3]
-  optional Ad_headlightfullbeamreqType ad_headlightfullbeamreq = 3;
+  optional Ad_headlightfullbeamreqType ad_headlightfullbeamreq = 4;
   // [] [0|3]
-  optional Ad_dippedheadlampreqType ad_dippedheadlampreq = 4;
+  optional Ad_dippedheadlampreqType ad_dippedheadlampreq = 5;
+
   // [] [0|3]
-  optional Ad_positionlampreqType ad_positionlampreq = 5;
+  optional Ad_positionlampreqType ad_positionlampreq = 6;
   // [] [0|3]
-  optional Ad_rightturnlampreqType ad_rightturnlampreq = 6;
+  optional Ad_rightturnlampreqType ad_rightturnlampreq = 7;
   // [] [0|3]
-  optional Ad_leftturnlampreqType ad_leftturnlampreq = 7;
+  optional Ad_leftturnlampreqType ad_leftturnlampreq = 8;
   // [] [0|3]
-  optional Ad_warninglampreqType ad_warninglampreq = 8;
+  optional Ad_warninglampreqType ad_warninglampreq = 9;
+
+  optional AD_LEDscreenreqType ad_ledscreenreq = 10;
+  optional AD_hornreqType ad_hornreq = 11;
+  optional AD_topwarninglampreqType ad_topwarninglampreq = 12;
 }
 
 message Vcu_vehicleinfo4_98f005d0 {
 // Report Message
+  // [] [0|65535] 
+  optional int32 vcu_torqueReqPercent = 1;
   // [] [0|65535]
-  optional int32 vcu_vernum4 = 1;
+  optional int32 vcu_motorBrakeTorque = 2;
   // [] [0|65535]
-  optional int32 vcu_vernum3 = 2;
+  optional int32 vcu_brakeAirPressure = 3;
   // [] [0|65535]
-  optional int32 vcu_vernum2 = 3;
-  // [] [0|65535]
-  optional int32 vcu_vernum1 = 4;
+  optional int32 vcu_vehCumMileage = 4;  
 }
 
 message Vcu_vehicleinfo2_98f002d0 {
@@ -322,6 +619,24 @@ message Vcu_vehicleinfo2_98f002d0 {
 
 message Vcu_bodyctrl_98f004d0 {
 // Report Message
+  enum Vcu_LEDscreenreqType {
+    VCU_LEDSCREENREQ_CLOSE = 0;
+    VCU_LEDSCREENREQ_OPEN = 1;
+    VCU_LEDSCREENREQ_RESERVE1 = 2;
+    VCU_LEDSCREENREQ_RESERVE2 = 3;
+  }
+  enum Vcu_hornreqType {
+    VCU_HORNREQ_CLOSE = 0;
+    VCU_HORNREQ_OPEN = 1;
+    VCU_HORNREQ_RESERVE1 = 2;
+    VCU_HORNREQ_RESERVE2 = 3;
+  }
+  enum Vcu_topwarninglampreqType {
+    VCU_TOPWARNINGLAMPREQ_CLOSE = 0;
+    VCU_TOPWARNINGLAMPREQ_RED = 1;
+    VCU_TOPWARNINGLAMPREQ_GREEN = 2;
+    VCU_TOPWARNINGLAMPREQ_RESERVE = 3;
+  }
   enum Vcu_backwardlampstatusType {
     VCU_BACKWARDLAMPSTATUS_CLOSE = 0;
     VCU_BACKWARDLAMPSTATUS_OPEN = 1;
@@ -382,38 +697,120 @@ message Vcu_bodyctrl_98f004d0 {
     VCU_POSITIONLAMPSTATUS_RESERVE1 = 2;
     VCU_POSITIONLAMPSTATUS_RESERVE2 = 3;
   }
+
+
   // [] [0|15]
   optional int32 vcu_lightcounter = 1;
+  // [] [|]
+  optional Vcu_LEDscreenreqType vcu_ledscreenstatus = 2;
+  // [] [|]
+  optional Vcu_hornreqType vcu_hornstatus = 3;
+  // [] [|]
+  optional Vcu_topwarninglampreqType vcu_topwarninglampstatus = 4;
   // [] [0|3]
-  optional Vcu_backwardlampstatusType vcu_backwardlampstatus = 2;
+  optional Vcu_backwardlampstatusType vcu_backwardlampstatus = 5;
   // [] [0|3]
-  optional Vcu_warninglampstatusType vcu_warninglampstatus = 3;
+  optional Vcu_warninglampstatusType vcu_warninglampstatus = 6;
   // [] [0|3]
-  optional Vcu_rearfoglampstatusType vcu_rearfoglampstatus = 4;
+  optional Vcu_rearfoglampstatusType vcu_rearfoglampstatus = 7;
   // [] [0|3]
-  optional Vcu_frontfoglampstatusType vcu_frontfoglampstatus = 5;
+  optional Vcu_frontfoglampstatusType vcu_frontfoglampstatus = 8;
   // [] [0|3]
-  optional Vcu_brakelampstatusType vcu_brakelampstatus = 6;
+  optional Vcu_brakelampstatusType vcu_brakelampstatus = 9;
   // [] [0|3]
-  optional Vcu_rightturnlampstatusType vcu_rightturnlampstatus = 7;
+  optional Vcu_rightturnlampstatusType vcu_rightturnlampstatus = 10;
   // [] [0|3]
-  optional Vcu_leftturnlampstatusType vcu_leftturnlampstatus = 8;
+  optional Vcu_leftturnlampstatusType vcu_leftturnlampstatus = 11;
   // [] [0|3]
-  optional Vcu_headlightfullbeamstatusType vcu_headlightfullbeamstatus = 9;
+  optional Vcu_headlightfullbeamstatusType vcu_headlightfullbeamstatus = 12;
   // [] [0|3]
-  optional Vcu_dippedheadlampstatusType vcu_dippedheadlampstatus = 10;
+  optional Vcu_dippedheadlampstatusType vcu_dippedheadlampstatus = 13;
   // [] [0|3]
-  optional Vcu_positionlampstatusType vcu_positionlampstatus = 11;
+  optional Vcu_positionlampstatusType vcu_positionlampstatus = 14;
 }
 
+//ADU5 -> AutoSteering
+message Adu_autosteering_98ffefe8 {
+
+  enum Ad_desiredoperatingmode {
+    AD_DESIREDOPERATINGMODE_DEFAULT = 0;   //转向器默认的工作模式
+    AD_DESIREDOPERATINGMODE_AUTODRIVE = 1; //自主驾驶模式（外部角度控制模式）
+    AD_DESIREDOPERATINGMODE_STEERING_ASSISTANCE = 2;          //转向辅助模式（扭矩叠加模式）
+    AD_DESIREDOPERATINGMODE_MOTOR_DISABLED = 3;           //辅助电机禁用模式（仅测试使用）
+  }
+  optional Ad_desiredoperatingmode ad_desiredoperatingmode = 1; // 期望的工作模式
+  optional double ad_command_from_external_controller =2;//外部控制器发过来的指令（方向盘转向角度）
+  optional int32 ad_message_counter = 3;//消息计数
+  optional int32 ad_message_checksum = 4;//消息校验
+}
+
+//AutoSteering 1-> ADU & VCU
+message Asc_steeringinfo1_98fff113 {
+  optional int32 asc_column_torque = 1;//转向柱力矩
+  optional int32 asc_column_velocity = 2;//转向柱转速
+  optional double asc_pull_compensation = 3;//手力补偿
+  optional int32 asc_column_torque_qf = 4; //转矩信号有效性
+  optional int32 asc_column_velocity_qf = 5;//管柱速率信号有效性
+  optional int32 asc_ignition_state = 6;//点火状态
+  optional int32 asc_hands_off_detected = 7;//手离方向盘状态检测
+  optional int32 asc_hands_on_detected = 8;//手在方向盘状态检测
+  optional int32 asc_message_counter = 9;//消息计数
+  optional int32 asc_message_checksum = 10;//消息校验
+} 
+
+//AutoSteering 2-> ADU & VCU
+message Asc_steeringinfo2_98fff013 {
+  enum  Asc_actual_mode {
+    ASC_NORMAL_TORQUE_CONTROL = 0;
+    ASC_POSITION_CONTROL_FROM_REMOTE_INPUT = 1;
+    ASC_ASP_OFFSET_FROM_REMOTE_INPUT = 2;
+    ASC_DISABLE_MOTOR_OUTPUT = 3;//为EPS实际工作状态
+  }//实际工作模式
+
+  optional double asc_absolute_steering_position = 1;//方向盘角度
+  optional double asc_external_input_command_echo = 2;//外部输入命令映射
+  optional int32 asc_status_error = 3;//状态/错误位
+  optional Asc_actual_mode asc_actual_mode = 4;//实际工作模式
+  optional int32 asc_request_mode = 5;//需求工作模式
+  optional int32 asc_absolute_steering_position_qf = 6;//方向盘角度信号有效性
+  optional int32 asc_message_counter = 7;//消息计数
+  optional int32 asc_message_checksum = 8;//消息校验
+}
+
+// adu brake backup
+message Vcu_brakeinfo1_8c04cb0a {
+// Report Message
+  // [] [0|65535]
+  optional int32 vcu_brake1_air_pressure = 1;
+}
+message Vcu_brakeinfo2_8c04db0a {
+// Report Message
+  // [] [0|65535]
+  optional int32 vcu_brake2_air_pressure = 1;
+}
+message Adu_brakectrl_8c04eb0a {
+// Control Message
+  // [] [0|65535]
+  optional int32 Adu_brake1_air_pressure = 1;
+  optional int32 Adu_brake2_air_pressure = 2;
+}
+
+
 message Ch {
-  optional Adu_drivectrl_8cff1400 adu_drivectrl_8cff1400 = 1; // control message
-  optional Vcu_vehicleinfo3_98f003d0 vcu_vehicleinfo3_98f003d0 = 2; // report message
-  optional Adu_steeringctrl_8cff1500 adu_steeringctrl_8cff1500 = 3; // control message
-  optional Vcu_vehicleinfo1_98f001d0 vcu_vehicleinfo1_98f001d0 = 4; // report message
-  optional Asc_steeringinfo_8c02a0a2 asc_steeringinfo_8c02a0a2 = 5; // report message
-  optional Adu_bodyctrl_8cff1600 adu_bodyctrl_8cff1600 = 6; // control message
+  optional Adu_drivectrl_8cff1400 adu_drivectrl_8cff1400 = 1;       // control message
+  optional Adu_bodyctrl_8cff1600 adu_bodyctrl_8cff1600 = 2;         // control message
+  optional Adu_autosteering_98ffefe8 adu_autosteering_98ffefe8 = 3; // control message: ADU5 -> AutoSteering
+  optional Adu_brakectrl_8c04eb0a adu_brakectrl_8c04eb0a = 4;       // control message
+
+  optional Vcu_vehicleinfo3_98f003d0 vcu_vehicleinfo3_98f003d0 = 5; // report message
+  optional Vcu_vehicleinfo1_98f001d0 vcu_vehicleinfo1_98f001d0 = 6; // report message
   optional Vcu_vehicleinfo4_98f005d0 vcu_vehicleinfo4_98f005d0 = 7; // report message
-  optional Vcu_vehicleinfo2_98f002d0 vcu_vehicleinfo2_98f002d0 = 8; // report message
-  optional Vcu_bodyctrl_98f004d0 vcu_bodyctrl_98f004d0 = 9; // report message
+  optional Asc_steeringinfo2_98fff013 asc_steeringinfo2_98fff013 = 8;  // report message: AutoSteering 2-> ADU & VCU
+  optional Asc_steeringinfo1_98fff113 asc_steeringinfo1_98fff113 = 9;  // report message: AutoSteering 1-> ADU & VCU
+
+  optional Vcu_vehicleinfo2_98f002d0 vcu_vehicleinfo2_98f002d0 = 10;   // report message
+  optional Vcu_bodyctrl_98f004d0 vcu_bodyctrl_98f004d0 = 11;           // report message
+  
+  optional Vcu_brakeinfo1_8c04cb0a vcu_brakeinfo1_8c04cb0a = 12;       // report message
+  optional Vcu_brakeinfo2_8c04db0a vcu_brakeinfo2_8c04db0a = 13;       // report message
 }

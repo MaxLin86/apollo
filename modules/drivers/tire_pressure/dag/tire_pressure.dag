@@ -1,0 +1,11 @@
+module_config {
+    module_library: "/apollo/bazel-bin/modules/drivers/tire_pressure/libtire_pressure_canbus_component.so"
+    timer_components {
+        class_name: "TirePressureCanbusComponent"
+        config {
+            name: "tire_pressure"
+            config_file_path: "/apollo/modules/drivers/tire_pressure/conf/tire_pressure_conf.pb.txt"
+            interval: 1000
+        }
+    }
+}

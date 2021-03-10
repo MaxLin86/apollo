@@ -9,11 +9,11 @@ data {
 rtk_from {
     format: RTCM_V3
     ntrip {
-        address: "203.107.45.154"
+        address: "117.135.142.201"
         port: 8002
-        mount_point: "RTCM32_GGB"
-        user: "qxpdze00117"
-        password: "679a746"
+        mount_point: "RTCM33_GRCE"
+        user: "abcu4737"
+        password: "is9e7p1k"
         timeout_s: 5
     }
     push_location: true

@@ -256,5 +256,21 @@ DEFINE_string(tmc_topic, "/apollo/tmc",
 DEFINE_string(fused_radar_topic, "/apollo/fused_radar",
               "fused radar topic.");
 
-DEFINE_string(tmc_task_topic, "/apollo/remoteManage",
-              "tmc task topic.");
+DEFINE_string(rms_rc_topic, "/apollo/rms_rc",
+	      "rms remote control topic.");
+
+DEFINE_string(rms_task_topic, "/apollo/rms_task",
+              "rms task topic.");
+
+DEFINE_string(alignement_topic, "/apollo/alignement",
+	      "abb alignement topic");
+
+DEFINE_string(camera_front_1_topic, "/apollo/sensor/camera/front_6mm_1/image",
+		"sensor camera front_1");
+DEFINE_string(camera_front_3_topic, "/apollo/sensor/camera/front_6mm_3/image",
+		"sensor camera front_3");
+DEFINE_string(tire_pressure_topic, "/apollo/sensor/tire_pressure",
+		"tire pressure topic.");
+
+DEFINE_string(roadguide_topic, "/apollo/roadguide",
+              "Road Guide topic.");

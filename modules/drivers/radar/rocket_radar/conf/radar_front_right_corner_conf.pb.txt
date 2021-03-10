@@ -1,0 +1,10 @@
+radar_channel:  "/apollo/sensor/radar/front"
+radar_id: "front_right_corner"
+radar_ip: "192.168.95.14"
+install_angle : -74.4
+install_pos_x: 4.496
+install_pos_y: -1.155
+install_pos_z: 1.07
+positive: 1.0
+need_track: true
+detect_channel:"/apollo/sensor/radar/detections"

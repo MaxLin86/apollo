@@ -37,6 +37,7 @@ void Vcuvehicleinfo398f003d0::Parse(const std::uint8_t* bytes, int32_t length,
   chassis->mutable_ch()->mutable_vcu_vehicleinfo3_98f003d0()->set_vcu_batteryvoltage(vcu_batteryvoltage(bytes, length));
   chassis->mutable_ch()->mutable_vcu_vehicleinfo3_98f003d0()->set_vcu_lvbusvoltage(vcu_lvbusvoltage(bytes, length));
   chassis->mutable_ch()->mutable_vcu_vehicleinfo3_98f003d0()->set_vcu_vehiclespeed(vcu_vehiclespeed(bytes, length));
+  chassis->mutable_ch()->mutable_vcu_vehicleinfo3_98f003d0()->set_vcu_handbrakestatus(vcu_handbrakestatus(bytes, length));
   chassis->mutable_ch()->mutable_vcu_vehicleinfo3_98f003d0()->set_vcu_coolantstatus(vcu_coolantstatus(bytes, length));
   chassis->mutable_ch()->mutable_vcu_vehicleinfo3_98f003d0()->set_vcu_vehiclepowerstatus(vcu_vehiclepowerstatus(bytes, length));
   chassis->mutable_ch()->mutable_vcu_vehicleinfo3_98f003d0()->set_vcu_gearstatus(vcu_gearstatus(bytes, length));
@@ -89,6 +90,15 @@ double Vcuvehicleinfo398f003d0::vcu_vehiclespeed(const std::uint8_t* bytes, int3
   x |= t;
 
   double ret = x * 0.003906;
+  return ret;
+}
+
+// config detail: {'name': 'vcu_handbrakestatus', 'enum': {0: 'VCU_COOLANTSTATUS_NORMAL', 1: 'VCU_COOLANTSTATUS_COOLANT_LOW', 2: 'VCU_COOLANTSTATUS_ERROR_INDICATOR', 3: 'VCU_COOLANTSTATUS_NOT_AVAILABLE'}, 'precision': 1.0, 'len': 2, 'is_signed_var': False, 'offset': 0.0, 'physical_range': '[0|3]', 'bit': 4, 'type': 'enum', 'order': 'intel', 'physical_unit': ''}
+int Vcuvehicleinfo398f003d0::vcu_handbrakestatus(const std::uint8_t* bytes, int32_t length) const {
+  Byte t0(bytes + 0);
+  int32_t x = t0.get_byte(6, 2);
+
+  int ret =  x;
   return ret;
 }
 

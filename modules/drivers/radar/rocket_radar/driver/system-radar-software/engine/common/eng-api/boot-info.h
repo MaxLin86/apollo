@@ -1,11 +1,14 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_BOOT_INFO_H
 #define SRS_HDR_BOOT_INFO_H 1
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 
 SRS_DECLARE_NAMESPACE()
 
 #define B1_BOOT_INFO_MAGIC 0x42014D4EUL
+#define B1_BOOT_INFO_NEW_MAGIC 0x42014E57UL
 #define BOOT_INFO_BOOTED_NON_VALIDATED_IMG 0x4E564C44UL
 #define BOOT_INFO_IMG_VALIDATED            0x574F524BUL
 #define BOOT_INFO_WARM_BOOT_MAGIC          0x5741524DUL
@@ -14,20 +17,12 @@ SRS_DECLARE_NAMESPACE()
 
 //! B0 boot info
 #define BOOT_B0_INFO_STRUCT_LOCATION       0x001017E0UL
+#define BOOT_B1_INFO_STRUCT_LOCATION       0x13FF80U //MAX size of 64 bytes
 
-#if SABINE_A
 //! All boot info marker locations
-#define BOOT_INFO_STRUCT_LOCATION          0x11FF80U
-#define WARM_BOOT_MARKER_ADDR              0x11FFECU
-#define PART_NUM_BOOT_IMG_ADDR             0x11FFF0U
-#define NON_VALIDATED_IMG_BOOTED_ADDR      0x11FFF4U
-#elif SABINE_B
-//! All boot info marker locations
-#define BOOT_B1_INFO_STRUCT_LOCATION          0x13FF80U
 #define WARM_BOOT_MARKER_ADDR              0x13FFECU
 #define PART_NUM_BOOT_IMG_ADDR             0x13FFF0U
 #define NON_VALIDATED_IMG_BOOTED_ADDR      0x13FFF4U
-#endif
 
 #define HSM_BOOT_MARKER_ADDR               0x11FFF8U
 #define HSM_RAM_BOOT_ADDR                  0x11FFFCU
@@ -59,6 +54,8 @@ SRS_DECLARE_NAMESPACE()
 #define BOOT_ERR_BOOT_B1_ERR -23
 #define BOOT_ERR_BOOT_DEV_DCU_INIT_ERR -24
 #define BOOT_END_OF_UHI_DATA -25
+#define BOOT_ERR_BOOT_B2_ERR -26
+#define BOOT_ERR_INVALID_B2_ERR -27
 #define BOOT_NEW_CRYPTO_HDR 1
 #define BOOT_NEW_UHI_HDR 2
 #define BOOT_LOAD_B2_COMPLETE 3
@@ -80,6 +77,7 @@ struct b0_boot_info
     uint32_t log_wrap;
 };
 
+//max size of 64 bytes
 struct b1_boot_info
 {
 
@@ -112,7 +110,15 @@ public:
 
     static BootInfo& instance(void);
 
-    void set_b0_info_addr(struct b0_boot_info *ptr){p_boot_info = ptr;}
+    void set_b0_info_addr(struct b0_boot_info *ptr)
+    {
+#if !__BARE_METAL__
+        p_boot_info = &x86_boot_info;
+#else
+        p_boot_info = ptr;
+#endif
+    }
+
 
     void set_b0_info_boot_mode(int32_t bootmode);
 
@@ -122,9 +128,12 @@ public:
 
     void set_bo_info_boot_log_wrap(uint32_t wrap);
 
-    int32_t get_b0_info_boot_mode();
+    enum BootMode get_b0_info_boot_mode();
 private:
     struct b0_boot_info *p_boot_info;
+#if !__BARE_METAL__
+    struct b0_boot_info x86_boot_info;
+#endif
 
 };
 
@@ -133,7 +142,15 @@ class B1BootInfo
 public:
     static B1BootInfo& instance(void);
 
-    void set_b1_info_addr(struct b1_boot_info *ptr){p_b1_boot_info = ptr;}
+    void set_b1_info_addr(struct b1_boot_info *ptr)
+    {
+#if !__BARE_METAL__
+        p_b1_boot_info = &x86_b1_boot_info;
+#else
+        p_b1_boot_info = ptr;
+#endif
+
+    }
 
     void set_b1_info_boot_mode(int32_t bootmode);
 
@@ -170,6 +187,9 @@ public:
     int32_t get_b1_info_flash_part(void);
 private:
     struct b1_boot_info *p_b1_boot_info;
+#if !__BARE_METAL__
+    struct b1_boot_info x86_b1_boot_info;
+#endif
 
 };
 #if !__BARE_METAL__

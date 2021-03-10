@@ -1,31 +1,10 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_UHTYPES_H
 #define SRS_HDR_UHTYPES_H 1
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhmathtypes.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhmathtypes.h"
 
 SRS_DECLARE_NAMESPACE()
 
@@ -391,7 +370,7 @@ struct cfloat
 
     UHINLINE cfloat operator -(const cfloat& a) const { return cfloat(i - a.i, q - a.q); }
 
-    UHINLINE cfloat operator *(const float& a) const { return cfloat(i * a, q * a); }
+    UHINLINE cfloat operator *(const FLOAT& a) const { return cfloat(i * a, q * a); }
 
     UHINLINE cfloat operator *(const cfloat& a) const
     {
@@ -402,7 +381,7 @@ struct cfloat
     }
 
 
-    UHINLINE cfloat operator /(const float& a) const { return cfloat(i / a, q / a); }
+    UHINLINE cfloat operator /(const FLOAT& a) const { return cfloat(i / a, q / a); }
 
     UHINLINE cfloat operator /(const cfloat& a) const
     {
@@ -497,6 +476,8 @@ struct vec3f_t
     UHINLINE bool operator >(const vec3f_t& rhs) const { return rhs < *this; }
 
     UHINLINE FLOAT dot(const vec3f_t& a) { return x * a.x + y * a.y + z * a.z; }
+
+    UHINLINE const vec3f_t cross(const vec3f_t& v) const { return vec3f_t(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x); }
 };
 
 struct quatf_t
@@ -508,6 +489,130 @@ struct quatf_t
     quatf_t(const FLOAT _x, const FLOAT _y, const FLOAT _z, const FLOAT _w) : x(_x), y(_y), z(_z), w(_w) {}
 
     quatf_t(const quatf_t &a) : x(a.x), y(a.y), z(a.z), w(a.w) {}
+
+    quatf_t(const FLOAT roll, const FLOAT yaw, const FLOAT pitch)
+    {
+        FLOAT cy = uh_cosf(yaw * 0.5f);
+        FLOAT sy = uh_sinf(yaw * 0.5f);
+        FLOAT cp = uh_cosf(pitch * 0.5f);
+        FLOAT sp = uh_sinf(pitch * 0.5f);
+        FLOAT cr = uh_cosf(roll * 0.5f);
+        FLOAT sr = uh_sinf(roll * 0.5f);
+        w = cr * cp * cy + sr * sp * sy;
+        x = sr * cp * cy - cr * sp * sy;
+        y = cr * sp * cy + sr * cp * sy;
+        z = cr * cp * sy - sr * sp * cy;
+    }
+
+    const vec3f_t rotate(const vec3f_t& v) const
+    {
+        const FLOAT vx = 2.0f * v.x;
+        const FLOAT vy = 2.0f * v.y;
+        const FLOAT vz = 2.0f * v.z;
+        const FLOAT w2 = w * w - 0.5f;
+        const FLOAT dot2 = (x * vx + y * vy + z * vz);
+        return vec3f_t((vx * w2 + (y * vz - z * vy) * w + x * dot2),
+                       (vy * w2 + (z * vx - x * vz) * w + y * dot2),
+                       (vz * w2 + (x * vy - y * vx) * w + z * dot2));
+    }
+
+    const vec3f_t rotateInv(const vec3f_t& v) const
+    {
+        const float vx = 2.0f * v.x;
+        const float vy = 2.0f * v.y;
+        const float vz = 2.0f * v.z;
+        const float w2 = w * w - 0.5f;
+        const float dot2 = (x * vx + y * vy + z * vz);
+        return vec3f_t((vx * w2 - (y * vz - z * vy) * w + x * dot2),
+                       (vy * w2 - (z * vx - x * vz) * w + y * dot2),
+                       (vz * w2 - (x * vy - y * vx) * w + z * dot2));
+    }
+
+
+    const vec3f_t toEuler() const
+    {
+        FLOAT roll, pitch, yaw;
+
+        // roll (x-axis rotation)
+        const FLOAT sinr_cosp = 2.0f * (w * x + y * z);
+        const FLOAT cosr_cosp = 1.0f - 2.0f * (x * x + y * y);
+        roll = uh_atan2f(sinr_cosp, cosr_cosp);
+
+        // pitch (y-axis rotation)
+        const FLOAT sinp = 2.0f * (w * y - z * x);
+        if (uh_fabsf(sinp) >= 1.0f)
+        {
+            if (sinp < 0)
+            {
+                pitch = -M_PI / 2.0f;
+            }
+            else
+            {
+                pitch = M_PI / 2.0f;
+            }
+        }
+        else
+        {
+            pitch = uh_asinf(sinp);
+        }
+
+        // yaw (z-axis rotation)
+        const FLOAT siny_cosp = 2 * (w * z + x * y);
+        const FLOAT cosy_cosp = 1 - 2 * (y * y + z * z);
+        yaw = uh_atan2f(siny_cosp, cosy_cosp);
+
+        return vec3f_t(roll, pitch, yaw);
+    }
+};
+
+class transform_t
+{
+public:
+
+    void initialize(vec3f_t pos, quatf_t pose)
+    {
+        position = pos;
+
+        const FLOAT x = pose.x;
+        const FLOAT y = pose.y;
+        const FLOAT z = pose.z;
+        const FLOAT w = pose.w;
+
+        const FLOAT x2 = x + x;
+        const FLOAT y2 = y + y;
+        const FLOAT z2 = z + z;
+
+        const FLOAT xx = x2 * x;
+        const FLOAT yy = y2 * y;
+        const FLOAT zz = z2 * z;
+
+        const FLOAT xy = x2 * y;
+        const FLOAT xz = x2 * z;
+        const FLOAT xw = x2 * w;
+
+        const FLOAT yz = y2 * z;
+        const FLOAT yw = y2 * w;
+        const FLOAT zw = z2 * w;
+
+        column0 = vec3f_t(1.0f - yy - zz, xy + zw,        xz - yw);
+        column1 = vec3f_t(xy - zw,        1.0f - xx - zz, yz + xw);
+        column2 = vec3f_t(xz + yw,        yz - xw,        1.0f - xx - yy);
+    }
+
+    const vec3f_t transform(const vec3f_t& other) const
+    {
+        return rotate(other) + position;
+    }
+
+    const vec3f_t rotate(const vec3f_t& other) const
+    {
+        return column0 * other.x + column1 * other.y + column2 * other.z;
+    }
+
+    vec3f_t position;
+    vec3f_t column0;
+    vec3f_t column1;
+    vec3f_t column2;
 };
 
 SRS_CLOSE_NAMESPACE()

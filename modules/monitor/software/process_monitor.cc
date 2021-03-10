@@ -81,11 +81,11 @@ void ProcessMonitor::UpdateStatus(
     ComponentStatus* status) {
   status->clear_status();
   for (const std::string& command : running_processes) {
-      AERROR << "bkx-ProcessMonitor::running_processes:" << command;
+     // AERROR << "bkx-ProcessMonitor::running_processes:" << command;
     bool all_keywords_matched = true;
     for (const std::string& keyword : config.command_keywords()) {
       if (command.find(keyword) == std::string::npos) {
-      AERROR << "bkx-ProcessMonitor::UpdateStatus:" << keyword;
+     // AERROR << "bkx-ProcessMonitor::UpdateStatus:" << keyword;
         all_keywords_matched = false;
         break;
       }

@@ -1,4 +1,4 @@
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/clutterimage_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/scanobject_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/include/serializer.h"
@@ -80,9 +80,7 @@ uint32_t ClutterImage_Impl::get_azimuth_dimension() const
 
 uint32_t ClutterImage_Impl::get_elevation_dimension() const
 {
-    return (myscan.scan_info.CI_format == CIMG_M16PP_D7PP) ?
-        myscan.scan_info.num_beamforming_angles / myscan.scan_info.num_azimuth_angles :
-        1;
+    return (myscan.scan_info.CI_format == CIMG_M16PP_D7PP) ? myscan.scan_info.num_elevation_angles : 1;
 }
 
 uint32_t ClutterImage_Impl::get_range_dimension() const
@@ -169,7 +167,7 @@ ClutterImage::PeakCountEnum ClutterImage_Impl::get_sample(
     {
         uint16_t val = hd_plane[range_idx * AZ * EL + el_idx * AZ + az_idx];
 
-        if (doppler_data_supported())
+        if (doppler_data_supported() && myscan.zero_d_bins)
         {
             int d = val & 0x7f;
             int dabs = (int)myscan.zero_d_bins[el_idx * AZ + az_idx] - (info.num_pulses / 2);
@@ -258,7 +256,7 @@ uint32_t ClutterImage_Impl::get_point_cloud_points(PointCloudData* buffer, uint3
                     {
                         uint16_t val = hd_plane[range_idx * AZ * EL + el_idx * AZ + az_idx];
 
-                        if (doppler_data_supported())
+                        if (doppler_data_supported() && myscan.zero_d_bins)
                         {
                             int d = ((val & 0x7f) + (1 << (MAP_DEC_DOP_BITS - 1))) >> MAP_DEC_DOP_BITS;
                             int dabs = (int)myscan.zero_d_bins[el_idx * AZ + az_idx];
@@ -402,7 +400,7 @@ bool     ClutterImage_Impl::post_process()
     // Determine the noise floor of each range bin by finding min
 
     uint32_t first_az = 0;
-    uint32_t last_az  = myscan.scan_info.num_beamforming_angles - 1;
+    uint32_t last_az  = AZ * EL - 1;
 
     if (myscan.scan_info.azimuth_nyquist_oversampling_factor &&
         !(myscan.scan_info.angle_wrap_flags & 1))
@@ -426,6 +424,8 @@ bool     ClutterImage_Impl::post_process()
     {
         uint16_t floor = 0xFFFF;
 
+        // in two-d without wrap this is not ignoring the middle elevation bin
+        // azimith extents.. but hopefully we never do such a thing
         for (uint32_t az = first_az; az <= last_az; az++)
         {
             floor = uh_uintmin(floor, mag_plane[r * AZ * EL + az]);
@@ -438,7 +438,7 @@ bool     ClutterImage_Impl::post_process()
         {
             mag_plane[r * AZ * EL + az] = floor;
         }
-        for (uint32_t az = last_az; az < myscan.scan_info.num_beamforming_angles; az++)
+        for (uint32_t az = last_az; az < AZ * EL; az++)
         {
             mag_plane[r * AZ * EL + az] = floor;
         }
@@ -697,3 +697,260 @@ bool     ClutterImage_Impl::serialize(ScanSerializer& s) const
 
     return ok;
 }
+
+static const float INVALID_SAMPLE = 1e-5f;
+
+float ClutterImage_Impl::doppler_sample(uint32_t range_bin, uint32_t azimuth_bin)
+{
+    const UhdpScanInformation& info = myscan.scan_info;
+    const uint32_t A = get_azimuth_dimension();
+    const uint32_t R = get_range_dimension();
+
+    if (azimuth_bin >= A || range_bin >= R)
+    {
+        return INVALID_SAMPLE;
+    }
+
+    // document scan_desc.get_doppler_bin_width_mps() and FRAC_BITS
+    uint16_t mag = 0, count_height_doppler = 0;
+    get_raw_sample(azimuth_bin, 0, range_bin, mag, count_height_doppler);
+
+    if (mag <= ci_row_noise_floor[range_bin])
+    {
+        return INVALID_SAMPLE;
+    }
+
+    int d = count_height_doppler & 0x7f;
+    int dabs = (int)myscan.zero_d_bins[0 * A + azimuth_bin] - (info.num_pulses / 2);
+    d -= ((info.SS_size_D - 1) / 2) << MAP_DEC_DOP_BITS;
+    d += dabs << MAP_DEC_DOP_BITS;
+    float mps = (d * info.doppler_bin_width) / (1 << MAP_DEC_DOP_BITS);
+    return mps;
+}
+
+
+float ClutterImage_Impl::doppler_interpolate(float range, float azimuth)
+{
+    if (!hd_plane)
+    {
+        return 0.0f;
+    }
+
+    uint32_t A = get_azimuth_dimension();
+    uint16_t az_idx = 0;
+    // find native az bin in raw polar clutter image
+    for (az_idx = 0; az_idx < A - 1; az_idx++)
+    {
+        if (myscan.get_azimuth_rad(az_idx + 1) >= azimuth)
+        {
+            break;
+        }
+    }
+
+    uint32_t r0 = uint32_t(range);
+    uint32_t r1 = r0 + 1;
+    float range_frac = range - r0;
+
+    float az_frac = (azimuth - myscan.get_azimuth_rad(az_idx)) /
+                    (myscan.get_azimuth_rad(az_idx + 1) - myscan.get_azimuth_rad(az_idx));
+
+    float d00 = doppler_sample(r0, az_idx);
+    float d01 = doppler_sample(r0, az_idx + 1);
+    float d10 = doppler_sample(r1, az_idx);
+    float d11 = doppler_sample(r1, az_idx + 1);
+
+    float d0;
+    if (d00 == INVALID_SAMPLE)
+    {
+        d0 = d01;
+    }
+    else if (d01 == INVALID_SAMPLE)
+    {
+        d0 = d00;
+    }
+    else
+    {
+        d0 = d00 * (1 - az_frac) + d01 * az_frac;
+    }
+
+    float d1;
+    if (d10 == INVALID_SAMPLE)
+    {
+        d1 = d11;
+    }
+    else if (d11 == INVALID_SAMPLE)
+    {
+        d1 = d10;
+    }
+    else
+    {
+        d1 = d10 * (1 - az_frac) + d11 * az_frac;
+    }
+
+    float ret = 0;
+    if (d0 == INVALID_SAMPLE)
+    {
+        ret = d1;
+    }
+    else if (d1 == INVALID_SAMPLE)
+    {
+        ret = d0;
+    }
+    else
+    {
+        ret = d0 * (1 - range_frac) + d1 * range_frac;
+    }
+    if (ret == INVALID_SAMPLE)
+    {
+        ret = 0.0f;
+    }
+
+    return ret;
+}
+
+
+// returns interpolated bin index
+static float quadratic_interp(float yl, float yc, float yu)
+{
+    float d1 = (yu - yl) / 2;
+    float d2 = yu - yc + yl - yc;
+
+    if (d2)
+    {
+        float dd = d1 / d2;
+        // interpmag = yc - d1 * dd / 2.0f;
+        return dd;
+    }
+    else
+    {
+        // interpmag = yc;
+        return 0;
+    }
+}
+
+
+float ClutterImage_Impl::elevation_sample(uint32_t range_bin, uint32_t azimuth_bin)
+{
+    const uint32_t A = get_azimuth_dimension();
+    const uint32_t E = get_elevation_dimension();
+    const uint32_t R = get_range_dimension();
+
+    if (azimuth_bin >= A || range_bin >= R)
+    {
+        return INVALID_SAMPLE;
+    }
+
+    uint16_t magnitudes[128];
+    uint16_t max_mag = 0;
+    uint16_t min_mag = 0xFFFF;
+    uint32_t max_idx = 0;
+    for (uint32_t e = 0; e < E; e++)
+    {
+        magnitudes[e] = mag_plane[range_bin * A * E + e * A + azimuth_bin];
+        if (magnitudes[e] > max_mag)
+        {
+            max_mag = magnitudes[e];
+            max_idx = e;
+        }
+        if (magnitudes[e] < min_mag)
+        {
+            min_mag = magnitudes[e];
+        }
+    }
+
+    if (min_mag == max_mag)
+    {
+        // elevation is all noise
+        return 0.0f;
+    }
+    else if ((max_idx == 0) || (max_idx == E - 1))
+    {
+        // edge conditions
+        return myscan.get_elevation_rad(max_idx);
+    }
+    else
+    {
+        float interpbin = quadratic_interp(magnitudes[max_idx - 1], magnitudes[max_idx], magnitudes[max_idx + 1]);
+        if (interpbin == 0)
+        {
+            return myscan.get_elevation_rad(max_idx);
+        }
+        else if (interpbin < 0)
+        {
+            float low = myscan.get_elevation_rad(max_idx - 1);
+            float high = myscan.get_elevation_rad(max_idx);
+            return high + interpbin * (high - low);
+        }
+        else
+        {
+            float low = myscan.get_elevation_rad(max_idx);
+            float high = myscan.get_elevation_rad(max_idx + 1);
+            return low + interpbin * (high - low);
+        }
+    }
+}
+
+
+float ClutterImage_Impl::elevation_interpolate(float range_bins, float azimuth_fbin)
+{
+    uint32_t r0 = uint32_t(range_bins);
+    uint32_t r1 = r0 + 1;
+    float range_frac = range_bins - r0;
+
+    uint32_t az_idx = uint32_t(azimuth_fbin);
+    float az_frac = azimuth_fbin - az_idx;
+
+    float d00 = elevation_sample(r0, az_idx);
+    float d01 = elevation_sample(r0, az_idx + 1);
+    float d10 = elevation_sample(r1, az_idx);
+    float d11 = elevation_sample(r1, az_idx + 1);
+
+    float d0;
+    if (d00 == INVALID_SAMPLE)
+    {
+        d0 = d01;
+    }
+    else if (d01 == INVALID_SAMPLE)
+    {
+        d0 = d00;
+    }
+    else
+    {
+        d0 = d00 * (1 - az_frac) + d01 * az_frac;
+    }
+
+    float d1;
+    if (d10 == INVALID_SAMPLE)
+    {
+        d1 = d11;
+    }
+    else if (d11 == INVALID_SAMPLE)
+    {
+        d1 = d10;
+    }
+    else
+    {
+        d1 = d10 * (1 - az_frac) + d11 * az_frac;
+    }
+
+    float ret = 0;
+    if (d0 == INVALID_SAMPLE)
+    {
+        ret = d1;
+    }
+    else if (d1 == INVALID_SAMPLE)
+    {
+        ret = d0;
+    }
+    else
+    {
+        ret = d0 * (1 - range_frac) + d1 * range_frac;
+    }
+    if (ret == INVALID_SAMPLE)
+    {
+        ret = 0.0f;
+    }
+
+    return ret;
+}
+

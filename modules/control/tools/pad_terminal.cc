@@ -56,6 +56,8 @@ class PadTerminal {
     AINFO << "\t0: reset to manual drive mode.";
     AINFO << "\t1: auto drive mode.";
     AINFO << "\t2: auto drive to setting distance.";
+    AINFO << "\t4: auto drive forward 0.1m.";
+    AINFO << "\t5: auto drive backward -0.1m.";
     AINFO << "\tctrl + c/z: exit.";
     AINFO << "\tother: print help.";
   }
@@ -80,6 +82,26 @@ class PadTerminal {
       "/apollo/modules/control/testdata/control_tester/pad_move_action_msg.pb.txt",&pad);
     apollo::common::util::FillHeader("terminal", &pad);
     AINFO << "sending moving distance: " <<  pad.moving_distance();
+    pad_writer_->Write(pad);
+    AINFO << "send pad_message OK";
+  }
+
+  void send_move_forward() {
+    PadMessage pad; 
+    pad.set_action(DrivingAction::START);
+    pad.set_moving_distance(0.1);     
+    
+    apollo::common::util::FillHeader("terminal", &pad);
+    pad_writer_->Write(pad);
+    AINFO << "send pad_message OK";
+  }
+
+  void send_move_backward() {
+    PadMessage pad; 
+    pad.set_action(DrivingAction::START);
+    pad.set_moving_distance(-0.1);     
+    
+    apollo::common::util::FillHeader("terminal", &pad);
     pad_writer_->Write(pad);
     AINFO << "send pad_message OK";
   }
@@ -132,6 +154,12 @@ class PadTerminal {
         case 2: //add by shzhw
           send_move_action_msg();
           break;
+        case 4:
+         send_move_forward();
+	 break;
+        case 5:
+         send_move_backward();
+	 break;
         case 9:
           should_exit = true;
           break;

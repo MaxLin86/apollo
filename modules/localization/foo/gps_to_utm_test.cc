@@ -67,11 +67,12 @@ class FooLocalizationTest : public ::testing::Test {
 TEST_F(FooLocalizationTest, GPStoUTM) { 
 
   std::ofstream guidepost_utm_out;
-  guidepost_utm_out.open("/apollo/data/guidepost_utm_out.txt",std::ios::app);
+  //guidepost_utm_out.open("/apollo/data/guidepost_utm_out.txt",std::ios::app);
+  guidepost_utm_out.open("/apollo/data/new_csv_101719_obstacles_utm_out.txt",std::ios::app);
 
   static int row = 0;
 
-  std::ifstream fin("/apollo/data/new_csv_090914.csv"); //打开文件流操作
+  std::ifstream fin("/apollo/data/new_csv_101719_obstacles.csv"); //打开文件流操作
 	std::string line; 
 	while (getline(fin, line))   //整行读取，换行符“\n”区分，遇到文件尾标志eof终止读取
 	{
@@ -90,8 +91,8 @@ TEST_F(FooLocalizationTest, GPStoUTM) {
 		std::string str_lat =Trim(fields[5]); //清除掉向量fields中第二个元素的无效字符，并赋值给变量lat
 		std::string str_lon =Trim(fields[6]); //清除掉向量fields中第三个元素的无效字符，并赋值给变量lon
 		//std::cout <<"处理之后的字符串："<< seq_number << "\t" << lat << "\t" << lon << std::endl; 
-    double lat = stringToNum<double>(str_lat);
-    double lon = stringToNum<double>(str_lon);
+    double lat = stringToNum<double>(str_lat);//+(-5.78174585541547e-07);
+    double lon = stringToNum<double>(str_lon);//+(3.47222185480080e-06);
     std::cout <<std::fixed << "处理之后的数值："<< seq_number << "\t" << lat << "\t" << lon << std::endl; 
 
     msf::UTMCoor utm_xy;

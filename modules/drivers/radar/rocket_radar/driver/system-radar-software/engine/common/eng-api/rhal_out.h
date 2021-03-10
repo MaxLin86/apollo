@@ -1,30 +1,9 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_RHAL_OUT_H
 #define SRS_HDR_RHAL_OUT_H 1
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/uhtypes.h"
 
 #define DEFAULT_RB_CAL_TX_EARLY_SQUELCH (0x01U)
@@ -38,10 +17,9 @@ SRS_DECLARE_NAMESPACE()
 // Pure structures that are output by the RHAL Layer
 // This header file can be included on both SCP and DSP
 
-
 enum                { MAX_VRX           = 96    };  // Per ProcInstance (one TDM sub-scan)
 
-enum                { MAX_ROUGH_ANGLES  = 192   };  // Per ProcInstance (one post-processing pass)
+enum                { MAX_ROUGH_ANGLES  = 384   };  // Per ProcInstance (one post-processing pass)
 
 enum                { MAX_TX_PRN        = 12    };  // Max number of simultaneously active TX antennas
 
@@ -83,14 +61,7 @@ enum ADC_TX
     ADC_TX10 = 1024,
     ADC_TX11 = 2048
 };
-#if SABINE_B
-#elif SABINE_A
-enum                { MAX_VRX           = 64    };  // Per ProcInstance (one TDM sub-scan)
 
-enum                { MAX_ROUGH_ANGLES  = 128   };  // Per ProcInstance (one post-processing pass)
-
-enum                { MAX_TX_PRN        = 8     };  // Max number of simultaneously active TX antennas
-#endif
 enum                { TXUT_DEF_TABLE_SIZE = 198360, TXUT_HEADER_SIZE = 12, TXUT_PREAMBLE_SIZE = 72 , TXUT_TABLE_SIZE = 512};
 
 enum                { MAX_RANGE_BINS    = 512   };  // Max double-pumping the correlator
@@ -174,7 +145,7 @@ enum RHAL_MIMOMode
 
 enum { FEU_NUM_STAGES = 4 };
 
-// Define the valid FFT sizes for Sabine V1 FEU
+// Define the valid FFT sizes
 // Note:
 //    * This list MUST be in sorted order (smaller to larger FFT sizes).
 //    * This list MUST be kept in sync with RHAL_ProcDescImpl::FEU::feu_int_fft_data[] in feu_init_consts.h
@@ -245,38 +216,8 @@ enum RHAL_FFT_SIZE
 extern const CHAR* rx_gain_names[];
 enum RHAL_RxVGAGainPresets
 {
-    // Sabine-A
-    VGAGain_11_15_7_1_1,
-    VGAGain_11_13_0_0_0,         // Constant Power Mode default
-    VGAGain_7_15_15_1_1,
-    VGAGain_6_15_15_1_1,
-    VGAGain_7_15_13_1_1,
-    VGAGain_7_13_15_1_1,
-    VGAGain_7_15_15_5_1,
-    VGAGain_5_13_13_5_1,
-    VGAGain_4_15_15_5_1,
-    VGAGain_11_15_2_0_0,
-    VGAGain_7_15_9_0_0,
-    VGAGain_1_1_1_1_1,
-    VGAGain_0_15_15_7_7,
-    VGAGain_1_15_15_7_7,
-    VGAGain_2_15_15_7_7,
-    VGAGain_3_15_15_7_7,
-    VGAGain_4_15_15_7_7,
-    VGAGain_5_15_15_7_7,
-    VGAGain_0_15_15_1_7,         // Variable Power Mode default (low gain VGA1 setting for no humps)
-    VGAGain_11_9_0_0_0,
-    VGAGain_11_5_0_0_0,
-    VGAGain_11_1_0_0_0,
-    VGAGain_9_13_0_0_0,
-    VGAGain_9_9_0_0_0,
-    VGAGain_0_15_9_0_0,
-    VGAGain_0_15_5_0_0,
-    VGAGain_0_15_3_0_0,
-
-    // Sabine-B
     // From Jama (Dec 3, 2019)
-    Rx_Gain_51dB_VP_7_1_3_3_3,
+    Rx_Gain_51dB_VP_7_1_3_3_3 = 27,
     Rx_Gain_41dB_VP_7_0_0_3_3,      // POR for VP mode
     Rx_Gain_35dB_VP_5_0_1_1_3,
     Rx_Gain_31dB_CP_3_0_0_3_1,
@@ -290,33 +231,11 @@ enum RHAL_RxVGAGainPresets
     VGAGain_DEFAULT = 255             // force SRS default settings if this is chosen
 };
 
-enum RHAL_LOMode
-{
-    LO_Internal = 0,
-    LO_Onboard,
-    LO_External,
-
-    // New enums go above this line
-    NUM_LO_MODES,
-
-    // Do Not change DEFAULT
-    LO_MODE_DEFAULT = 255     // force SRS default settings if this is chosen
-};
-
 extern const CHAR* tx_gain_names[];
 enum RHAL_TxGainPresets
 {
-    // Sabine-A
-    Tx_Gain_4_1,         // Variable Power Mode default
-    Tx_Gain_1_3,         // Constant Power Mode default
-    Tx_Gain_7_1,
-    Tx_Gain_1_1,
-    Tx_Gain_2_1,
-    Tx_Gain_3_1,
-
-    // Sabine-B
     // From Jama (Dec 3, 2019)
-    Tx_Gain_Maximum_7_4_44,         // POR for VP mode
+    Tx_Gain_Maximum_7_4_44 = 6,     // POR for VP mode
     Tx_Gain_Efficient_7_4_4,        // POR for CP mode
     Tx_Gain_Backoff20_0_4_4,
 
@@ -330,14 +249,8 @@ enum RHAL_TxGainPresets
 extern const CHAR* tx_bw_names[];
 enum RHAL_TxBWPresets    // Enums for RHAL_TxBandWidth
 {
-    // Sabine-A
-    Tx_BW_00_00_00_00_03_03,
-    Tx_BW_16_16_08_08_02_02,
-    Tx_BW_28_28_12_12_02_02,
-
-    // Sabine-B
     // From Jama (Dec 3, 2019)
-    Tx_BW_1200MHz_1700MHz,
+    Tx_BW_1200MHz_1700MHz = 3,
     Tx_BW_700MHz_900MHz,            // POR
     Tx_BW_500MHz_600MHz,
     Tx_BW_300MHz_400MHz,
@@ -352,22 +265,8 @@ enum RHAL_TxBWPresets    // Enums for RHAL_TxBandWidth
 extern const CHAR* rx_bw_names[];
 enum RHAL_RxBWPresets      // Enums for RHAL_RxBandWidth
 {
-    // Sabine-A
-    Rx_BW_c31313131313131_f15151515150707,
-    Rx_BW_c00000000000000_f00000000000000,
-    Rx_BW_c31313122221515_f00000000000000,
-    Rx_BW_c31192222221515_f00000000000000,
-    Rx_BW_c31172022221515_f00000000000000,
-    Rx_BW_c31131622221515_f00000000000000,
-    Rx_BW_c30091314140101_f00000000000000,
-    Rx_BW_c30051014140101_f00000000000000,
-    Rx_BW_c31000514140101_f00000000000000,
-    Rx_BW_c29000514140101_f00000000000000,
-    Rx_BW_c23091314140101_f00000000000000,
-
-    // Sabine-B
     // From Jama (Dec 3, 2019)
-    Rx_BW_2000MHz_Tandem_3_3_3,              // POR
+    Rx_BW_2000MHz_Tandem_3_3_3 = 11,  // POR
     Rx_BW_720MHz_Tandem_2_2_2,
 
     // New enums go above this line
@@ -465,30 +364,43 @@ enum RHAL_Rdc3_Bucket
     NUM_RD_BUF   = 6,         // Do not renumber
 };
 
-//! Number of pumps & range-bin combining configuration for Pulsed mode
-enum RHAL_ScanModes
+//
+//! Ego-velocity mode
+//
+enum RHAL_Ego_Velocity_Mode
 {
-    VP_INVALID = -1,
-    // Add all variable power mode scans here
-    VP_SCAN_1 = 0, //!< Near Output 128 Range-Bins for Double pump scans: VP1a, VP1b, VP1bb VP1c
-    VP_SCAN_2,     //!< Far Output 256 Range-Bins for Quad pump
-    VP_SCAN_3,     //!< Near Output 128 Range-Bins for Quad pump
-    VP_SCAN_4,     //!< Near Output 256 Range-Bins for Quad pump scans: VP4, VP12, VP13
-    VP_SCAN_5,     //!< Far Output 128 Range-Bins for Triple pump
-    VP_SCAN_6,     //!< Far Output 128 combine Range-Bins for Double pump
-    VP_SCAN_7,     //!< Far Output 256 Range-Bins for Triple pump
-    VP_SCAN_8,     //!< 0-300m Quad pump *VP8
-    VP_SCAN_9,     //!< 0-160m Quad pump, higher range res scan: VP9
-    VP_SCAN_10,     //!< 0-160m Quad pump, high velocity scan: VP11
-    VP_SCAN_11,     //!< 0-300m Quad pump, high velocity - Autobahn scan
-    VP_SCAN_12,     //!< 0-238m Quad pump, max 55kmph - 20 fps scan
-    VP_SCAN_13,     //!< 0-160m Quad pump, max 77kmph
-    VP_SCAN_14,     //!< 0-317m Quad pump, Max ~200kmph, uniform range bin combine - New Autobahn scan: VP14
-    VP_SCAN_14f,     //!< 0-230m Quad pump, Max ~200kmph, uniform range bin combine - New Autobahn scan
-    NUM_VP_SCAN_MODES,
-    // Add all non variable power mode scans here
-    NVP_SCAN_1,
-    TOTAL_SCAN_MODES
+    //! Internal ego-velocity estimation disabled. Use external telemetry input only.
+    EV_MODE_DISABLED = 0,
+
+    //! Internal ego-velocity estimation enabled for reporting only.
+    //! Use external telemetry for Detection stationary flag and Static Slice curve.
+    EV_MODE_INTERNAL_INFO = 1,
+
+    //! Use Internal ego-velocity estimation for Detection stationary flag.
+    //! Use external input for Static Slice curve.
+    EV_MODE_INTERNAL_DETECTIONS = 2,
+
+    //! Use Internal ego-velocity estimation for Static Slice curve.
+    //! Use external input for Detection stationary flag.
+    EV_MODE_INTERNAL_STATIC_SLICE = 3,
+
+    //! Use Internal ego-velocity estimation for Detection stationary flag and Static Slice curve
+    EV_MODE_INTERNAL_FULL = 4,
+};
+
+//
+//! Memory selector for data structures
+//
+enum RHAL_Memory_Type
+{
+    //! Use default
+    RHAL_MEM_DEFAULT = 0,
+
+    //! Use external DDR (DRAM) memory
+    RHAL_MEM_DRAM = 1,
+
+    //! Use internal DCU memory (shared access with hardware)
+    RHAL_MEM_DCU = 2,
 };
 
 enum RHAL_ScanWaveModes
@@ -546,6 +458,30 @@ enum RHAL_ChipRates
     NUM_CHIP_RATES
 };
 
+enum RHAL_HW_SVA_NyquistRate
+{
+    HW_SVA_NYQ_RATE_INVALID = 0,
+    HW_SVA_NYQ_RATE_1 = 1,
+    HW_SVA_NYQ_RATE_2 = 2,
+    HW_SVA_NYQ_RATE_3 = 3,
+    HW_SVA_NYQ_RATE_4 = 4,
+    MAX_HW_SVA_VERT_NYQ_RATE = 4,   //! Maximum vertical Nyquist rate for HW-SVA
+    HW_SVA_NYQ_RATE_5 = 5,
+    HW_SVA_NYQ_RATE_6 = 6,
+    HW_SVA_NYQ_RATE_7 = 7,
+    HW_SVA_NYQ_RATE_8 = 8,
+    MAX_HW_SVA_HORZ_NYQ_RATE = 8,   //! Maximum horizontal Nyquist rate for HW-SVA
+    NUM_HW_SVA_NYQ_RATES
+};
+
+
+enum RHAL_Supported_Angles
+{
+    MAX_REVA_ROUGH_ANGLES = 128,
+    MAX_REVB_ROUGH_ANGLES = 192,
+    MAX_REVB_ROUGH_ANGLES_DUAL_PASS = 384,
+};
+
 struct RHAL_TxAntennaEn
 {
     uint32_t Tx0_en  : 1;
@@ -561,6 +497,21 @@ struct RHAL_TxAntennaEn
     uint32_t Tx10_en : 1;
     uint32_t Tx11_en : 1;
     uint32_t res     : 20;
+
+    INT         get_num_tx() const
+    {
+        INT num = 0;
+        uint32_t map = get_antenna_map();
+
+        for (uint8_t tx = 0; tx < NUM_TX; tx++)
+        {
+            if ((map >> tx) & 0x01U)
+            {
+                num++;
+            }
+        }
+        return num;
+    }
 
     uint32_t    get_antenna_map() const
     {
@@ -680,23 +631,45 @@ struct RHAL_RxAntennaEn
     }
 };
 
+
 struct RHAL_AntennaCtrl
 {
+    //
+    // These fields mirror struct AntennaCtrl
+    //
     RHAL_TxAntennaEn        tx_enable;                // bitmap of POWERED-ON Tx antennas
     RHAL_RxAntennaEn        rx_enable;                // bitmap of enabled Rx antennas (Sabine supports only Max 8)
     int8_t                  prn_idx[NUM_TX];          // PRN id for each of the 12 Tx antennas (0-MAX_TX_PRN-1 selects PRN source, MAX_TX_PRN=disabled)   (in HW-12 order)
     uint8_t                 tx_symbol_delay[NUM_TX];  // Number of symbols to delay Tx before modulator:  CONTROL_TXnn : symbol_delay      (in HW-12 order)
     uint8_t                 tx_sub_sym_delay[NUM_TX]; // Number of sub-symbols (1/4 symbol) to delay Tx:  CONTROL_TXnn : subsymbol_delay   (in HW-12 order)
     vec3f_t                 pos_offset;               // Offset (in meters) from antenna positions (to center virtual array)
+    uint8_t                 pa_tx_num_centers;        // Phased Array:  number of Tx phase centers (0 if PA disabled)
+    vec3f_t                 pa_tx_centers[MAX_TX_PRN];// Phased Array:  positions of Tx phase centers (in Y-major order)
+    RHAL_TxAntennaEn        tx_cancelled_prn;         // Bitmap of transmitters that originally had PRN codes assigned but that got deassigned to reduce num_vrx
 
-    uint8_t                 pa_tx_num_centers;              // Phased Array:  number of Tx phase centers (0 if PA disabled)
-    vec3f_t                 pa_tx_centers[MAX_TX_PRN];      // Phased Array:  positions of Tx phase centers (in Y-major order)
+    //
+    // These fields mirror struct AntennaSetParameters
+    //
+    uint8_t                 active_vrx[MAX_VRX / 8];  // Bitmap of enabled VRx, in Y-major VRx order
+    uint8_t                 dup_vrx[MAX_VRX / 8];     // Bitmap of VRx with duplicated positions, in Y-major VRx order
 
-    void from_env_antenna_ctrl(struct AntennaCtrl);
+    //
+    // Other fields
+    //
+    uint16_t                orig_vrx;                 // Original number of VRx before reduction
+    uint16_t                num_vrx;                  // Actual number of VRx (after any reduction)
+    int8_t                  vrx_yz_map_to_orig[MAX_VRX]; // Map from new VRx (index) to original Vrx (value), both in spatial order (Y-major)
+
+
+    //
+    // Methods
+    //
+    void from_env_antenna_ctrl(const struct AntennaSetParameters &asp);
+    void to_env_antenna_ctrl(struct AntennaSetParameters &asp);
 
     bool is_phased_array_enabled() const
     {
-        return pa_tx_num_centers > 0;
+        return (pa_tx_num_centers > 0);
     }
 
     bool compare_antenna_config(const RHAL_AntennaCtrl& as2) const
@@ -705,26 +678,45 @@ struct RHAL_AntennaCtrl
                (rx_enable.get_antenna_map() == as2.rx_enable.get_antenna_map());
     }
 
-    int8_t get_bank_num(uint8_t rx) const
-    {
-        uint32_t rx_en = rx_enable.get_antenna_map();
-        uint8_t rx_bank0 = rx_en & 0xFFU;
-        uint8_t rx_bank1 = (rx_en >> NUM_RX_PER_BANK) & 0xFFU;
+    const cfloat & index_cal_matrix(
+        const cfloat *C,                    // Input: pointer to cal_matrix_C
+        INT     minor,                      // Input: index into minor (outer) axis
+        INT     major);                     // Input: index into major (inner) axis
 
-        if ((rx_bank0 >> rx) & 0x01U)
-        {
-            return 0;
-        }
-        else if ((rx_bank1 >> rx) & 0x01U)
-        {
-            return 1;
-        }
-        else
-        {
-            return -1;
-        }
-    }
+    int8_t get_bank_num(uint8_t rx) const;
+
+    INT get_num_tx_prn() const;
+
+    bool compute_vrx_and_reduce_num_prn(
+        uint8_t &       n_prn,              // Output: number of enabled Tx PRN codes (not transmitters)
+        uint8_t &       n_rx,               // Output: number of enabled Rx channels
+        uint8_t *       tx_idx,             // Output: mapping from HW-8 (index) to HW-12 (value) order
+        vec3f_t *       rx_position,        // Output: Position (in meters) of each Physical Receiver
+        vec3f_t *       tx_position,        // Output: Position (in meters) of each Physical Transmitter
+        vec3f_t *       vrx_position,       // Output: Position (in meters) of each Virtual Receiver (Rx-major)
+        int8_t *        vrx_fwd_map,        // Output: Map from Rx-major index to Y-major
+        int8_t *        vrx_rev_map);       // Output: Map from Y-major index to Rx-major
+
+    bool compute_vrx(
+        uint8_t &       n_prn,              // Output: number of enabled Tx PRN codes (not transmitters)
+        uint8_t &       n_rx,               // Output: number of enabled Rx channels
+        uint8_t *       tx_idx,             // Output: mapping from HW-8 (index) to HW-12 (value) order
+        vec3f_t *       rx_position,        // Output: Position (in meters) of each Physical Receiver
+        vec3f_t *       tx_position,        // Output: Position (in meters) of each Physical Transmitter
+        vec3f_t *       vrx_position,       // Output: Position (in meters) of each Virtual Receiver (Rx-major)
+        int8_t *        vrx_fwd_map,        // Output: Map from Rx-major index to Y-major
+        int8_t *        vrx_rev_map);       // Output: Map from Y-major index to Rx-major
+
+    void dump_tx_rx_vrx_positions(
+        uint8_t         num_tx_prn,         // Input: number of enabled Tx PRN codes (not transmitters)
+        uint16_t        num_vrx,            // Input: number of VRx
+        const uint8_t * tx_idx,             // Input: mapping from HW-8 (index) to HW-12 (value) order
+        const vec3f_t * vrx_position,       // Input: Position (in meters) of each Virtual Receiver (Rx-major)
+        const int8_t *  vrx_rev_map,        // Input: Map from Y-major index to Rx-major
+        const uint8_t * act_vrx,            // Input: Bitmap of enabled VRx, in Y-major VRx order
+        const FLOAT *   bf_window);         // Input: beamforming window coefficients
 };
+
 
 struct RHAL_RDC1Info
 {

@@ -1,7 +1,9 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #pragma once
 
-#include "modules/drivers/radar/rocket_radar/driver/include/sra.h"
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhunistd.h"
+#include "modules/drivers/radar/rocket_radar/driver/include/rra.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhunistd.h"
 
 #ifdef _WIN32
 #include "Wincon.h"
@@ -20,11 +22,12 @@ class NullLogger : public UserLogAgent
 // this example UserLogAgent writes log messages to stdout
 class ConsoleLogger : public UserLogAgent
 {
+public:
+
 #ifdef _WIN32
     HANDLE hConsole;
     enum { WHITE_FOREGROUND = FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED };
 
-public:
     ConsoleLogger()
     {
         hConsole = GetStdHandle(STD_OUTPUT_HANDLE);

@@ -6,6 +6,7 @@ cc_library(
     name = "position_est_component_lib",
     srcs = ["position_est_component.cc"],
     hdrs = ["position_est_component.h"],
+    copts = ['-DMODULE_NAME=\\"positionest\\"'],
     deps = [
         "//cyber",
         "//modules/common/adapters:adapter_gflags",
@@ -14,8 +15,11 @@ cc_library(
         "//modules/canbus/proto:canbus_proto",
         "//modules/common/util:message_util",
         "//modules/drivers/proto:sensor_proto",
-        "//modules/position_est/proto:position_est_out_proto",
         "//modules/control/proto:control_proto",
+        "//modules/rms/proto:rms_cc_proto",
+        "//modules/lidar/proto:lidar_proto",
+        "//modules/localization/msf/common/util:localization_msf_common_util_frame_transform",
+        "//modules/localization/proto:localization_proto",
         "@eigen",
         ],
 )

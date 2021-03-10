@@ -1,11 +1,10 @@
-list(APPEND GTEST_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/test-detfilter.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test-session.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test-serialize.cpp
-    )
-set(GTEST_FILES ${GTEST_FILES} PARENT_SCOPE)
+include_directories(${GTEST_INCLUDE_DIRS})
+link_directories(${GTEST_LIBS_DIR})
 
-list(APPEND GTEST_NAMES detfilter session serialize)
-set(GTEST_NAMES ${GTEST_NAMES} PARENT_SCOPE)
+if(CMAKE_COMPILER_IS_GNUCXX)
+    add_definitions(-Wall -Wno-deprecated -pthread)
+endif()
+add_executable(rra-test gtestmain.cpp test-sensorgroup.cpp test-scan.cpp)
+target_link_libraries(rra-test rrapi gtest ${CMAKE_THREAD_LIBS_INIT} ${PLATFORM_LIBS})
 
 # vim: syntax=cmake tw=130

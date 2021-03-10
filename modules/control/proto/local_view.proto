@@ -14,4 +14,5 @@ message LocalView {
   optional apollo.planning.ADCTrajectory trajectory = 3;
   optional apollo.localization.LocalizationEstimate localization = 4;
   optional PadMessage pad_msg = 5;
+  optional PadMessage abb_msg = 6;
 }

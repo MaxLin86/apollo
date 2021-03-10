@@ -25,13 +25,11 @@ cc_library(
         "//modules/map/relative_map/proto:navigation_proto",
         "//modules/map/relative_map/proto:relative_map_config_proto",
         "//modules/perception/proto:perception_proto",  
-
-        "//modules/remoteManage/proto:remoteManage_proto",
-
-
+        #"//modules/remoteManage/proto:remoteManage_proto",
+        "//modules/rms/proto:rms_cc_proto",
         "//modules/localization/msf/common/util:localization_msf_common_util_frame_transform",
-                    "//modules/planning/open_space/coarse_trajectory_generator:hybrid_a_star",
-                           # "//modules/planning/reference_line:spiral_smoother_util",
+        "//modules/planning/open_space/coarse_trajectory_generator:hybrid_a_star",
+        # "//modules/planning/reference_line:spiral_smoother_util",
     ],
 )
 

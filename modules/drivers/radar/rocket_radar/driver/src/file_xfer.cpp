@@ -1,7 +1,7 @@
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhinet.h"
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhunistd.h"
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/engine-defs.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhinet.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhunistd.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/engine-defs.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/uhdp/prothandlerbase.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/connection_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/file_xfer.h"
@@ -32,28 +32,29 @@ static uint16_t get_tftp_port()
 
 bool send_with_retry(int fd, sockaddr_in raddr, char* message, size_t& len, size_t sz, uint32_t& retry_count)
 {
-    struct sockaddr_in remaddr;
-    socklen_t addrlen = sizeof(remaddr);
-
     uint32_t rs;
     for (rs = 0; rs < MAX_RESENDS; rs++)
     {
         sendto(fd, message, len, 0, (sockaddr*)&raddr, sizeof(raddr));
-        ssize_t recvlen = recvfrom(fd, message, sz, 0, (sockaddr*)&remaddr, &addrlen);
-        len = size_t(recvlen);
-        uint16_t opcode = ntohs(*(uint16_t*)message);
+        ssize_t recvlen = recv(fd, message, sz, 0);
         if (recvlen <= 0)
         {
             retry_count++;
             continue;
         }
-        else if (opcode == TFTP_OP_ACK || opcode == TFTP_OP_OPTIONS_ACK)
-        {
-            return true;
-        }
         else
         {
-            return false;
+            uint16_t opcode = ntohs(*(uint16_t*)message);
+
+            if (opcode == TFTP_OP_ACK || opcode == TFTP_OP_OPTIONS_ACK)
+            {
+                len = size_t(recvlen);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
     }
     return false;
@@ -98,11 +99,20 @@ bool Connection_Impl::tftp_upload(const char* local_fname, const char* radar_fna
         return false;
     }
 
+    bool ok = tftp_string_upload(data, sizebytes, radar_fname);
+
+    delete [] data;
+
+    return ok;
+}
+
+
+bool  Connection_Impl::tftp_string_upload(const char* buffer, size_t size_bytes, const char* radar_fname)
+{
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0)
     {
         printf("Cannot create socket, err %d\n", fd);
-        delete [] data;
         last_err = CON_SOCKET_FAILURE;
         return false;
     }
@@ -155,7 +165,7 @@ bool Connection_Impl::tftp_upload(const char* local_fname, const char* radar_fna
     len += sprintf(payload + len, "%d", MAX_BLOCK_SIZE) + 1;
     len += sizeof(*opcode);
 
-    if ((sizebytes > size_t(DEFAULT_BLOCK_SIZE) * 10) &&
+    if ((size_bytes > size_t(DEFAULT_BLOCK_SIZE) * 10) &&
         send_with_retry(fd, raddr, msgbuf, len, sizeof(msgbuf), counters.tftp_retransmissions))
     {
         uint16_t *opcode_ptr = (uint16_t*)&msgbuf[0];
@@ -173,8 +183,8 @@ bool Connection_Impl::tftp_upload(const char* local_fname, const char* radar_fna
                     printf("Returned block size %d is invalid\n", block_size);
                     goto upfail;
                 }
-                printf("Server is allowing a block size of %d bytes, for a total of %zu\n", block_size,
-                       size_t(block_size) * MAX_NUM_BLOCKS);
+                //printf("Server is allowing a block size of %d bytes, for a total of %zu\n", block_size,
+                //       size_t(block_size) * MAX_NUM_BLOCKS);
             }
         }
     }
@@ -194,19 +204,19 @@ bool Connection_Impl::tftp_upload(const char* local_fname, const char* radar_fna
     }
 
     // recheck file size with current size restriction
-    if (sizebytes > block_size * MAX_NUM_BLOCKS)
+    if (size_bytes > block_size * MAX_NUM_BLOCKS)
     {
-        printf("Local file %s too large for TFTP\n", local_fname);
+        printf("data too large for TFTP\n");
         goto upfail;
     }
 
     payload = (char*)(block_id_ptr + 1);
     uint16_t block_id;
-    for (block_id = 0; block_id < sizebytes / block_size; block_id++)
+    for (block_id = 0; block_id < size_bytes / block_size; block_id++)
     {
         *opcode = htons(TFTP_OP_DATA);
         *block_id_ptr = htons(block_id + 1);
-        memcpy(payload, data + block_id * block_size, block_size);
+        memcpy(payload, buffer + block_id * block_size, block_size);
         len = block_size + sizeof(*opcode) * 2;
         if (!send_with_retry(fd, raddr, msgbuf, len, sizeof(msgbuf), counters.tftp_retransmissions))
         {
@@ -215,10 +225,10 @@ bool Connection_Impl::tftp_upload(const char* local_fname, const char* radar_fna
         }
     }
 
-    remainder = sizebytes - size_t(block_id) * block_size;
+    remainder = size_bytes - size_t(block_id) * block_size;
     *opcode = htons(TFTP_OP_DATA);
     *block_id_ptr = htons(block_id + 1);
-    memcpy(payload, data + block_id * block_size, remainder);
+    memcpy(payload, buffer + block_id * block_size, remainder);
     len = remainder + sizeof(*opcode) * 2;
     if (!send_with_retry(fd, raddr, msgbuf, len, sizeof(msgbuf), counters.tftp_retransmissions))
     {
@@ -231,7 +241,6 @@ bool Connection_Impl::tftp_upload(const char* local_fname, const char* radar_fna
 
 upfail:
 
-    delete [] data;
 #ifdef _WIN32
     closesocket(fd);
 #else

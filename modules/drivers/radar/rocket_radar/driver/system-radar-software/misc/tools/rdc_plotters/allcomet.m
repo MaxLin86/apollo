@@ -1,3 +1,5 @@
+% Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+% Refer to SOFTWARE_LICENSE file for details
 load('C:\uhnder\TESTDATA\Sep6\vrx_az_only_70deg0p1perstep_TX9.mat')
 
 

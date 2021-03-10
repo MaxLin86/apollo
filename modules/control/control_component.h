@@ -35,6 +35,9 @@
 #include "modules/control/proto/preprocessor.pb.h"
 #include "modules/control/submodules/preprocessor_submodule.h"
 
+#include "modules/lidar/proto/lidar.pb.h"
+#include "modules/rms/proto/rms.pb.h"
+
 /**
  * @namespace apollo::control
  * @brief apollo::control
@@ -61,6 +64,8 @@ class ControlComponent final : public apollo::cyber::TimerComponent {
   // Upon receiving pad message
   void OnPad(const std::shared_ptr<PadMessage> &pad);
 
+  void OnAbb(const std::shared_ptr<PadMessage> &abb);
+
   void OnChassis(const std::shared_ptr<apollo::canbus::Chassis> &chassis);
 
   void OnPlanning(
@@ -69,6 +74,11 @@ class ControlComponent final : public apollo::cyber::TimerComponent {
   void OnLocalization(
       const std::shared_ptr<apollo::localization::LocalizationEstimate>
           &localization);
+        
+  void OnBenewakeLidar(
+       const std::shared_ptr<apollo::lidar::BenewakeLidar> &benewakelidar);
+
+  void OnTmcInfo(const std::shared_ptr<rms::msgTaskCoord> &act_task_msg) ;
 
   // Upon receiving monitor message
   void OnMonitor(
@@ -87,6 +97,9 @@ class ControlComponent final : public apollo::cyber::TimerComponent {
   planning::ADCTrajectory latest_trajectory_;
   PadMessage pad_msg_;
   common::Header latest_replan_trajectory_header_;
+  lidar::BenewakeLidar benewakelidar_msg_;
+  PadMessage abb_msg_;
+  rms::msgTaskCoord act_task_msg_;
 
   ControllerAgent controller_agent_;
   //double acc_steer_angle_ = 0.0;   //delete, add by why
@@ -99,16 +112,24 @@ class ControlComponent final : public apollo::cyber::TimerComponent {
   unsigned int total_status_lost_ = 0;
   unsigned int total_status_sanity_check_failed_ = 0;
 
+  int open_highbeam_minute_;
+  int close_highbeam_minute_;
+
   ControlConf control_conf_;
 
   std::mutex mutex_;
 
   std::shared_ptr<cyber::Reader<apollo::canbus::Chassis>> chassis_reader_;
   std::shared_ptr<cyber::Reader<PadMessage>> pad_msg_reader_;
+  std::shared_ptr<cyber::Reader<PadMessage>> abb_msg_reader_;
   std::shared_ptr<cyber::Reader<apollo::localization::LocalizationEstimate>>
       localization_reader_;
   std::shared_ptr<cyber::Reader<apollo::planning::ADCTrajectory>>
       trajectory_reader_;
+
+  std::shared_ptr<cyber::Reader<apollo::lidar::BenewakeLidar>> benewakelidar_reader_;
+
+  std::shared_ptr<cyber::Reader<apollo::rms::msgTaskCoord>> tmc_navigation_reader_;
 
   std::shared_ptr<cyber::Writer<ControlCommand>> control_cmd_writer_;
   // when using control submodules

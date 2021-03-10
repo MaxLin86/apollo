@@ -13,4 +13,7 @@ message ManuctrlConf {
   optional SerialPort serial_port = 1;
   optional double radio_timeout_sec = 2 [default = 0.1];
   optional double exit_ad_delay_sec = 3 [default = 0.5];
+  optional double steer_angle_ratio_calib = 4 [default = 0];
+  optional double steer_angle_ratio_calib_step_min = 5 [default = 25.0];
+  optional double steer_angle_ratio_calib_step_max = 6 [default = 100.0];
 }

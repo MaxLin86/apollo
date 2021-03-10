@@ -547,6 +547,12 @@ DEFINE_double(lanepoint_tartget_px, 5.0, "the target point px using lane line as
 DEFINE_uint32(gudiepost_method, 2, "the method of perception guidepost curise");
 DEFINE_double(gudiepost_curise_throttle, 12.0, "the curise throttle using guidepost");
 DEFINE_double(gudiepost_slow_throttle, 11.0, "the slow to stop throttle using guidepost");
+DEFINE_double(high_speed_kmh, 6.0, "the high speed kmh");
+DEFINE_double(mid_speed_kmh, 5.0, "the middle speed kmh");
+DEFINE_double(low_speed_kmh, 4.0,"the low speed kmh");
+DEFINE_double(shore_road_speed_kmh,7.0,"on shore road speed kmh");
+DEFINE_double(field_inner_road_speed_kmh,6.0,"on field inner road speed kmh");
+DEFINE_double(turn_light_lat_diff, 3.0, "the distance lat_diff to turn left or right light");
 //------------------------------------------------------------------------
 DEFINE_bool(enable_turn_plan,true, "enable turn planner");
 DEFINE_bool(multiple_step_planner,true, "using multiple step turn, otherwhise using A*");
@@ -556,6 +562,17 @@ DEFINE_double(vehicle_start_phi, 1.5708, "the start point phi");
 DEFINE_double(vehicle_end_px, 10.0, "the target point px");
 DEFINE_double(vehicle_end_py, 15.0, "the target point py");
 DEFINE_double(vehicle_end_phi, 0.0, "the target point phi");
+
+
+DEFINE_double(obstacle_vertice_ax, 10.0, "the obstacle point ax");
+DEFINE_double(obstacle_vertice_ay, 0.0, "the obstacle point ay");
+DEFINE_double(obstacle_vertice_bx, 10.0, "the obstacle point bx");
+DEFINE_double(obstacle_vertice_by, 0.0, "the obstacle point by");
+DEFINE_double(obstacle_vertice_cx, 10.0, "the obstacle point cx");
+DEFINE_double(obstacle_vertice_cy, 0.0, "the obstacle point cy");
+DEFINE_double(obstacle_vertice_dx, 10.0, "the obstacle point dx");
+DEFINE_double(obstacle_vertice_dy, 0.0, "the obstacle point dy");
+
 
 DEFINE_bool(enable_drive_len_test,false, "enable drive length test, when ebable_turn_plan is true");
 DEFINE_double(test_drive_length, 0.5, "setting drive length for test");

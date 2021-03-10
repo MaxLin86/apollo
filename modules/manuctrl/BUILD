@@ -10,6 +10,7 @@ cc_library(
         "//cyber",
         "//external:gflags",
         "//modules/manuctrl/common:manuctrl_common",
+        "//modules/common/configs:vehicle_config_helper",
         "//modules/common/adapters:adapter_gflags",
         "//modules/manuctrl/proto:manuctrl_proto",
         "//modules/manuctrl/proto:manuctrl_conf_proto",

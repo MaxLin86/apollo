@@ -29,6 +29,7 @@ DECLARE_bool(enable_base_object_pool);
 DECLARE_bool(fusion_debug_display);
 DECLARE_bool(lane_debug_display);
 DECLARE_bool(guide_post_debug_display);
+DECLARE_bool(log_file);
 DECLARE_string(guide_post_start_id);
 DECLARE_string(guide_post_end_id);
 DECLARE_bool(guide_post_direction);

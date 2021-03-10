@@ -34,16 +34,16 @@ class Vcuvehicleinfo498f005d0 : public ::apollo::drivers::canbus::ProtocolData<
  private:
 
   // config detail: {'name': 'VCU_VerNum4', 'offset': 0.0, 'precision': 1.0, 'len': 16, 'is_signed_var': False, 'physical_range': '[0|65535]', 'bit': 48, 'type': 'int', 'order': 'intel', 'physical_unit': ''}
-  int vcu_vernum4(const std::uint8_t* bytes, const int32_t length) const;
+  int vcu_vehCumMileage(const std::uint8_t* bytes, const int32_t length) const;
 
   // config detail: {'name': 'VCU_VerNum3', 'offset': 0.0, 'precision': 1.0, 'len': 16, 'is_signed_var': False, 'physical_range': '[0|65535]', 'bit': 32, 'type': 'int', 'order': 'intel', 'physical_unit': ''}
-  int vcu_vernum3(const std::uint8_t* bytes, const int32_t length) const;
+  int vcu_brakeAirPressure(const std::uint8_t* bytes, const int32_t length) const;
 
   // config detail: {'name': 'VCU_VerNum2', 'offset': 0.0, 'precision': 1.0, 'len': 16, 'is_signed_var': False, 'physical_range': '[0|65535]', 'bit': 16, 'type': 'int', 'order': 'intel', 'physical_unit': ''}
-  int vcu_vernum2(const std::uint8_t* bytes, const int32_t length) const;
+  int vcu_motorBrakeTorque(const std::uint8_t* bytes, const int32_t length) const;
 
   // config detail: {'name': 'VCU_VerNum1', 'offset': 0.0, 'precision': 1.0, 'len': 16, 'is_signed_var': False, 'physical_range': '[0|65535]', 'bit': 0, 'type': 'int', 'order': 'intel', 'physical_unit': ''}
-  int vcu_vernum1(const std::uint8_t* bytes, const int32_t length) const;
+  int vcu_torqueReqPercent(const std::uint8_t* bytes, const int32_t length) const;
 };
 
 }  // namespace ch

@@ -28,6 +28,7 @@ DEFINE_string(canbus_conf_file,
 // Canbus gflags
 DEFINE_double(chassis_freq, 100, "Chassis feedback timer frequency.");
 DEFINE_int64(min_cmd_interval, 5, "Minimum control command interval in ms.");
+DEFINE_int64(max_cmd_interval, 30, "Maximum control command interval in ms.");
 
 // chassis_detail message publish
 DEFINE_bool(enable_chassis_detail_pub, false, "Chassis Detail message publish");

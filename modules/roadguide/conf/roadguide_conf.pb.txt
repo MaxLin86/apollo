@@ -1,0 +1,4 @@
+serial_port {
+  device: "/dev/ttyUSB4"
+  baud_rate: 460800
+}

@@ -8,16 +8,35 @@ message VehicleSignal {
     TURN_LEFT = 1;
     TURN_RIGHT = 2;
   };
+  enum HeadLampStat {
+    HEADLAMPSTAT_CLOSE = 0;
+    HEADLAMPSTAT_DIPPEDLAMP = 1;
+    HEADLAMPSTAT_FULLBEAM = 2;
+  };
+  enum TopWarnLampStat {
+    TOPWARNLAMPSTAT_CLOSE = 0;
+    TOPWARNLAMPSTAT_RED = 1;
+    TOPWARNLAMPSTAT_GREEN = 2;
+    TOPWARNLAMPSTAT_FLASH_RED = 3;
+    TOPWARNLAMPSTAT_FLASH_GREEN = 4;
+  };
   optional TurnSignal turn_signal = 1;
+
   // lights enable command
-  optional bool high_beam = 2;
-  optional bool low_beam = 3;
-  optional bool horn = 4;
-  optional bool emergency_light = 5;
-  optional bool warning_lamp = 6;
-  optional bool position_lamp = 7;
-  optional bool front_fog_lamp = 8;
-  optional bool rear_fog_lamp = 9;
+  // head_lamp: high_beam & low_beam
+  optional HeadLampStat head_lamp = 2;
+  optional bool high_beam = 3;
+  optional bool low_beam = 4;
+
+  optional bool horn = 5;
+  optional bool emergency_light = 6;
+  optional bool warning_lamp = 7;
+  optional bool position_lamp = 8;
+  optional bool front_fog_lamp = 9;
+  optional bool rear_fog_lamp = 10;
   
-  optional bool vcu_sw_ver_req = 10;
+  optional bool led_screen = 11;
+  optional TopWarnLampStat top_warn_lamp = 12;
+
+  optional bool vcu_sw_ver_req = 13;
 }

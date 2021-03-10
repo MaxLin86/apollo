@@ -1,24 +1,41 @@
 dist_to_origin: 4.92
+
 safety_zone_left: 1.35
 safety_zone_right: -1.35
-safety_distance: 10.0
-turn_radius: 1000.0
-check_frame: 3
-match_size: 0.75
-miss_time: 0.2
+safety_offset: 0.4
 
-veh_speed: 5.0
-veh_speed: 10.0
-veh_speed: 15.0
-veh_speed: 20.0
+check_frame: 3 
+match_size: 0.50
+
+snr_thre: 30.0
+
+line_xmin: -2097774.810065668
+line_xmax: -2097373.912796226
+line_ymin: 1560711.477468110
+line_ymax: 1560731.515847738
+
+fence_distance: 0.45
+fence_brake: 100
+normal_brake: 78
+inter_distance: 9.5
+
+height_thre: 0.3
+double_check: true
+
+steering_pencentage_test: 10
+
+veh_speed: 4.0
+veh_speed: 11.0
+veh_speed: 16.0
+veh_speed: 21.0
 veh_speed: 25.0
 veh_speed: 30.0
 veh_speed: 35.0
 
-stop_dis: 3.0
-stop_dis: 5.0
-stop_dis: 8.0
-stop_dis: 10.0
+stop_dis: 4.0
+stop_dis: 8.5
 stop_dis: 12.0
-stop_dis: 15.0
-stop_dis: 20.0
+stop_dis: 18.0
+stop_dis: 22.0
+stop_dis: 25.0
+stop_dis: 30.0

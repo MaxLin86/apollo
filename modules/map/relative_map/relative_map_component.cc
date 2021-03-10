@@ -38,11 +38,11 @@ bool RelativeMapComponent::Proc() {
   common::util::FillHeader(node_->Name(), map_msg.get());
   relative_map_writer_->Write(map_msg);
 
-  if(relative_map_.GetTcsNavigationStatus()) {
-    if (relative_map_.GetTcsNavigation()) {
-      tcs_navigatior_writer_->Write(relative_map_.GetTcsNavigation());
-    }
-  }
+  //if(relative_map_.GetTcsNavigationStatus()) {
+   // //if (relative_map_.GetTcsNavigation()) {
+    //  tcs_navigatior_writer_->Write(relative_map_.GetTcsNavigation());
+    //}
+  //}
   return true;
 }
 
@@ -74,9 +74,9 @@ bool RelativeMapComponent::InitReaders() {
         relative_map_.OnNavigationInfo(*navigation_info.get());
       });
 
-    tmc_navigation_reader_ = node_->CreateReader<apollo::remoteManage::actTask>(
-      FLAGS_tmc_task_topic,   
-      [this](const std::shared_ptr<apollo::remoteManage::actTask>& tmc_navigation_info) {
+    tmc_navigation_reader_ = node_->CreateReader<apollo::rms::msgTaskCoord>(
+      FLAGS_rms_task_topic,   
+      [this](const std::shared_ptr<apollo::rms::msgTaskCoord>& tmc_navigation_info) {
         ADEBUG << "Received tmc data: run chassis callback.";
         relative_map_.OnTmcNavigationInfo(*tmc_navigation_info.get());
       });

@@ -21,6 +21,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "cyber/cyber.h"
 
@@ -30,9 +31,11 @@
 #include "modules/drivers/proto/ultrasonic_radar.pb.h"
 
 #include "modules/drivers/canbus/sensor_gflags.h"
-#include "modules/drivers/radar/ultrasonic_radar/protocol/Ultra525.h"
+#include "modules/drivers/radar/ultrasonic_radar/protocol/Ultra600.h"
+#include "modules/drivers/radar/ultrasonic_radar/protocol/Ultra601.h"
+#include "modules/drivers/radar/ultrasonic_radar/protocol/Ultra602.h"
 
-
+#include "modules/drivers/radar/ultrasonic_radar/proto/ultrasonic_radar_conf.pb.h"
 #include "modules/drivers/proto/ultra_radar.pb.h"
 #include "modules/common/adapters/adapter_gflags.h"
 
@@ -49,10 +52,17 @@ using apollo::drivers::canbus::CanClient;
 using apollo::drivers::canbus::SenderMessage;
 using apollo::drivers::Ultra_Radar;
 
+struct UltrObj {
+  float range;
+  float x;
+  float y;
+  float z;
+};
+
 class UltrasonicRadarMessageManager : public MessageManager<Ultrasonic> {
  public:
   UltrasonicRadarMessageManager(
-      const int entrance_num,
+      const UltrasonicRadarConf ultrasonic_radar_conf,
       const std::shared_ptr<::apollo::cyber::Writer<Ultrasonic>> &writer,
       const std::shared_ptr<::apollo::cyber::Writer<Ultra_Radar>> &ultra_radar_writer);
   virtual ~UltrasonicRadarMessageManager() = default;
@@ -60,12 +70,17 @@ class UltrasonicRadarMessageManager : public MessageManager<Ultrasonic> {
   void set_can_client(std::shared_ptr<CanClient> can_client);
 
  private:
-  int entrance_num_ = 0;
-  int64_t lastRevTime_ = 0;
+  // int entrance_num_ = 0;
+  UltrasonicRadarConf ultrasonic_radar_conf_;
   std::shared_ptr<cyber::Writer<Ultrasonic>> ultrasonic_radar_writer_;
   std::shared_ptr<cyber::Writer<Ultra_Radar>> ultra_radar_writer_;
   std::shared_ptr<CanClient> can_client_;
   Ultra_Radar tmpMsg;
+  uint8_t ultr_send_[3] = {0x00};
+  int unObjFrameCnt_[16] = {0};
+  std::vector<Origin> origin_;
+  std::vector<UltrObj> ultrobjs_;  
+  
 };
 
 }  // namespace ultrasonic_radar

@@ -1,6 +1,8 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #pragma once
 
-#include "modules/drivers/radar/rocket_radar/driver/include/sra.h"
+#include "modules/drivers/radar/rocket_radar/driver/include/rra.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/uhdp/prothandlerbase.h"
 #include "modules/drivers/radar/rocket_radar/driver/include/logcontrol.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/iccq-enums.h"

@@ -20,6 +20,10 @@ cc_library(
         "//modules/common/proto:vehicle_signal_proto",
         "//modules/localization/proto:localization_proto",
         "//modules/common/time",
+        "//modules/drivers/gnss/proto:gnss_proto",
+        "//modules/common/filters:ins_guidepost_fusion_ekf",
+        "//modules/routing/proto:routing_proto",
+         "//modules/localization/msf/common/util:localization_msf_common_util_frame_transform",
     ],
 )
 
@@ -40,6 +44,7 @@ cc_library(
 
         "//modules/localization/proto:localization_proto",
          "//modules/routing/proto:routing_proto",
+         ":self_car_tracking_lib",
     ],
 )
 

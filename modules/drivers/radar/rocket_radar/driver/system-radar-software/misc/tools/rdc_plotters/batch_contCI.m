@@ -1,3 +1,5 @@
+% Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+% Refer to SOFTWARE_LICENSE file for details
 function batch_contCI(adir)
     %adir = 'X:\systems\SabineBringUp\2018\Mar8\Waymo\DataCollection\Set1_HorizontalSensitivityResolvabilityTest\'
     %fdir = dir(adir);

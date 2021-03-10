@@ -1,0 +1,12 @@
+syntax = "proto2";
+
+package apollo.rms;
+
+message msgRmsConf {
+        optional string server_tmc_ip = 1 [default = "10.28.76.230"];
+        optional int32 server_tmc_port = 2 [default = 6002];
+        optional string server_rc_ip = 3 [default = "10.28.76.230"];
+        optional int32 server_rc_port = 4 [default = 10001];
+        repeated bytes car_id = 5;
+}
+  

@@ -103,7 +103,9 @@ message ContiRadarObs {
   optional  double     pos_x = 32;      // position (meters), radar relative SAE coord. system
   optional  double     pos_y = 33;      // position (meters), radar relative SAE coord. system
   optional  double     pos_z = 34;      // position (meters), radar relative SAE coord. system
-  optional  int32      fags = 35;      // enum RDC_detection_flags
+  optional  bool       flags = 35;      // enum RDC_detection_flags
+  optional  int32      counters = 36;
+  optional  double     lifetime = 37;
 }
 
 message ContiRadar {

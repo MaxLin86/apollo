@@ -35,12 +35,16 @@ bool GuardianComponent::Init() {
     return false;
   }
 
-  // chassis_reader_ = node_->CreateReader<Chassis>(
-  //     FLAGS_chassis_topic, [this](const std::shared_ptr<Chassis>& chassis) {
-  //       ADEBUG << "Received chassis data: run chassis callback.";
-  //       std::lock_guard<std::mutex> lock(mutex_);
-  //       chassis_.CopyFrom(*chassis);
-  //     });
+  vcu_fault_level_ = Chassis::NO_FAILURE;
+  vcu_fault_level2_timeout_flag_ = 0;
+  vcu_fault_level2_timeout_time_pre_ = 0.0;
+
+  chassis_reader_ = node_->CreateReader<Chassis>(
+      FLAGS_chassis_topic, [this](const std::shared_ptr<Chassis>& chassis) {
+        ADEBUG << "Received chassis data: run chassis callback.";
+        std::lock_guard<std::mutex> lock(mutex_);
+        chassis_.CopyFrom(*chassis);
+      });
 
   control_cmd_reader_ = node_->CreateReader<ControlCommand>(
       FLAGS_control_command_topic,
@@ -82,9 +86,12 @@ bool GuardianComponent::Init() {
         remote_control_cmd_.CopyFrom(*cmd);
       });
 
+  guardian_cmd_.clear_control_command();
+  guardian_cmd_.mutable_control_command()->set_gear_location(Chassis::GEAR_PARKING);
   guardian_writer_ = node_->CreateWriter<GuardianCommand>(FLAGS_guardian_topic);
   
   miss_monitor_time_ = guardian_conf_.miss_monitor_time();
+     
   return true;
 }
 
@@ -105,6 +112,74 @@ bool GuardianComponent::Proc() {
   // }
 
   PassThroughControlCommand();
+  
+  if((int)(chassis_.vcu_status())>=2) {
+    guardian_cmd_.mutable_control_command()->mutable_signal()->set_warning_lamp(true);
+  } else {
+    guardian_cmd_.mutable_control_command()->mutable_signal()->set_warning_lamp(false);
+  }
+
+  /* Set top warning lamp: from high priority to low
+   *  1. red:       level3 fault, 
+   *                restart this module to recover
+   *  2. red flash: level2 fault, 
+   *                restart this module or press RMS_Fault_Reset button to recover
+   *  3. green:     auto driving mode
+   *  4. green flash: manuctrl & remotectrl mode
+   *  5. close:     other conditions
+   */
+  /* Get vcu fault level */
+  Chassis::FaultLevel vcu_fault_level_tmp = chassis_.vcu_status();
+  if (static_cast<uint32_t>(vcu_fault_level_tmp) > static_cast<uint32_t>(vcu_fault_level_)) {
+    vcu_fault_level_ = vcu_fault_level_tmp;
+    AERROR << "Get vcu_fault_level = " << vcu_fault_level_tmp;
+  }
+
+  /* Reset level2 fault, when timeout */
+  if ((vcu_fault_level_ == Chassis::LEVEL2_FAULT) &&
+      (static_cast<uint32_t>(vcu_fault_level_tmp) < static_cast<uint32_t>(Chassis::LEVEL2_FAULT))) {
+    if (vcu_fault_level2_timeout_flag_ == 0) {
+      vcu_fault_level2_timeout_flag_ = 1;
+      vcu_fault_level2_timeout_time_pre_ = apollo::common::time::Clock::NowInSeconds();
+    }
+    if (apollo::common::time::Clock::NowInSeconds() - vcu_fault_level2_timeout_time_pre_ > 30.0) {
+      vcu_fault_level2_timeout_flag_ = 0;
+      vcu_fault_level_ = vcu_fault_level_tmp;
+    }
+  } else {
+    vcu_fault_level2_timeout_flag_ = 0;
+  }
+  /* Set top warning lamp */
+  if (vcu_fault_level_ == Chassis::LEVEL3_FAULT) {
+    // red
+    guardian_cmd_.mutable_control_command()->mutable_signal()->set_top_warn_lamp(common::VehicleSignal::TOPWARNLAMPSTAT_RED);
+  } else if (vcu_fault_level_ == Chassis::LEVEL2_FAULT) {
+    // red flash
+    guardian_cmd_.mutable_control_command()->mutable_signal()->set_top_warn_lamp(common::VehicleSignal::TOPWARNLAMPSTAT_FLASH_RED);
+  } else {
+    if (guardian_cmd_.has_command_from()) {
+      switch (guardian_cmd_.command_from()) {
+        case MANU_CTRL:
+        case REMOTE_CTRL:
+          // green flash
+          guardian_cmd_.mutable_control_command()->mutable_signal()->set_top_warn_lamp(common::VehicleSignal::TOPWARNLAMPSTAT_FLASH_GREEN);
+          break;
+        case AUTO_DRIVING:
+          // green
+          guardian_cmd_.mutable_control_command()->mutable_signal()->set_top_warn_lamp(common::VehicleSignal::TOPWARNLAMPSTAT_GREEN);
+          break;
+        default:
+          // close
+          guardian_cmd_.mutable_control_command()->mutable_signal()->set_top_warn_lamp(common::VehicleSignal::TOPWARNLAMPSTAT_CLOSE);
+          break;
+      }
+    } else {
+      // close
+      guardian_cmd_.mutable_control_command()->mutable_signal()->set_top_warn_lamp(common::VehicleSignal::TOPWARNLAMPSTAT_CLOSE);
+    }
+  }
+
+
   common::util::FillHeader(node_->Name(), &guardian_cmd_);
   guardian_writer_->Write(guardian_cmd_);
   return true;
@@ -113,10 +188,15 @@ bool GuardianComponent::Proc() {
 void GuardianComponent::PassThroughControlCommand() {
   std::lock_guard<std::mutex> lock(mutex_);
   double time_current = apollo::common::time::Clock::NowInSeconds();
-  guardian_cmd_.clear_control_command();
+  //guardian_cmd_.clear_control_command();
   // system error situation
   guardian_cmd_.mutable_control_command()->clear_error_msg();
   guardian_cmd_.clear_command_from();
+  //reset
+  guardian_cmd_.mutable_control_command()->set_throttle(0.0);
+  guardian_cmd_.mutable_control_command()->set_brake(
+          guardian_conf_.guardian_cmd_soft_stop_percentage());
+  guardian_cmd_.mutable_control_command()->set_adstatusreq(1);
 
   if (system_status_.has_header()) {
     double timediff_monitor =
@@ -174,11 +254,12 @@ void GuardianComponent::PassThroughControlCommand() {
       time_current - control_cmd_.header().timestamp_sec();
   if (control_cmd_.has_header()) {
     if (fabs(timediff_control) < guardian_conf_.miss_auto_message_time()) {
-      guardian_cmd_.clear_control_command();
+  //    guardian_cmd_.clear_control_command();
       guardian_cmd_.set_command_from(AUTO_DRIVING);
       guardian_cmd_.mutable_control_command()->CopyFrom(control_cmd_);
+      guardian_cmd_.mutable_control_command()->set_max_speed_limit(5.0);
     } else {
-      guardian_cmd_.clear_control_command();
+  //    guardian_cmd_.clear_control_command();
       guardian_cmd_.set_command_from(MISS_MESSAGE);
       guardian_cmd_.mutable_control_command()->set_throttle(0.0);
       guardian_cmd_.mutable_control_command()->set_brake(
@@ -204,13 +285,14 @@ void GuardianComponent::PassThroughControlCommand() {
             AERROR << "Success!";
           }
         }
-        guardian_cmd_.clear_control_command();
+    //    guardian_cmd_.clear_control_command();
         guardian_cmd_.set_command_from(REMOTE_CTRL);
         guardian_cmd_.mutable_control_command()->CopyFrom(
             remote_control_cmd_.control_command());
+	      guardian_cmd_.mutable_control_command()->set_max_speed_limit(10.0);
       }
     } else {
-      guardian_cmd_.clear_control_command();
+     // guardian_cmd_.clear_control_command();
       guardian_cmd_.set_command_from(MISS_MESSAGE);
       guardian_cmd_.mutable_control_command()->set_throttle(0.0);
       guardian_cmd_.mutable_control_command()->set_brake(
@@ -218,9 +300,17 @@ void GuardianComponent::PassThroughControlCommand() {
       guardian_cmd_.mutable_control_command()->set_error_msg(
           "miss remote message a long time since last time");
     }
+/*     if(!remote_control_cmd_.flag_net_status()) {
+      guardian_cmd_.set_command_from(REMOTE_CTRL);
+      guardian_cmd_.mutable_control_command()->CopyFrom(
+            remote_control_cmd_.control_command());
+      guardian_cmd_.mutable_control_command()->set_error_msg(
+          "5G network interruption");
+      return;
+    } */
   }
 
-  // // hand shake control
+  // joystick control
   double timediff_serial =
       time_current - manu_ctrl_cmd_.header().timestamp_sec();
   if (manu_ctrl_cmd_.has_header()) {
@@ -237,13 +327,14 @@ void GuardianComponent::PassThroughControlCommand() {
           }
         }
 
-        guardian_cmd_.clear_control_command();
+      //  guardian_cmd_.clear_control_command();
         guardian_cmd_.set_command_from(MANU_CTRL);
         guardian_cmd_.mutable_control_command()->CopyFrom(
             manu_ctrl_cmd_.control_command());
+	      guardian_cmd_.mutable_control_command()->set_max_speed_limit(5.0);
       }
     } else {
-      guardian_cmd_.clear_control_command();
+     // guardian_cmd_.clear_control_command();
       guardian_cmd_.set_command_from(MISS_MESSAGE);
       guardian_cmd_.mutable_control_command()->set_throttle(0.0);
       guardian_cmd_.mutable_control_command()->set_brake(
@@ -254,26 +345,40 @@ void GuardianComponent::PassThroughControlCommand() {
   }
 
   // aeb flag true
-  double timediff_aeb = time_current - aeb_cmd_.header().timestamp_sec();
-  if (aeb_cmd_.has_header()) {
-    if (fabs(timediff_aeb) <  guardian_conf_.miss_aeb_message_time()) {
-      if (aeb_cmd_.control_command().brake() > 0 &&
-          remote_control_cmd_.aebsflag()) {
-        guardian_cmd_.set_command_from(AEBS);
-        guardian_cmd_.mutable_control_command()->set_throttle(0.0);
-        guardian_cmd_.mutable_control_command()->set_brake(
-            guardian_conf_.guardian_cmd_emergency_stop_percentage());
-      }
-    } else {
-      guardian_cmd_.clear_control_command();
-      guardian_cmd_.set_command_from(MISS_MESSAGE);
-      guardian_cmd_.mutable_control_command()->set_throttle(0.0);
-      guardian_cmd_.mutable_control_command()->set_brake(
-          guardian_conf_.guardian_cmd_soft_stop_percentage());
-      guardian_cmd_.mutable_control_command()->set_error_msg(
-          "miss AEB message a long time since last time");
-    }
-  }
+   double timediff_aeb = time_current - aeb_cmd_.header().timestamp_sec();
+   if (aeb_cmd_.has_header()) {
+     if (fabs(timediff_aeb) <  guardian_conf_.miss_aeb_message_time()) {
+       if (aeb_cmd_.control_command().brake() > 0 &&
+           remote_control_cmd_.aebsflag()) {
+         guardian_cmd_.set_command_from(AEBS);
+         guardian_cmd_.mutable_control_command()->set_throttle(0.0);
+         guardian_cmd_.mutable_control_command()->set_brake(
+              aeb_cmd_.control_command().brake());
+         if((aeb_cmd_.steer_flag())
+           &&(remote_control_cmd_.flag())) {
+           AERROR << "Steer_Flag : " << aeb_cmd_.steer_flag();
+           AERROR << "guardian fence flag true";
+           guardian_cmd_.mutable_control_command()->set_steering_target(
+             aeb_cmd_.control_command().steering_target());
+         }
+       }
+     } else {
+     //  guardian_cmd_.clear_control_command();
+/*        guardian_cmd_.set_command_from(MISS_MESSAGE);
+       guardian_cmd_.mutable_control_command()->set_throttle(0.0);
+       guardian_cmd_.mutable_control_command()->set_brake(
+           guardian_conf_.guardian_cmd_soft_stop_percentage());
+       guardian_cmd_.mutable_control_command()->set_error_msg(
+           "miss AEB message a long time since last time"); */
+     }
+   }else{
+      // guardian_cmd_.set_command_from(AEBS);
+      // guardian_cmd_.mutable_control_command()->set_throttle(0.0);
+      // guardian_cmd_.mutable_control_command()->set_brake(
+      //      guardian_conf_.guardian_cmd_emergency_stop_percentage());
+      // guardian_cmd_.mutable_control_command()->set_error_msg(
+      //     "AEB function is closed,please open AEB!");
+   }
 }
 
 void GuardianComponent::TriggerSafetyMode() {

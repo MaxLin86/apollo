@@ -1,0 +1,8 @@
+<cyber>
+    <module>
+        <name>tmc</name>
+        <dag_conf>/apollo/modules/roadguide/dag/roadguide.dag</dag_conf>
+        <process_name>roadguide</process_name>
+    </module>
+
+</cyber>

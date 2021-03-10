@@ -1,28 +1,7 @@
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/scanobject_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/adccapturedata_impl.h"
 
@@ -95,40 +74,26 @@ void     ADCCaptureData_Impl::get_adc_initial_rx_lanes(uint8_t initial_rx_lane[N
 
 uint32_t ADCCaptureData_Impl::get_adc_samples(cint8* user_buf, uint32_t user_buf_size_samples, uint8_t channel, uint16_t lane_select_map) const
 {
-    printf("dbg:1\n");
-    printf("  channel:%d\n",channel);
-    printf("  channel_bitmap:%d\n",desc.channel_bitmap);
-    printf("  1U<<channel:%d\n", (1U<<channel));
-    printf("  lane_select_map:%d\n",lane_select_map & 0x1FFU);
     if (channel >= 12 || (0 == ((1U << channel) & desc.channel_bitmap)) || (0 == (lane_select_map & 0x1FFU)))
     {
-        printf("dbg:2\n");
-        printf("  channel:%d\n",channel);
-        printf("  channel_bitmap:%d\n",desc.channel_bitmap);
         return 0U;
     }
 
     if (desc.tx_one_rx_zero)
     {
-        printf("dbg:3\n");
         lane_select_map = 0x1FF; // disable lane selection if this is a TX capture
     }
 
-    printf("dbg:4\n");
     cint8* samples8   = reinterpret_cast<cint8*>(adc_raw);
     cint16* samples16 = reinterpret_cast<cint16*>(adc_raw);
     uint32_t outcount = 0U, incount = 0U;
 
-    printf("dbg:5\n");
     INT lane = (desc.initial_rx_lane_numbers >> (4 * channel)) & 0xF;
 
-    printf("  adc_capture_mode:%d\n",desc.adc_capture_mode);
     switch (desc.adc_capture_mode)
     {
     case UhdpADCDescriptor::ADC_CAPTURE_MODE_DATA_SPRAY:
 
-        printf("check1\n");
-        printf("dbg:6\n");
         int16_t chan[2], num_channel, incr_incount;
         num_channel = 0;
         for (uint32_t c = 0; c < 12; c++)
@@ -174,11 +139,9 @@ uint32_t ADCCaptureData_Impl::get_adc_samples(cint8* user_buf, uint32_t user_buf
         break;
 
     case UhdpADCDescriptor::ADC_CAPTURE_MODE_RAW:
-        printf("check2\n");
         break;
 
     case UhdpADCDescriptor::ADC_CAPTURE_MODE_ADIE:
-        printf("check3\n");
         for (uint32_t c = 0; c < 12; c++)
         {
             if (c == channel)
@@ -225,7 +188,6 @@ uint32_t ADCCaptureData_Impl::get_adc_samples(cint8* user_buf, uint32_t user_buf
         break;
 
     case UhdpADCDescriptor::ADC_CAPTURE_MODE_REVA_RAW:
-        printf("check4\n");
         /* serialized format of REVA raw capture */
         if (channel < 8)
         {
@@ -242,21 +204,10 @@ uint32_t ADCCaptureData_Impl::get_adc_samples(cint8* user_buf, uint32_t user_buf
         break;
 
     case UhdpADCDescriptor::ADC_CAPTURE_MODE_REVA_DATASPRAY:
-        printf("check5\n");
-        printf("  user_buf_size_samples:%d\n",user_buf_size_samples);
-        printf("  samples_per_channel:%d\n",desc.samples_per_channel);
-        printf("  lane:%d\n",lane);
-        printf("  lane_select_map:%d\n",lane_select_map);
-        printf("  incount:%d\n",incount);
-        printf("  outcount:%d\n",outcount);
-        printf("  user_buf:%p\n",user_buf);
-        printf("  samples8:%p\n",samples8);
         for (incount = 0; outcount < user_buf_size_samples && incount < desc.samples_per_channel; incount++)
         {
-            printf("  *\n");
             if (lane_select_map & (1U << lane))
             {
-                printf("check7\n");
                 user_buf[outcount++] = samples8[incount];
             }
 

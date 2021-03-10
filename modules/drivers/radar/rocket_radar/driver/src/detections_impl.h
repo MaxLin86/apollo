@@ -1,6 +1,8 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #pragma once
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/include/detections.h"
 
 class ScanObject_Impl;
@@ -14,7 +16,6 @@ public:
         : myscan(s)
         , dets(NULL)
         , recv_count(0)
-        , num_detections(0)
         , aborted(false)
         , last_err(DET_NO_ERROR)
     {
@@ -46,8 +47,6 @@ public:
     DetectionData*   dets;
 
     uint32_t         recv_count;
-
-    uint32_t         num_detections;
 
     bool             aborted;
 

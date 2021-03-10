@@ -63,7 +63,7 @@ apollo::common::Status UltrasonicRadarCanbus::Init(
   AINFO << "Can client is successfully created.";
 
   sensor_message_manager_ = std::unique_ptr<UltrasonicRadarMessageManager>(
-      new UltrasonicRadarMessageManager(ultrasonic_radar_conf_.entrance_num(),
+      new UltrasonicRadarMessageManager(ultrasonic_radar_conf_,
                                         writer,ultra_radar_writer_));
   if (sensor_message_manager_ == nullptr) {
     return OnError("Failed to create message manager.");

@@ -33,6 +33,7 @@ DEFINE_bool(enable_base_object_pool, false, "Enable base object pool.");
 DEFINE_bool(fusion_debug_display, false, "Enable debug display.");
 DEFINE_bool(lane_debug_display, false, "Enable debug display.");
 DEFINE_bool(guide_post_debug_display, false, "Enable debug display.");
+DEFINE_bool(log_file, false, "Enable log file.");
 DEFINE_string(guide_post_start_id, "", "GuidePost start id.");
 DEFINE_string(guide_post_end_id, "", "GuidePost end id.");
 DEFINE_bool(guide_post_direction,true,"GuidePost direction");

@@ -25,24 +25,19 @@ cyber_modules {
   }
 }
 cyber_modules {
-  key: "RoRadar"
+  key: "Ultrasonic"
   value: {
-   # dag_files: "/apollo/modules/drivers/radar/conti_radar/dag/conti_radar.dag"
-     dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_all.dag"   
- #   dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_front.dag" 
- #   dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_left.dag"
- #   dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_right.dag"
-    #dag_files: "/apollo/modules/drivers/radar/uhnder_radar/dag/uhnder_all.dag"
+     #dag_files: "/apollo/modules/drivers/radar/quill_radar/dag/quill_all.dag"
+     dag_files: "/apollo/modules/drivers/radar/ultrasonic_radar/dag/ultrasonic_radar.dag" 
+      
   }
 }
 cyber_modules {
   key: "Radar"
   value: {
-   # dag_files: "/apollo/modules/drivers/radar/conti_radar/dag/conti_radar.dag"
-    
-    #dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_front.dag"
-    dag_files: "/apollo/modules/drivers/radar/uhnder_radar/dag/uhnder_all.dag"
-    dag_files: "/apollo/modules/drivers/radar/ultrasonic_radar/dag/ultrasonic_radar.dag"
+  #dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_right_corner.dag"
+    #dag_files: "/apollo/modules/drivers/radar/quill_radar/dag/quill_front_middle.dag" 
+    dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_perception_all.dag" 
   }
 }
 cyber_modules {
@@ -87,10 +82,18 @@ cyber_modules {
 }
 
 cyber_modules {
+  key: "Rms"
+  value: {
+    dag_files:"/apollo/modules/rms/dag/rms.dag"
+  }
+}
+
+cyber_modules {
   key: "TPS"
   value: {
-    dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_top.dag"
+    dag_files: "/apollo/modules/drivers/radar/rocket_radar/dag/rocket_top_all.dag"
     dag_files: "/apollo/modules/position_est/dag/position_est.dag"
+    dag_files: "/apollo/modules/lidar/dag/lidar.dag"
   }
 }
 #---------------------------------------------------------------

@@ -60,28 +60,44 @@ bool RadarDetectionComponent::Init() {
 }
 
 bool RadarDetectionComponent::Proc(const std::shared_ptr<ContiRadar>& message) {
-  AINFO << "Enter radar preprocess, message timestamp: "
-        << message->header().timestamp_sec() << " current timestamp "
-        << apollo::common::time::Clock::NowInSeconds();
+  double timestamp = apollo::common::time::Clock::NowInSeconds();
+  static double leftCornerTime = 0.0;
+  static double leftRadarTime = 0.0;
+  static double rightCornerTime = 0.0;
+  static double rightRadarTime = 0.0;
+
   if (message->radar_id() == 1 ||
       message->header().module_name() == "radar_left") {
     messageCollection(message, &leftObs_);
+    leftRadarTime = timestamp;
   } else if (message->radar_id() == 2 ||
              message->header().module_name() == "radar_left_corner") {
     messageCollection(message, &leftCornerObs_);
+    leftCornerTime = timestamp;
   } else if (message->radar_id() == -1 ||
              message->header().module_name() == "radar_right") {
     messageCollection(message, &rightObs_);
-  } else if (message->radar_id() == 2 ||
+    rightRadarTime = timestamp;
+  } else if (message->radar_id() == -2 ||
              message->header().module_name() == "radar_right_corner") {
     messageCollection(message, &rightCornerObs_);
+    rightCornerTime = timestamp;
   } else if (message->radar_id() == 0 ||
              message->header().module_name() == "radar_front") {
-    // fuse object list
-    radarObjectFuse(leftCornerObs_, *message);
-    radarObjectFuse(rightCornerObs_, *message);
-    radarObjectFuse(leftObs_, *message);
-    radarObjectFuse(rightObs_, *message);
+    fflush(NULL);
+    // // fuse object list
+    if (std::fabs(timestamp - leftRadarTime) < 1.0) {
+      radarObjectFuse(leftObs_, *message);
+    }
+    if (std::fabs(timestamp - leftCornerTime) < 1.0) {
+      radarObjectFuse(leftCornerObs_, *message);
+    }
+    if (std::fabs(timestamp - rightRadarTime) < 1.0) {
+      radarObjectFuse(rightObs_, *message);
+    }
+    if (std::fabs(timestamp - rightCornerTime) < 1.0) {
+      radarObjectFuse(rightCornerObs_, *message);
+    }
     FuseMainObj(*message);
     // //middle_radar_message
 
@@ -206,7 +222,7 @@ void RadarDetectionComponent::radarObjectFuse(
           sqrt((px_m - px_s) * (px_m - px_s) + (py_m - py_s) * (py_m - py_s));
       if (d_error < obj_match_size_) {
         sub_match[i] = 1;
-        tmp_message.mutable_contiobs(k)->set_fags(true);
+        tmp_message.mutable_contiobs(k)->set_flags(true);
       }
       tmp_error[k].push_back(d_error);
     }
@@ -227,7 +243,7 @@ void RadarDetectionComponent::radarObjectFuse(
       obs->set_pos_x(sub_obs.pos_x());
       obs->set_pos_y(sub_obs.pos_y());
       obs->set_pos_z(sub_obs.pos_z());
-      obs->set_fags(false);
+      obs->set_flags(false);
     }
   }
 }
@@ -250,7 +266,7 @@ void RadarDetectionComponent::messageCollection(
     obs.set_pos_x(sub_obs.pos_x());
     obs.set_pos_y(sub_obs.pos_y());
     obs.set_pos_z(sub_obs.pos_z());
-    obs.set_fags(false);
+    obs.set_flags(false);
     Obsvector->push_back(obs);
   }
 }
@@ -268,7 +284,7 @@ void RadarDetectionComponent::FuseMainObj(drivers::ContiRadar& message) {
 
   message.clear_contiobs();
   for (uint32_t i = 0; i < obj_size; i++) {
-    if (tmp_obs[i].fags() ||
+    if (tmp_obs[i].flags() ||
         (tmp_obs[i].pos_x() < 2.0 && tmp_obs[i].pos_x() > 0.5 &&
          std::fabs(tmp_obs[i].pos_y()) < 1.5)) {
       drivers::ContiRadarObs* obs = message.add_contiobs();
@@ -287,7 +303,7 @@ void RadarDetectionComponent::FuseMainObj(drivers::ContiRadar& message) {
       obs->set_lateral_vel(sub_obs.lateral_vel());
       obs->set_longitude_accel(sub_obs.longitude_accel());
       obs->set_lateral_accel(sub_obs.lateral_accel());
-      obs->set_fags(sub_obs.fags());
+      obs->set_flags(sub_obs.flags());
     }
   }
 

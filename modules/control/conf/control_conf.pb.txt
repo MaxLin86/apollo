@@ -28,6 +28,11 @@ max_steering_percentage_allowed: 100
 minimum_speed_resolution: 0.2
 query_relative_time: 0.8
 minimum_speed_protection: 0.1
+open_highbeam_minute: 1080
+close_highbeam_minute: 480
+test_brake: 30
+test_speed: 17.0
+test_throttle: 21
 lat_controller_conf {
   ts: 0.01
   preview_window: 0

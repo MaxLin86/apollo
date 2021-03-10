@@ -1,3 +1,5 @@
+% Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+% Refer to SOFTWARE_LICENSE file for details
 % START_SOFTWARE_LICENSE_NOTICE
 % -------------------------------------------------------------------------------------------------------------------
 % Copyright (C) 2019 Uhnder, Inc. All rights reserved.

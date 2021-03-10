@@ -101,6 +101,8 @@ class CanbusComponent final : public apollo::cyber::TimerComponent {
   std::unique_ptr<MessageManager<ChassisDetail>> message_manager_;
   std::unique_ptr<VehicleController> vehicle_controller_;
   int64_t last_timestamp_ = 0;
+  bool guardian_enable_ = false;
+  apollo::control::ControlCommand last_control_command_;
   ::apollo::common::monitor::MonitorLogBuffer monitor_logger_buffer_;
   std::shared_ptr<cyber::Writer<Chassis>> chassis_writer_;
   std::shared_ptr<cyber::Writer<ChassisDetail>> chassis_detail_writer_;

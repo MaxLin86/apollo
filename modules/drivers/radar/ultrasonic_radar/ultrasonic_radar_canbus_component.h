@@ -21,7 +21,7 @@
 #include "modules/drivers/radar/ultrasonic_radar/ultrasonic_radar_canbus.h"
 #include "cyber/cyber.h"
 #include "cyber/component/timer_component.h"
-#include "modules/drivers/radar/ultrasonic_radar/protocol/ultra431.h"
+#include "modules/drivers/radar/ultrasonic_radar/protocol/ultra401.h"
 #include "modules/drivers/proto/ultra_radar.pb.h"
 /**
  * @namespace apollo::drivers

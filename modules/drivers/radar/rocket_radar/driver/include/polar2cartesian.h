@@ -1,30 +1,9 @@
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #pragma once
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
-
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/include/scanobject.h"
 class ClutterImage;
 
 class Polar2Cartesian
@@ -91,6 +70,11 @@ public:
      * previous image */
     virtual const uint32_t* process(const ClutterImage&, SubSpace*, float alpha=0.0f) = 0;
 
+    //! if create2DMapping() was called with asynchronous=true, then the
+    //! returned Polar2Cartesian object is not ready for use until this function
+    //! returns true.
+    virtual bool            cooking_completed() const = 0;
+
     //! an enumeration of the errors which might be returned by this class
     enum Err
     {
@@ -115,8 +99,10 @@ public:
         uint32_t num_valid_range_bins; //!< less than or equal to range bins in scan
 
         //! ratio of range dimension (in pixels or meters) to azimuth dimension
+        //! aka: dim_Y = dim_X * range_to_azimuth_ratio
         float    range_to_azimuth_ratio;
         //! ratio of range dimension (in pixels or meters) to elevation dimension
+        //! aka: dim_Z = dim_X * range_to_elevation_ratio
         float    range_to_elevation_ratio;
 
         BoundsInfo() : az_angles(NULL), el_angles(NULL) {}
@@ -126,13 +112,6 @@ public:
             delete [] el_angles;
         }
     };
-
-    //! Estimate the dimensions required for a scan to fit entirely in an image
-    //! buffer.  See ciplot.cpp for example usage.
-    static void estimate_bounds(BoundsInfo&,
-                                const ClutterImage&,
-                                bool  wrap_azimuth_ambiguity,
-                                bool  wrap_elevation_ambiguity);
 
     //! descriptor which defines the dimensions and locality of the 2D pixel
     //! image which will be created by create2DMapping()
@@ -193,7 +172,7 @@ public:
      * returned object will only be capable of processing ClutterImage objects
      * of the same format and dimensions. The X dimension is range, the Y
      * dimension is left/right */
-    static Polar2Cartesian* create2DMapping(const ClutterImage&, const PixelSpace2D&);
+    static Polar2Cartesian* create2DMapping(const ClutterImage&, const PixelSpace2D&, bool asynchronous);
 
     /*! Factory method which allocates a Polar2Cartesian object which can map a
      * 3D polar ClutterImage to 2D front-view POLAR interpolated pixel space,
@@ -210,4 +189,18 @@ public:
      * only be capable of processing ClutterImage objects of the same format and
      * dimensions */
     static Polar2Cartesian* create3DMapping(const ClutterImage&, const VoxelSpace3D&);
+
+    //! Estimate the dimensions required for a scan to fit entirely in an image
+    //! buffer, using a clutter image as reference
+    static bool estimate_bounds(BoundsInfo&,
+                                const ClutterImage&,
+                                bool  wrap_azimuth_ambiguity,
+                                bool  wrap_elevation_ambiguity);
+
+    //! Estimate the dimensions required for a scan to fit entirely in an image
+    //! buffer, using a scan object as reference
+    static bool estimate_bounds_scan_object(BoundsInfo&,
+                                            const ScanObject&,
+                                            bool  wrap_azimuth_ambiguity,
+                                            bool  wrap_elevation_ambiguity);
 };

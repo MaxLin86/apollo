@@ -15,19 +15,3 @@ proto_library(
         "//modules/common/proto:header_proto_lib",
     ],
 )
-
-
-cc_proto_library(
-    name = "position_est_out_proto",
-    deps = [
-        ":position_est_proto",
-    ],
-)
-
-proto_library(
-    name = "position_est_proto",
-    srcs = ["position_est.proto"],
-    deps = [
-        "//modules/common/proto:header_proto_lib",
-    ],
-)

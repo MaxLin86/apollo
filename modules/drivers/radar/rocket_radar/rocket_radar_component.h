@@ -31,6 +31,17 @@
 
 #include "modules/drivers/radar/uhnder_radar/objProcess.h"
 
+#include "modules/canbus/proto/chassis.pb.h"
+
+#include "modules/drivers/radar/rocket_radar/driver/include/rra.h"
+#include "modules/drivers/radar/rocket_radar/driver/include/connection.h"
+#include "modules/drivers/radar/rocket_radar/driver/include/scanning.h"
+#include "modules/drivers/radar/rocket_radar/driver/include/scanobject.h"
+#include "modules/drivers/radar/rocket_radar/driver/include/detections.h"
+#include "modules/drivers/radar/rocket_radar/driver/include/pointcloud.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/scp-src/eng-api/uhmath.h"
+#include "modules/drivers/radar/rocket_radar/driver/include/userlogagents.h"
+
 using apollo::cyber::Component;
 using apollo::cyber::ComponentBase;
 using apollo::drivers::uhnder_radar::RadarTrackProcess;
@@ -43,26 +54,29 @@ class RocketRadarComponent : public Component<> {
  public:
   ~RocketRadarComponent() {}
   bool Init() override;
-
  private:
 
   bool poll();
-
+  bool pullData();
   RocketRadarConf  uhnder_radar_config_;
 
   std::thread device_thread_;
   std::string radar_id_;
   const char* radar_ip_;
-  float install_agle_;
+  float install_angle_;
   float install_pos_x_;
   float install_pos_y_;
   float install_pos_z_;
 
+  std::shared_ptr<apollo::cyber::Reader<apollo::canbus::Chassis>>
+      chassis_reader_;
 
+  std::shared_ptr<apollo::cyber::Writer<ContiRadar>> detection_radar_writer_;
   std::shared_ptr<apollo::cyber::Writer<ContiRadar>> uhnder_radar_writer_;
   std::shared_ptr<apollo::cyber::Writer<Ultra_Radar>> stop_radar_writer_;
   std::shared_ptr<cyber::Writer<localization::LocalizationEstimate>> local_writer_;
 
+  apollo::drivers::ContiRadar rawRadarMsg_;
   apollo::drivers::ContiRadar radarMsg_;
   apollo::drivers::Ultra_Radar tmpradarMsg_;
   float positive_;
@@ -70,7 +84,9 @@ class RocketRadarComponent : public Component<> {
   RadarTrackProcess*  track_process_;
   std::vector<track>  trackObjects_;
   uint32_t frame_count;
-
+  
+  Connection* con;
+  Scanning* s ;
 };
 
 CYBER_REGISTER_COMPONENT(RocketRadarComponent)

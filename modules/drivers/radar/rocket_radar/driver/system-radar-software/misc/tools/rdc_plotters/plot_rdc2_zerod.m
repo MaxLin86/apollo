@@ -1,3 +1,5 @@
+% Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+% Refer to SOFTWARE_LICENSE file for details
 function zerod_mat = plot_rdc2_zerod(filename, num_rbins, showPlots)
 
 if ~exist('filename','var')

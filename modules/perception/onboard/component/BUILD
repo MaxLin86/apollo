@@ -63,6 +63,8 @@ cc_library(
 	    "//modules/common/util:point_factory",
         "//modules/common/adapters:adapter_gflags",
         "//modules/perception/proto:guidepost_routing_map_proto",
+        "//modules/drivers/gnss/proto:gnss_best_pose_proto",
+        "//modules/control/proto:pad_msg",
         "@eigen",
     ],
     alwayslink = True,

@@ -11,7 +11,14 @@ message CanConf {
   optional bool enable_sender_log = 4 [default = false];
 }
 
+message Origin {
+  optional float x = 1;
+  optional float y = 2;
+  optional float z = 3;
+}
+
 message UltrasonicRadarConf {
   optional CanConf can_conf = 1;
   optional int32 entrance_num = 2;
+  repeated Origin origin = 3;
 }

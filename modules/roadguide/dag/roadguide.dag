@@ -1,0 +1,12 @@
+# Define all coms in DAG streaming.
+module_config {
+  module_library : "/apollo/bazel-bin/modules/roadguide/lib_roadguide_component.so"
+    timer_components {
+    class_name: "RoadguideComponent"
+    config {
+      name: "roadguide"
+      config_file_path: "/apollo/modules/roadguide/conf/roadguide_conf.pb.txt"
+      interval: 10
+    }
+  }
+}

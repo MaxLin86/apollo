@@ -25,6 +25,7 @@ cc_library(
         "//modules/localization/proto:localization_proto",
         "//modules/common/util:message_util",
         "//modules/drivers/radar/uhnder_radar:radar_track",
+        "//modules/canbus/proto:canbus_proto",
     ],
     includes = [
         "driver",

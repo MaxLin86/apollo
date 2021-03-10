@@ -48,4 +48,10 @@ DEFINE_int32(virtual_lane_marker_running_cycs, 100,
 
 DEFINE_bool(tmc_navigation_points, true,
     "Receive tmc publish navigation gps points.");
+
+DEFINE_double(path_smooth_param_alpha, 0.02,
+"path smoothing parameter alpha");
+
+DEFINE_double(path_smooth_param_beta, 0.4,
+"path smoothing parameter alpha");
 //--------------------------------------------------------

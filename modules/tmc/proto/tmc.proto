@@ -10,4 +10,5 @@ message tmcMsg {
     optional apollo.control.ControlCommand control_command = 2;
     optional bool flag = 3 [default = false];
     optional bool aebsflag = 4 [default = true];
+    optional bool flag_net_status = 5 [default = true];
 }

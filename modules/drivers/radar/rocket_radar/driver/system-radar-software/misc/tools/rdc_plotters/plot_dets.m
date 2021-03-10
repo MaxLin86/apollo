@@ -1,3 +1,5 @@
+% Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+% Refer to SOFTWARE_LICENSE file for details
 %sam=loadDetectionData('~/srs_data/scan_deterministic_loop_2/scan_000000/scan_000000_detectreport.bin')
 %soc=loadDetectionData('~/Documents/Uhnder/Bitbucket/sabine-radar-sw/build-x86/socsim_000000_detectreport.bin')
 

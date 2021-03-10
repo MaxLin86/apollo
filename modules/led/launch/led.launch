@@ -1,0 +1,7 @@
+<cyber>
+    <module>
+        <name>led</name>
+        <dag_conf>/apollo/modules/led/dag/led.dag</dag_conf>
+        <process_name>led</process_name>
+    </module>
+</cyber>

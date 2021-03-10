@@ -48,6 +48,7 @@ cc_library(
         "@yaml_cpp//:yaml",
 
         "//modules/localization/foo:self_car_tracking_lib",
+        "//modules/routing/proto:routing_proto",
     ],
 )
 

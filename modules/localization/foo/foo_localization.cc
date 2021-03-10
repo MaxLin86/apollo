@@ -66,7 +66,7 @@ bool FooLocalization::LoadMap() {
     split(strLine, sv, ',');
     if (sv.size() == 3)
     {
-        GuidepostGroup guidepostGroup;
+        NewGuidepostGroup guidepostGroup;
         guidepostGroup.id = sv[0];
         guidepostGroup.x = atof(sv[1].c_str());
         guidepostGroup.y = atof(sv[2].c_str());

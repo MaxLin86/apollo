@@ -161,6 +161,8 @@ bool CanbusComponent::Init() {
     return false;
   }
 
+  last_control_command_.Clear();
+
   monitor_logger_buffer_.INFO("Canbus is started.");
 
   return true;
@@ -189,6 +191,20 @@ void CanbusComponent::PublishChassisDetail() {
 }
 
 bool CanbusComponent::Proc() {
+  int64_t current_timestamp = absl::ToUnixMicros(Clock::Now());
+
+  if ( guardian_enable_ ) {
+        if (current_timestamp - last_timestamp_ > FLAGS_max_cmd_interval * 1000) {
+                ADEBUG << "Control command comes too slow.to brake the car! "
+                        "FLAGS_max_cmd_interval["
+                        << FLAGS_max_cmd_interval << "], actual time interval["
+                        << current_timestamp - last_timestamp_ << "].";
+                last_control_command_.set_throttle(0.0);
+                last_control_command_.set_brake(99.0);
+                OnControlCommand( last_control_command_ );
+        }
+  }
+
   PublishChassis();
   if (FLAGS_enable_chassis_detail_pub) {
     PublishChassisDetail();
@@ -215,6 +231,7 @@ void CanbusComponent::OnControlCommand(const ControlCommand &control_command) {
                                      1e6)
          << " micro seconds";
 
+  last_control_command_.CopyFrom( control_command );
   if (vehicle_controller_->Update(control_command) != ErrorCode::OK) {
     AERROR << "Failed to process callback function OnControlCommand because "
               "vehicle_controller_->Update error.";
@@ -225,6 +242,7 @@ void CanbusComponent::OnControlCommand(const ControlCommand &control_command) {
 
 void CanbusComponent::OnGuardianCommand(
     const GuardianCommand &guardian_command) {
+  guardian_enable_ = true;
   OnControlCommand(guardian_command.control_command());
 }
 

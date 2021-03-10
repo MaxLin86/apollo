@@ -423,9 +423,9 @@ Status NaviSpeedDecider::AddCentricAccelerationConstraints(
   }
 
   double max_kappa = 0.0;
-  double max_kappa_v = std::numeric_limits<double>::max();
-  double preffered_kappa_v = std::numeric_limits<double>::max();
-  double max_kappa_s = 0.0;
+  //double max_kappa_v = std::numeric_limits<double>::max();
+  //double preffered_kappa_v = std::numeric_limits<double>::max();
+  //double max_kappa_s = 0.0;
   const auto bs = path_points[0].has_s() ? path_points[0].s() : 0.0;
 
   struct CLimit {
@@ -460,9 +460,9 @@ Status NaviSpeedDecider::AddCentricAccelerationConstraints(
 
     if (kappa > max_kappa) {
       max_kappa = kappa;
-      max_kappa_v = v_max;
-      preffered_kappa_v = v_preffered;
-      max_kappa_s = start_s;
+     // max_kappa_v = v_max;
+     // preffered_kappa_v = v_preffered;
+     // max_kappa_s = start_s;
     }
   }
 
@@ -489,9 +489,9 @@ Status NaviSpeedDecider::AddCentricAccelerationConstraints(
     start_s = end_s;
   }
 
-  AINFO << "add speed limit for centric acceleration with kappa: " << max_kappa
-        << " v_max: " << max_kappa_v << " v_preffered: " << preffered_kappa_v
-        << " s: " << max_kappa_s;
+ // AINFO << "add speed limit for centric acceleration with kappa: " << max_kappa
+ //       << " v_max: " << max_kappa_v << " v_preffered: " << preffered_kappa_v
+ //       << " s: " << max_kappa_s;
 
   return Status::OK();
 }

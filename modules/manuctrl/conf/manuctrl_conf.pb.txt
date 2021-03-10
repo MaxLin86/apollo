@@ -4,3 +4,6 @@ serial_port {
 }
 
 radio_timeout_sec: 0.1
+steer_angle_ratio_calib: 0
+steer_angle_ratio_calib_step_min: 25.0
+steer_angle_ratio_calib_step_max: 100.0

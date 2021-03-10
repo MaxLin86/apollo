@@ -1,33 +1,12 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_CDATA_CALB_FLASHDATA_H
 #define SRS_HDR_CDATA_CALB_FLASHDATA_H 1
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhmathtypes.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhmathtypes.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/rhal_out.h"
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/rdc-common.h"
+#include "rdc-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/scp-src/eng-api/default-presets.h"
 
 SRS_DECLARE_NAMESPACE()
@@ -51,10 +30,10 @@ struct CDataCalBDataRaw
 {
     CDataCalBLane       cdata[NUM_RX_PER_BANK][NUM_ADC_LANE];
 
-    static void u32_to_bin(uint32_t val, int bits, char *output)
+    static void u32_to_bin(uint32_t val, INT bits, CHAR *output)
     {
-        int ch = 0;
-        for (int i = bits-1; i >= 0; i--)
+        INT ch = 0;
+        for (INT i = bits-1; i >= 0; i--)
         {
             output[ch++] = (val & (1U << i)) ? '1' : '0';
         }
@@ -63,12 +42,12 @@ struct CDataCalBDataRaw
 
     void uhprint(bool all=true) const
     {
-        char i_of[9], q_of[9];
-        char i_c3[4], q_c3[4];
-        char i_c4[5], q_c4[5];
-        char i_c5[6], q_c5[6];
-        char i_c6[7], q_c6[7];
-        char i_c7[8], q_c7[8];
+        CHAR i_of[9], q_of[9];
+        CHAR i_c3[4], q_c3[4];
+        CHAR i_c4[5], q_c4[5];
+        CHAR i_c5[6], q_c5[6];
+        CHAR i_c6[7], q_c6[7];
+        CHAR i_c7[8], q_c7[8];
 
         for (uint32_t rx = 0; rx < NUM_RX_PER_BANK; rx++)
         {
@@ -147,7 +126,7 @@ struct CDataCalBKey
     FLOAT distance(const CDataCalBKey& other) const
     {
         return uh_fabsf(temperature - other.temperature) +
-               UH_ABS(INT(adc_sample_rate) - INT(other.adc_sample_rate));
+               float(UH_ABS(INT(adc_sample_rate) - INT(other.adc_sample_rate)));
     }
 };
 

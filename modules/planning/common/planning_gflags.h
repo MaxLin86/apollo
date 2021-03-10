@@ -279,6 +279,12 @@ DECLARE_double(lanepoint_tartget_px);
 DECLARE_uint32(gudiepost_method);
 DECLARE_double(gudiepost_curise_throttle);
 DECLARE_double(gudiepost_slow_throttle);
+DECLARE_double(high_speed_kmh);
+DECLARE_double(mid_speed_kmh);
+DECLARE_double(low_speed_kmh);
+DECLARE_double(shore_road_speed_kmh);
+DECLARE_double(field_inner_road_speed_kmh);
+DECLARE_double(turn_light_lat_diff);
 //--------------------------------------------------------------
 DECLARE_bool(enable_turn_plan);
 DECLARE_bool(multiple_step_planner);
@@ -288,6 +294,16 @@ DECLARE_double(vehicle_start_phi);
 DECLARE_double(vehicle_end_px);
 DECLARE_double(vehicle_end_py);
 DECLARE_double(vehicle_end_phi);
+
+
+DECLARE_double(obstacle_vertice_ax);
+DECLARE_double(obstacle_vertice_ay);
+DECLARE_double(obstacle_vertice_bx);
+DECLARE_double(obstacle_vertice_by);
+DECLARE_double(obstacle_vertice_cx);
+DECLARE_double(obstacle_vertice_cy);
+DECLARE_double(obstacle_vertice_dx);
+DECLARE_double(obstacle_vertice_dy);
 
 DECLARE_bool(enable_drive_len_test);
 DECLARE_double(test_drive_length);

@@ -1,30 +1,9 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_IQ_CAL_FLASHDATA_H
 #define SRS_HDR_IQ_CAL_FLASHDATA_H 1
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/rhal_out.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/scp-src/eng-api/default-presets.h"
 
@@ -67,10 +46,10 @@ struct IqCalKey
     FLOAT                       carrier_freq;     // Carrier frequency in GHz at which this cal was performed
     RHAL_RxBWPresets            rx_bw_enum;       // Rx bandwidths
     RHAL_RxVGAGainPresets       rx_vga_gain_enum; // Rx VGA gains
-    RHAL_LOMode                 LO_mode;          // Internal LO / On-Board LO (OBLO) / External LO
     // TODO: Might need Tx side stuff?  (tx_ant_bmap, RHAL_TxBWPresets)
     // TODO: Might need LNA 0/1 (rx_ant_bmap)
 
+    uint32_t                    reserved_LO_mode;
     uint32_t                    reserved_0;
     uint32_t                    reserved_1;
     uint32_t                    reserved_2;
@@ -83,19 +62,6 @@ struct IqCalKey
     enum { KEY_VERSION = 0 };
 
     IqCalKey() { memset(this, 0, sizeof(*this)); }
-    IqCalKey(FLOAT                  _temperature,
-             FLOAT                  _carrier_freq,
-             RHAL_RxBWPresets       _rx_bw_enum,
-             RHAL_RxVGAGainPresets  _rx_vga_gain_enum,
-             RHAL_LOMode            _LO_mode)
-    {
-        memset(this, 0, sizeof(*this));
-        temperature = _temperature;
-        carrier_freq = _carrier_freq;
-        rx_bw_enum = _rx_bw_enum;
-        rx_vga_gain_enum = _rx_vga_gain_enum;
-        LO_mode = _LO_mode;
-    }
 
     void uhprint() const
     {
@@ -103,7 +69,6 @@ struct IqCalKey
         UHPRINTF("carrier_freq: %f\n", carrier_freq);
         UHPRINTF("rx_bw_enum: %d %s\n", rx_bw_enum, rx_bw_enum < NUM_RXBW_PRESETS ? rx_bw_names[rx_bw_enum] : "N/A");
         UHPRINTF("rx_vga_gain_enum: %d %s\n", rx_vga_gain_enum, rx_vga_gain_enum < NUM_VGAGAIN_PRESETS ? rx_gain_names[rx_vga_gain_enum] : "N/A");
-        UHPRINTF("Lo_mode: %d\n", LO_mode);
     }
 
     void upgrade_from_version(uint32_t, IQCalData&)
@@ -118,8 +83,7 @@ struct IqCalKey
         return (//(uh_fabsf(temperature - other.temperature) <= 10.0F) &&     // deg C
                 (uh_fabsf(carrier_freq - other.carrier_freq) <= 0.2F) &&    // GHz
                 (rx_bw_enum  == other.rx_bw_enum) &&
-                (rx_vga_gain_enum == other.rx_vga_gain_enum) &&
-                (LO_mode == other.LO_mode));
+                (rx_vga_gain_enum == other.rx_vga_gain_enum));
     }
 
     // find the 'nearest-match' by picking the key with the shortest disance
@@ -130,8 +94,7 @@ struct IqCalKey
                      uh_fabsf(carrier_freq - other.carrier_freq) * 5;
         INT diffs = !(rx_bw_enum == other.rx_bw_enum);
         diffs += !(rx_vga_gain_enum == other.rx_vga_gain_enum);
-        diffs += !(LO_mode == other.LO_mode);
-        return dist + CAL_KEY_DO_NOT_USE * diffs;
+        return dist + CAL_KEY_DO_NOT_USE * float(diffs);
     }
 };
 

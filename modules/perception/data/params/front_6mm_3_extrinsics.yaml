@@ -7,34 +7,34 @@ header:
 child_frame_id: front_6mm_3
 transform:
   rotation:
-    w: 0.50562
-    x: -0.86210
-    y: -0.01569
-    z: 0.02952
+    w: -0.46030
+    x: 0.88775
+    y: -0.00334
+    z: -0.00055
   translation:
-    x: 0.0252
-    y: 4.9127
-    z: 0.8869
+    x: -0.007
+    y: 4.9681
+    z: 0.7793
 srcpoints:
   x:
-    leftup: 648
-    leftdown: 604
-    rightup: 1288
-    rightdown: 1330
+    leftup: 708 #679
+    leftdown: 617 #640 
+    rightup: 1428 #1329
+    rightdown: 1597 #1381
   y:
-    leftup: 394
-    leftdown: 416
-    rightup: 382
-    rightdown: 403
+    leftup: 496 #360
+    leftdown: 622 #385
+    rightup: 491 #341
+    rightdown: 613 #367
 
 dstpoints:
   x:
-    leftup: 248
-    leftdown: 248
-    rightup: 664
-    rightdown: 664
+    leftup: 303 #199
+    leftdown: 303 #199
+    rightup: 530 #589
+    rightdown: 530 #589
   y:
-    leftup: 375
-    leftdown: 425
-    rightup: 375
-    rightdown: 425
+    leftup: 500 #355
+    leftdown: 550 #405
+    rightup: 500 #355
+    rightdown: 550 #405

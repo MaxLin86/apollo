@@ -200,36 +200,99 @@ bool manuctrlComponent::ctrl_vehicle_ctrl()
       }
   }
 
-  if (ctrl.rc_status.rocker.rx < CTRL_ROCKER_MID - CTRL_ROCKER_TRIG_TH) {
-    ctrl.steer_angle     = CTRL_STEER_ANGLE_MAX;
-    ctrl.steer_speed     = CTRL_STEER_SPEED_CAL((CTRL_ROCKER_MID - CTRL_ROCKER_TRIG_TH) - ctrl.rc_status.rocker.rx);
-    ctrl.turn_signal     = common::VehicleSignal::TURN_LEFT;
-  } else if (ctrl.rc_status.rocker.rx > CTRL_ROCKER_MID + CTRL_ROCKER_TRIG_TH) {
-    ctrl.steer_angle     = -CTRL_STEER_ANGLE_MAX;
-    ctrl.steer_speed     = CTRL_STEER_SPEED_CAL(ctrl.rc_status.rocker.rx - (CTRL_ROCKER_MID + CTRL_ROCKER_TRIG_TH));
-    ctrl.turn_signal     = common::VehicleSignal::TURN_RIGHT;
-  } else {
-    if (latest_chassis_.has_steering_percentage()) {
-      ctrl.steer_angle = latest_chassis_.steering_percentage();
+
+  if (!steer_angle_ratio_calib_) {
+
+    if (ctrl.rc_status.rocker.rx < CTRL_ROCKER_MID - CTRL_ROCKER_TRIG_TH) {
+      joystick_rock_mid_flag_ = false;
+      /* ctrl.steer_angle     = CTRL_STEER_ANGLE_MAX;
+      ctrl.steer_speed     = CTRL_STEER_SPEED_CAL((CTRL_ROCKER_MID - CTRL_ROCKER_TRIG_TH) - ctrl.rc_status.rocker.rx); */
+      ctrl.steer_speed     = ctrl.rc_status.rocker.rx;
+      ctrl.steer_angle     = CTRL_STEER_ANGLE_CAL((CTRL_ROCKER_MID - CTRL_ROCKER_TRIG_TH) - ctrl.rc_status.rocker.rx);
+      ctrl.turn_signal     = common::VehicleSignal::TURN_LEFT;
+    } else if (ctrl.rc_status.rocker.rx > CTRL_ROCKER_MID + CTRL_ROCKER_TRIG_TH) {
+      joystick_rock_mid_flag_ = false;
+      /* ctrl.steer_angle     = -CTRL_STEER_ANGLE_MAX;
+      ctrl.steer_speed     = CTRL_STEER_SPEED_CAL(ctrl.rc_status.rocker.rx - (CTRL_ROCKER_MID + CTRL_ROCKER_TRIG_TH)); */
+      ctrl.steer_speed     = ctrl.rc_status.rocker.rx;
+      if (ctrl.rc_status.rocker.rx > 98) {
+        ctrl.rc_status.rocker.rx = 100;
+      }
+      ctrl.steer_angle     = -1.0 * CTRL_STEER_ANGLE_CAL(ctrl.rc_status.rocker.rx - (CTRL_ROCKER_MID + CTRL_ROCKER_TRIG_TH));
+      ctrl.turn_signal     = common::VehicleSignal::TURN_RIGHT;
     } else {
-      ctrl.steer_angle = 0;
+      if (latest_chassis_.has_steering_percentage()) {
+        if (joystick_rock_mid_flag_ == false) {
+          ctrl.steer_angle = latest_chassis_.steering_percentage();
+          joystick_rock_mid_flag_ = true;
+        }
+      } else {
+        //ctrl.steer_angle = 0;
+      }
+      ctrl.steer_speed     = CTRL_STEER_SPEED_MIN;
+      ctrl.turn_signal     = common::VehicleSignal::TURN_NONE;
     }
-    ctrl.steer_speed     = CTRL_STEER_SPEED_MIN;
-    ctrl.turn_signal     = common::VehicleSignal::TURN_NONE;
+
+    if (!ctrl.rc_status.key.rr) {
+      ctrl.steer_angle     = 0;
+      ctrl.steer_speed     = CTRL_STEER_SPEED_MIN;
+      ctrl.turn_signal     = common::VehicleSignal::TURN_NONE;
+    }
+
+    /* AERROR <<  " @manu: angle=" << ctrl.steer_angle 
+      << " rx=" << ctrl.rc_status.rocker.rx; */
+  } else {
+
+    if ((!ctrl.rc_status.key.lb && ctrl.rc_key_pre_status.lb)
+          || (!ctrl.rc_status.key.lt && ctrl.rc_key_pre_status.lt)) {
+      ctrl.steer_calib_trigger = true;
+    } else {
+      //ctrl.steer_calib_trigger = false;
+    }
+
+
+    if (!ctrl.rc_status.key.left) {
+      if (ctrl.steer_calib_trigger == true){
+        ctrl.steer_calib_trigger = false;
+        if (!ctrl.rc_status.key.lb) {
+          ctrl.steer_angle -= steer_angle_ratio_calib_step_min_ * M_PI / 180.0f * 100.0f / vehicle_params_.max_steer_angle();
+        }
+        if (!ctrl.rc_status.key.lt) {
+          ctrl.steer_angle -= steer_angle_ratio_calib_step_max_ * M_PI / 180.0f * 100.0f / vehicle_params_.max_steer_angle();
+        }
+      }
+      ctrl.turn_signal     = common::VehicleSignal::TURN_LEFT;
+    } else if (!ctrl.rc_status.key.right) {
+      if (ctrl.steer_calib_trigger == true){
+        ctrl.steer_calib_trigger = false;
+        if (!ctrl.rc_status.key.lb) {
+          ctrl.steer_angle += steer_angle_ratio_calib_step_min_ * M_PI / 180.0f * 100.0f / vehicle_params_.max_steer_angle();
+        }
+        if (!ctrl.rc_status.key.lt) {
+          ctrl.steer_angle += steer_angle_ratio_calib_step_max_ * M_PI / 180.0f * 100.0f / vehicle_params_.max_steer_angle();
+        }
+      }
+      ctrl.turn_signal     = common::VehicleSignal::TURN_RIGHT;
+    } else {
+      ctrl.steer_angle     = 0;
+      ctrl.steer_speed     = CTRL_STEER_SPEED_MIN;
+      ctrl.turn_signal     = common::VehicleSignal::TURN_NONE;
+    }
   }
 
-  if (!ctrl.rc_status.key.rr) {
-    ctrl.steer_angle     = 0;
-    ctrl.steer_speed     = CTRL_STEER_SPEED_MIN;
-    ctrl.turn_signal     = common::VehicleSignal::TURN_NONE;
+
+  /* led screen */
+  if (!ctrl.rc_status.key.rt && ctrl.rc_key_pre_status.rt) {
+    ctrl.led_screen = (ctrl.led_screen == false) ? true : false;
   }
 
-  if (ctrl.rc_status.key.rt && !ctrl.rc_key_pre_status.rt) {
-    // TODO
-  }
-
-  if (ctrl.rc_status.key.rb && !ctrl.rc_key_pre_status.rb) {
-    if (ctrl.full_beam_head_lamp == false) {
+  /* head lamp */
+  if (!ctrl.rc_status.key.rb && ctrl.rc_key_pre_status.rb) {
+    counter++;
+    ctrl.head_lamp = static_cast<common::VehicleSignal::HeadLampStat>(counter % 3);
+    ctrl.top_warn_lamp = static_cast<common::VehicleSignal::TopWarnLampStat>(counter % 5);
+    
+  /*   if (ctrl.full_beam_head_lamp == false) {
       ctrl.full_beam_head_lamp = true;
     } else {
       ctrl.full_beam_head_lamp = false;
@@ -238,7 +301,7 @@ bool manuctrlComponent::ctrl_vehicle_ctrl()
       ctrl.dipped_head_lamp = true;
     } else {
       ctrl.dipped_head_lamp = false;
-    }
+    } */
   }
 
   return true;
@@ -332,8 +395,20 @@ bool manuctrlComponent::Init()
     return false;
   }
 
+  joystick_rock_mid_flag_ = false;
+  ctrl.steer_calib_trigger = false;
+  ctrl.head_lamp = static_cast<common::VehicleSignal::HeadLampStat>(0);
+  ctrl.led_screen = false;
+  ctrl.top_warn_lamp = static_cast<common::VehicleSignal::TopWarnLampStat>(0);
+
+  vehicle_params_.CopyFrom(
+    common::VehicleConfigHelper::Instance()->GetConfig().vehicle_param());
+
   radio_timeout_sec_ = manuctrl_conf_.radio_timeout_sec();
   exit_ad_delay_sec_ = manuctrl_conf_.exit_ad_delay_sec();
+  steer_angle_ratio_calib_ = manuctrl_conf_.steer_angle_ratio_calib();
+  steer_angle_ratio_calib_step_min_ = manuctrl_conf_.steer_angle_ratio_calib_step_min();
+  steer_angle_ratio_calib_step_max_ = manuctrl_conf_.steer_angle_ratio_calib_step_max();
 
   AINFO << "The manuctrl conf file is loaded: " << FLAGS_manuctrl_conf_file;
   ADEBUG << "manuctrl_conf:" << manuctrl_conf_.ShortDebugString();
@@ -439,8 +514,13 @@ bool manuctrlComponent::Proc()
   manuctrl_msg.mutable_control_command()->set_steering_rate(ctrl.steer_speed);
   manuctrl_msg.mutable_control_command()->set_error_level(ctrl.fault_level);
   manuctrl_msg.mutable_control_command()->mutable_signal()->set_turn_signal(ctrl.turn_signal);
+
+  manuctrl_msg.mutable_control_command()->mutable_signal()->set_head_lamp(ctrl.head_lamp);
   manuctrl_msg.mutable_control_command()->mutable_signal()->set_high_beam(ctrl.full_beam_head_lamp);
   manuctrl_msg.mutable_control_command()->mutable_signal()->set_low_beam(ctrl.dipped_head_lamp);
+
+  //manuctrl_msg.mutable_control_command()->mutable_signal()->set_led_screen(ctrl.led_screen);
+  //manuctrl_msg.mutable_control_command()->mutable_signal()->set_top_warn_lamp(ctrl.top_warn_lamp);
   if (ctrl.vehicle_status == VEHICLE_STATUS_AD) {
     manuctrl_msg.mutable_control_command()->mutable_signal()->set_position_lamp(true);
   } else {

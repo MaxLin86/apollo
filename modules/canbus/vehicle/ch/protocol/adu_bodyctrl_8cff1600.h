@@ -36,15 +36,19 @@ class Adubodyctrl8cff1600 : public ::apollo::drivers::canbus::ProtocolData<
 
   void Reset() override;
 
+  Adubodyctrl8cff1600* set_ad_ledscreenreq(Adu_bodyctrl_8cff1600::AD_LEDscreenreqType ad_ledscreenreq);
+  Adubodyctrl8cff1600* set_ad_hornreq(Adu_bodyctrl_8cff1600::AD_hornreqType ad_hornreq);
+  Adubodyctrl8cff1600* set_ad_topwarninglampreq(Adu_bodyctrl_8cff1600::AD_topwarninglampreqType ad_topwarninglampreq);
   // config detail: {'name': 'AD_RearFogLampReq', 'enum': {0: 'AD_REARFOGLAMPREQ_CLOSE', 1: 'AD_REARFOGLAMPREQ_OPEN', 2: 'AD_REARFOGLAMPREQ_RESERVE1', 3: 'AD_REARFOGLAMPREQ_RESERVE2'}, 'precision': 1.0, 'len': 2, 'is_signed_var': False, 'offset': 0.0, 'physical_range': '[0|3]', 'bit': 26, 'type': 'enum', 'order': 'intel', 'physical_unit': ''}
   Adubodyctrl8cff1600* set_ad_rearfoglampreq(Adu_bodyctrl_8cff1600::Ad_rearfoglampreqType ad_rearfoglampreq);
 
   // config detail: {'name': 'AD_FrontFogLampReq', 'enum': {0: 'AD_FRONTFOGLAMPREQ_CLOSE', 1: 'AD_FRONTFOGLAMPREQ_OPEN', 2: 'AD_FRONTFOGLAMPREQ_RESERVE1', 3: 'AD_FRONTFOGLAMPREQ_RESERVE2'}, 'precision': 1.0, 'len': 2, 'is_signed_var': False, 'offset': 0.0, 'physical_range': '[0|3]', 'bit': 24, 'type': 'enum', 'order': 'intel', 'physical_unit': ''}
   Adubodyctrl8cff1600* set_ad_frontfoglampreq(Adu_bodyctrl_8cff1600::Ad_frontfoglampreqType ad_frontfoglampreq);
 
+
+  Adubodyctrl8cff1600* set_ad_headlampreq(Adu_bodyctrl_8cff1600::Ad_headlampreqType ad_headlampreq);
   // config detail: {'name': 'AD_HeadLightFullBeamReq', 'enum': {0: 'AD_HEADLIGHTFULLBEAMREQ_CLOSE', 1: 'AD_HEADLIGHTFULLBEAMREQ_OPEN', 2: 'AD_HEADLIGHTFULLBEAMREQ_RESERVE1', 3: 'AD_HEADLIGHTFULLBEAMREQ_RESERVE2'}, 'precision': 1.0, 'len': 2, 'is_signed_var': False, 'offset': 0.0, 'physical_range': '[0|3]', 'bit': 22, 'type': 'enum', 'order': 'intel', 'physical_unit': ''}
   Adubodyctrl8cff1600* set_ad_headlightfullbeamreq(Adu_bodyctrl_8cff1600::Ad_headlightfullbeamreqType ad_headlightfullbeamreq);
-
   // config detail: {'name': 'AD_DippedHeadLampReq', 'enum': {0: 'AD_DIPPEDHEADLAMPREQ_CLOSE', 1: 'AD_DIPPEDHEADLAMPREQ_OPEN', 2: 'AD_DIPPEDHEADLAMPREQ_RESERVE1', 3: 'AD_DIPPEDHEADLAMPREQ_RESERVE2'}, 'precision': 1.0, 'len': 2, 'is_signed_var': False, 'offset': 0.0, 'physical_range': '[0|3]', 'bit': 20, 'type': 'enum', 'order': 'intel', 'physical_unit': ''}
   Adubodyctrl8cff1600* set_ad_dippedheadlampreq(Adu_bodyctrl_8cff1600::Ad_dippedheadlampreqType ad_dippedheadlampreq);
 
@@ -62,15 +66,18 @@ class Adubodyctrl8cff1600 : public ::apollo::drivers::canbus::ProtocolData<
 
  private:
 
+  void set_p_ad_ledscreenreq(uint8_t* data, Adu_bodyctrl_8cff1600::AD_LEDscreenreqType ad_ledscreenreq);
+  void set_p_ad_hornreq(uint8_t* data, Adu_bodyctrl_8cff1600::AD_hornreqType ad_hornreq);
+  void set_p_ad_topwarninglampreq(uint8_t* data, Adu_bodyctrl_8cff1600::AD_topwarninglampreqType ad_topwarninglampreq);
   // config detail: {'name': 'AD_RearFogLampReq', 'enum': {0: 'AD_REARFOGLAMPREQ_CLOSE', 1: 'AD_REARFOGLAMPREQ_OPEN', 2: 'AD_REARFOGLAMPREQ_RESERVE1', 3: 'AD_REARFOGLAMPREQ_RESERVE2'}, 'precision': 1.0, 'len': 2, 'is_signed_var': False, 'offset': 0.0, 'physical_range': '[0|3]', 'bit': 26, 'type': 'enum', 'order': 'intel', 'physical_unit': ''}
   void set_p_ad_rearfoglampreq(uint8_t* data, Adu_bodyctrl_8cff1600::Ad_rearfoglampreqType ad_rearfoglampreq);
 
   // config detail: {'name': 'AD_FrontFogLampReq', 'enum': {0: 'AD_FRONTFOGLAMPREQ_CLOSE', 1: 'AD_FRONTFOGLAMPREQ_OPEN', 2: 'AD_FRONTFOGLAMPREQ_RESERVE1', 3: 'AD_FRONTFOGLAMPREQ_RESERVE2'}, 'precision': 1.0, 'len': 2, 'is_signed_var': False, 'offset': 0.0, 'physical_range': '[0|3]', 'bit': 24, 'type': 'enum', 'order': 'intel', 'physical_unit': ''}
   void set_p_ad_frontfoglampreq(uint8_t* data, Adu_bodyctrl_8cff1600::Ad_frontfoglampreqType ad_frontfoglampreq);
 
+  void set_p_ad_headlampreq(uint8_t* data, Adu_bodyctrl_8cff1600::Ad_headlampreqType ad_headlampreq);
   // config detail: {'name': 'AD_HeadLightFullBeamReq', 'enum': {0: 'AD_HEADLIGHTFULLBEAMREQ_CLOSE', 1: 'AD_HEADLIGHTFULLBEAMREQ_OPEN', 2: 'AD_HEADLIGHTFULLBEAMREQ_RESERVE1', 3: 'AD_HEADLIGHTFULLBEAMREQ_RESERVE2'}, 'precision': 1.0, 'len': 2, 'is_signed_var': False, 'offset': 0.0, 'physical_range': '[0|3]', 'bit': 22, 'type': 'enum', 'order': 'intel', 'physical_unit': ''}
   void set_p_ad_headlightfullbeamreq(uint8_t* data, Adu_bodyctrl_8cff1600::Ad_headlightfullbeamreqType ad_headlightfullbeamreq);
-
   // config detail: {'name': 'AD_DippedHeadLampReq', 'enum': {0: 'AD_DIPPEDHEADLAMPREQ_CLOSE', 1: 'AD_DIPPEDHEADLAMPREQ_OPEN', 2: 'AD_DIPPEDHEADLAMPREQ_RESERVE1', 3: 'AD_DIPPEDHEADLAMPREQ_RESERVE2'}, 'precision': 1.0, 'len': 2, 'is_signed_var': False, 'offset': 0.0, 'physical_range': '[0|3]', 'bit': 20, 'type': 'enum', 'order': 'intel', 'physical_unit': ''}
   void set_p_ad_dippedheadlampreq(uint8_t* data, Adu_bodyctrl_8cff1600::Ad_dippedheadlampreqType ad_dippedheadlampreq);
 
@@ -87,8 +94,12 @@ class Adubodyctrl8cff1600 : public ::apollo::drivers::canbus::ProtocolData<
   void set_p_ad_warninglampreq(uint8_t* data, Adu_bodyctrl_8cff1600::Ad_warninglampreqType ad_warninglampreq);
 
  private:
+  Adu_bodyctrl_8cff1600::AD_LEDscreenreqType ad_ledscreenreq_;
+  Adu_bodyctrl_8cff1600::AD_hornreqType ad_hornreq_;
+  Adu_bodyctrl_8cff1600::AD_topwarninglampreqType ad_topwarninglampreq_;
   Adu_bodyctrl_8cff1600::Ad_rearfoglampreqType ad_rearfoglampreq_;
   Adu_bodyctrl_8cff1600::Ad_frontfoglampreqType ad_frontfoglampreq_;
+  Adu_bodyctrl_8cff1600::Ad_headlampreqType ad_headlampreq_;
   Adu_bodyctrl_8cff1600::Ad_headlightfullbeamreqType ad_headlightfullbeamreq_;
   Adu_bodyctrl_8cff1600::Ad_dippedheadlampreqType ad_dippedheadlampreq_;
   Adu_bodyctrl_8cff1600::Ad_positionlampreqType ad_positionlampreq_;

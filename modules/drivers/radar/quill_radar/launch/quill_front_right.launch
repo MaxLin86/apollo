@@ -1,0 +1,8 @@
+<cyber>
+    <module>
+        <name>radar_front_right</name>
+        <dag_conf>/apollo/modules/drivers/radar/quill_radar/dag/quill_front_right.dag</dag_conf>
+        <process_name>radar_front_right</process_name>
+    </module>
+
+</cyber>

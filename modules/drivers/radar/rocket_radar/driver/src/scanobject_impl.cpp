@@ -1,4 +1,4 @@
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/scanobject_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/clutterimage_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/detections_impl.h"
@@ -12,11 +12,11 @@
 #include "modules/drivers/radar/rocket_radar/driver/include/serializer.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/rhal_out.h"
 
+#include "modules/drivers/radar/rocket_radar/driver/src/tracks_impl.h"
+#include "modules/drivers/radar/rocket_radar/driver/include/tracks.h"
 #include <assert.h>
 
-#include "modules/drivers/radar/rocket_radar/driver/include/sra.h"
-
-enum { RDC1_EXP_SIZE_PER_RANGEBIN = 16 }; // rsp-common.h
+#include "modules/drivers/radar/rocket_radar/driver/include/rra.h"
 
 class EnvScanData
 {
@@ -108,21 +108,23 @@ ScanObject_Impl::~ScanObject_Impl()
     delete myzd;
     delete myact;
     delete mypc;
+    delete mytracks;
     delete mymusic;
     delete myrdc1;
     delete myadc;
     delete dprobe_out;
     delete adi_measured_dc;
+    delete [] completed_aprobes;
     delete [] vrx_mapping;
     delete [] zero_d_bins;
     delete [] hw_coredump_pi;
     delete [] hw_coredump_si;
-    delete [] rdc1_playback_data;
     delete [] range_bins;
     delete [] angle_bins;
     delete [] histograms;
     delete [] rx_pos;
     delete [] tx_pos;
+    delete [] rdc3_blob;
 
     free(const_cast<char*>(srs_version_str));
     free(const_cast<char*>(module_name));
@@ -140,58 +142,6 @@ ScanObject_Impl::~ScanObject_Impl()
 }
 
 
-void ScanObject_Impl::handle_scan_info(const UhdpScanInformation* msg, uint32_t total_size, const timeval& ht, uint32_t uhdp_ver)
-{
-    host_local_time = ht;
-    uhdp_version = uhdp_ver;
-    memcpy(&scan_info, msg, sizeof(UhdpScanInformation));
-    const char* payload = (const char*)(msg + 1);
-    total_size -= sizeof(UhdpScanInformation);
-
-    if (uhdp_ver >= 25)
-    {
-        memcpy(&mythresh, payload, sizeof(RDC_ThresholdControl));
-
-        total_size -= sizeof(RDC_ThresholdControl);
-        payload    += sizeof(RDC_ThresholdControl);
-    }
-
-    if (total_size >= scan_info.total_vrx)
-    {
-        vrx_mapping = new uint8_t[scan_info.total_vrx];
-        memcpy(vrx_mapping, payload, scan_info.total_vrx * sizeof(uint8_t));
-
-        total_size -= scan_info.total_vrx;
-        payload    += scan_info.total_vrx;
-    }
-
-    if (uhdp_ver >= 26 && scan_info.num_tx_prn)
-    {
-        uint32_t num_rx = scan_info.total_vrx / scan_info.num_tx_prn;
-        uint32_t rxsize = num_rx * sizeof(vec3f_t);
-        uint32_t txsize = scan_info.num_tx_prn * sizeof(vec3f_t);
-
-        if (total_size >= rxsize)
-        {
-            rx_pos = new vec3f_t[num_rx];
-            memcpy(rx_pos, payload, rxsize);
-
-            total_size -= rxsize;
-            payload    += rxsize;
-        }
-
-        if (total_size >= txsize)
-        {
-            tx_pos = new vec3f_t[scan_info.num_tx_prn];
-            memcpy(tx_pos, payload, txsize);
-
-            total_size -= txsize;
-            payload    += txsize;
-        }
-    }
-}
-
-
 void ScanObject_Impl::handle_uhdp(uint8_t message_type, const char* payload, uint32_t total_size)
 {
     // all scan data message types will be sent to this function
@@ -202,13 +152,26 @@ void ScanObject_Impl::handle_uhdp(uint8_t message_type, const char* payload, uin
         payload    += sizeof(UhdpDataHeader);
         total_size -= sizeof(UhdpDataHeader);
 
-        if (total_size == sizeof(RDC_DProbe_Output) + sizeof(RDC_adi_measured_dc))
+        if (total_size >= sizeof(RDC_DProbe_Output) + sizeof(RDC_adi_measured_dc))
         {
             dprobe_out = new RDC_DProbe_Output();
             adi_measured_dc = new RDC_adi_measured_dc();
             memcpy(dprobe_out, payload, sizeof(RDC_DProbe_Output));
             payload += sizeof(RDC_DProbe_Output);
             memcpy(adi_measured_dc, payload, sizeof(RDC_adi_measured_dc));
+            payload += sizeof(RDC_adi_measured_dc);
+
+            total_size -= sizeof(RDC_DProbe_Output) + sizeof(RDC_adi_measured_dc);
+            num_completed_aprobes = total_size / sizeof(RDC_AprobeRequest);
+            if ((num_completed_aprobes > 0) && (total_size == num_completed_aprobes * sizeof(RDC_AprobeRequest)))
+            {
+                completed_aprobes = new RDC_AprobeRequest[num_completed_aprobes];
+                memcpy(completed_aprobes, payload, total_size);
+            }
+            else
+            {
+                num_completed_aprobes = 0;
+            }
         }
         else
         {
@@ -390,33 +353,11 @@ void ScanObject_Impl::handle_uhdp(uint8_t message_type, const char* payload, uin
         break;
 
     case UHDP_TYPE_RDC1_PLAYBACK:
-        payload    += sizeof(UhdpDataHeader);
-        total_size -= sizeof(UhdpDataHeader);
-        if (!rdc1_playback_data)
+        if (!myrdc1)
         {
-            if (total_size > sizeof(uint32_t) * 4)
-            {
-                const uint32_t* header = (uint32_t*)payload;
-                if (header[0] == 0x357a9a04UL)
-                {
-                    const uint32_t rdc1_exp_size = header[1];
-                    const uint32_t rdc1_info_size = header[2];
-                    const uint32_t rdc1_size = header[3];
-                    rdc1_playback_total_bytes = sizeof(uint32_t) * 4;
-                    rdc1_playback_total_bytes += sizeof(vec3f_t); // ego vel is after header
-                    rdc1_playback_total_bytes += rdc1_exp_size + rdc1_info_size + rdc1_size;
-                    rdc1_playback_data = new char[rdc1_playback_total_bytes];
-                }
-            }
+            myrdc1 = new RadarDataCube1_Impl(*this);
         }
-        if (rdc1_playback_data)
-        {
-            if (rdc1_playback_received + total_size <= rdc1_playback_total_bytes)
-            {
-                memcpy(rdc1_playback_data + rdc1_playback_received, payload, total_size);
-                rdc1_playback_received += total_size;
-            }
-        }
+        myrdc1->handle_replay_uhdp(payload, total_size);
         break;
 
     case UHDP_TYPE_RDC2:
@@ -566,19 +507,10 @@ void ScanObject_Impl::abort_uhdp(uint8_t message_type)
         break;
 
     case UHDP_TYPE_RDC1:
+    case UHDP_TYPE_RDC1_PLAYBACK:
         if (myrdc1)
         {
             myrdc1->aborted = true;
-        }
-        break;
-
-    case UHDP_TYPE_RDC1_PLAYBACK:
-        if (rdc1_playback_data)
-        {
-            delete [] rdc1_playback_data;
-            rdc1_playback_data = NULL;
-            rdc1_playback_received = 0U;
-            rdc1_playback_total_bytes = 0U;
         }
         break;
 
@@ -697,20 +629,11 @@ void ScanObject_Impl::finish_uhdp(uint8_t message_type)
         }
         break;
 
+    case UHDP_TYPE_RDC1_PLAYBACK:
     case UHDP_TYPE_RDC1:
         if (myrdc1)
         {
             myrdc1->setup();
-        }
-        break;
-
-    case UHDP_TYPE_RDC1_PLAYBACK:
-        if (rdc1_playback_data && rdc1_playback_received != rdc1_playback_total_bytes)
-        {
-            delete [] rdc1_playback_data;
-            rdc1_playback_data = NULL;
-            rdc1_playback_received = 0U;
-            rdc1_playback_total_bytes = 0U;
         }
         break;
 
@@ -788,12 +711,35 @@ PointCloud*                ScanObject_Impl::get_point_cloud()
     if (!mypc && myci)
     {
         mypc = new PointCloud_Impl(*this);
-        mypc->collect_clutter_points();
     }
 
     return mypc;
 }
 
+Tracks*                    ScanObject_Impl::get_tracks()
+{
+    // If an external tracker is enabled in this build, return an empty tracker
+    // even if no tracks were serialized yet
+    if (!mytracks)
+    {
+        mytracks = new Tracks_Impl(*this);
+    }
+
+    return mytracks;
+}
+
+bool                       ScanObject_Impl::get_completed_aprobe(INT index, RDC_AprobeRequest& request) const
+{
+    if (index >= 0 && index < INT(num_completed_aprobes))
+    {
+        request = completed_aprobes[index];
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
 
 float                      ScanObject_Impl::get_noise_floor_dB(float range) const
 {
@@ -826,14 +772,23 @@ float                      ScanObject_Impl::get_azimuth_rad(uint32_t az_bin) con
     }
 
     last_err = SCAN_NO_ERROR;
-    return angle_bins[az_bin].azimuth;
+
+    if (scan_info.num_elevation_angles > 1)
+    {
+        uint32_t mid_el = scan_info.num_azimuth_angles * (scan_info.num_elevation_angles / 2);
+        return angle_bins[mid_el + az_bin].azimuth;
+    }
+    else
+    {
+        return angle_bins[az_bin].azimuth;
+    }
 }
 
 float                      ScanObject_Impl::get_elevation_rad(uint32_t el_bin) const
 {
     if (angle_bins && scan_info.num_azimuth_angles)
     {
-        if (el_bin >= (uint32_t)scan_info.num_beamforming_angles / scan_info.num_azimuth_angles)
+        if (el_bin >= (uint32_t)scan_info.num_elevation_angles)
         {
             last_err = SCAN_INVALID_INPUT;
             return 0.0f;
@@ -889,6 +844,19 @@ const vec3f_t&             ScanObject_Impl::get_receiver_position(uint32_t rxid)
     if (rx_pos && rxid < (uint32_t)(scan_info.total_vrx / scan_info.num_tx_prn))
         return rx_pos[rxid];
     return null_vec3f;
+}
+
+void                       ScanObject_Impl::get_mounting_distances(float& r, float& c, float& height) const
+{
+    r = rear_axle_distance;
+    c = centerline_distance;
+    height = mount_height;
+}
+
+void                       ScanObject_Impl::get_mounting_angles(float& azimuth_deg, float& elevation_deg) const
+{
+    azimuth_deg = mount_azimuth;
+    elevation_deg = mount_elevation;
 }
 
 void                       ScanObject_Impl::release()
@@ -951,6 +919,15 @@ void                       ScanObject_Impl::release_pointcloud(PointCloud& pc)
 }
 
 
+void                       ScanObject_Impl::release_tracks(Tracks& t)
+{
+    assert(&t == mytracks);
+
+    delete mytracks;
+    mytracks = NULL;
+}
+
+
 void                       ScanObject_Impl::release_music(MUSICData& mus)
 {
     assert(&mus == mymusic);
@@ -977,12 +954,22 @@ void                       ScanObject_Impl::release_adc(ADCCaptureData& adc)
 }
 
 
+void                       ScanObject_Impl::attach_blob(char* blob, uint32_t size_bytes)
+{
+    if (rdc3_blob)
+    {
+        delete [] rdc3_blob;
+    }
+    rdc3_blob = blob;
+    rdc3_blob_size_bytes = size_bytes;
+}
+
+
 void                       ScanObject_Impl::save_to_session(const char* session_path) const
 {
     SessionFolderScanSerializer s(session_path);
     return serialize(s);
 }
-
 
 void                       ScanObject_Impl::serialize(ScanSerializer& s) const
 {
@@ -994,23 +981,12 @@ void                       ScanObject_Impl::serialize(ScanSerializer& s) const
         return;
     }
 
-    sprintf(fname, "scan_%06d_info.json", scan_info.scan_sequence_number);
+    sprintf(fname, "scan_%06d_info.bin", scan_info.scan_sequence_number);
     ok = s.begin_write_scan_data_type(fname);
     if (ok)
     {
-        ok &= serialize_scan_info(s);
+        ok &= serialize_scan_info_bin(s);
         s.end_write_scan_data_type(!ok);
-    }
-
-    if (rdc1_playback_data && ok)
-    {
-        sprintf(fname, "scan_%06d_rdc1_bundle.json", scan_info.scan_sequence_number);
-        ok = s.begin_write_scan_data_type(fname);
-        if (ok)
-        {
-            ok &= s.write_scan_data_type(rdc1_playback_data, rdc1_playback_total_bytes, 1);
-            s.end_write_scan_data_type(!ok);
-        }
     }
 
     if (range_bins && ok)
@@ -1079,6 +1055,21 @@ void                       ScanObject_Impl::serialize(ScanSerializer& s) const
         {
             ok &= s.write_scan_data_type(dprobe_out, sizeof(dprobe_out[0]), 1);
             ok &= s.write_scan_data_type(adi_measured_dc, sizeof(adi_measured_dc[0]), 1);
+            if (num_completed_aprobes && completed_aprobes)
+            {
+                ok &= s.write_scan_data_type(completed_aprobes, sizeof(completed_aprobes[0]), num_completed_aprobes);
+            }
+            s.end_write_scan_data_type(!ok);
+        }
+    }
+
+    if (rdc3_blob && ok)
+    {
+        sprintf(fname, "scan_%06d_sparse_rdc3.bin", scan_info.scan_sequence_number);
+        ok &= s.begin_write_scan_data_type(fname);
+        if (ok)
+        {
+            ok &= s.write_scan_data_type(rdc3_blob, rdc3_blob_size_bytes, 1);
             s.end_write_scan_data_type(!ok);
         }
     }
@@ -1106,6 +1097,10 @@ void                       ScanObject_Impl::serialize(ScanSerializer& s) const
     if (mypc && ok)
     {
         ok &= mypc->serialize(s);
+    }
+    if (mytracks && ok)
+    {
+        ok &= mytracks->serialize(s);
     }
     if (mymusic && ok)
     {
@@ -1158,11 +1153,13 @@ void                       ScanObject_Impl::serialize(ScanSerializer& s) const
     s.end_write_scan(!ok);
 }
 
+
 ScanObject* ScanObject::load_from_session(const char* session_path, uint32_t scan_sequence_number)
 {
     SessionFolderScanSerializer s(session_path);
     return deserialize(s, scan_sequence_number);
 }
+
 
 ScanObject* ScanObject::deserialize(ScanSerializer& s, uint32_t scan_sequence_number)
 {
@@ -1171,7 +1168,7 @@ ScanObject* ScanObject::deserialize(ScanSerializer& s, uint32_t scan_sequence_nu
     if (!s.begin_read_scan(scan_sequence_number))
         return NULL;
 
-    sprintf(fname, "scan_%06d_info.json", scan_sequence_number);
+    sprintf(fname, "scan_%06d_info.bin", scan_sequence_number);
     ScanObject_Impl* scan = NULL;
 
     // load the scan info, which *must* be present
@@ -1179,8 +1176,17 @@ ScanObject* ScanObject::deserialize(ScanSerializer& s, uint32_t scan_sequence_nu
     if (len)
     {
         scan = new ScanObject_Impl();
-        bool ok = scan->deserialize_scan_info(s, len);
+        bool format_075 = false;
+        bool ok = scan->deserialize_scan_info_bin(s, len, format_075);
         s.end_read_scan_data_type();
+
+        if (!ok && format_075)
+        {
+            // retry with the 075 sized UhdpScanInformation struct
+            len = s.begin_read_scan_data_type(fname);
+            ok = scan->deserialize_scan_info_bin(s, len, format_075);
+            s.end_read_scan_data_type();
+        }
 
         if (ok)
         {
@@ -1196,6 +1202,29 @@ ScanObject* ScanObject::deserialize(ScanSerializer& s, uint32_t scan_sequence_nu
     else
     {
         s.end_read_scan_data_type();
+
+        sprintf(fname, "scan_%06d_info.json", scan_sequence_number);
+        len = s.begin_read_scan_data_type(fname);
+        if (len)
+        {
+            scan = new ScanObject_Impl();
+            bool ok = scan->deserialize_scan_info(s, len);
+            s.end_read_scan_data_type();
+
+            if (ok)
+            {
+                scan->deserialize(s);
+            }
+            else
+            {
+                delete scan;
+                scan = NULL;
+            }
+        }
+        else
+        {
+            s.end_read_scan_data_type();
+        }
     }
 
     s.end_read_scan();
@@ -1214,17 +1243,6 @@ void        ScanObject_Impl::deserialize(ScanSerializer& s)
     {
         range_bins = new UhdpRangeBinInfo[scan_info.num_range_bins];
         s.read_scan_data_type(range_bins, sizeof(range_bins[0]), scan_info.num_range_bins);
-    }
-    s.end_read_scan_data_type();
-
-    sprintf(fname, "scan_%06d_rdc1_bundle.json", scan_info.scan_sequence_number);
-    len = s.begin_read_scan_data_type(fname);
-    if (len)
-    {
-        rdc1_playback_total_bytes = len;
-        rdc1_playback_received = len;
-        rdc1_playback_data = new char[len];
-        s.read_scan_data_type(rdc1_playback_data, 1, len);
     }
     s.end_read_scan_data_type();
 
@@ -1296,12 +1314,24 @@ void        ScanObject_Impl::deserialize(ScanSerializer& s)
 
     sprintf(fname, "scan_%06d_measurements.bin", scan_info.scan_sequence_number);
     len = s.begin_read_scan_data_type(fname);
-    if (len == sizeof(RDC_DProbe_Output) + sizeof(RDC_adi_measured_dc))
+    if (len >= sizeof(RDC_DProbe_Output) + sizeof(RDC_adi_measured_dc))
     {
         dprobe_out = new RDC_DProbe_Output();
         adi_measured_dc = new RDC_adi_measured_dc();
         s.read_scan_data_type(dprobe_out, sizeof(RDC_DProbe_Output), 1);
         s.read_scan_data_type(adi_measured_dc, sizeof(RDC_adi_measured_dc), 1);
+
+        len -= sizeof(RDC_DProbe_Output) + sizeof(RDC_adi_measured_dc);
+        num_completed_aprobes = len / sizeof(RDC_AprobeRequest);
+        if ((num_completed_aprobes > 0) && (len == num_completed_aprobes * sizeof(RDC_AprobeRequest)))
+        {
+            completed_aprobes = new RDC_AprobeRequest[num_completed_aprobes];
+            s.read_scan_data_type(completed_aprobes, sizeof(completed_aprobes[0]), num_completed_aprobes);
+        }
+        else
+        {
+            num_completed_aprobes = 0;
+        }
     }
 
     mydet = new Detections_Impl(*this);
@@ -1363,11 +1393,28 @@ void        ScanObject_Impl::deserialize(ScanSerializer& s)
         {
             myzd->release();
         }
-        myrdc1 = new RadarDataCube1_Impl(*this);
-        if (!myrdc1->deserialize(s))
-        {
-            myrdc1->release();
-        }
+    }
+
+    myrdc1 = new RadarDataCube1_Impl(*this);
+    if (!myrdc1->deserialize(s))
+    {
+        myrdc1->release();
+    }
+
+    sprintf(fname, "scan_%06d_sparse_rdc3.bin", scan_info.scan_sequence_number);
+    len = s.begin_read_scan_data_type(fname);
+    if (len)
+    {
+        rdc3_blob_size_bytes = len;
+        rdc3_blob = new char[len];
+        s.read_scan_data_type(const_cast<char*>(rdc3_blob), rdc3_blob_size_bytes, 1);
+        s.end_read_scan_data_type();
+    }
+
+    mytracks = new Tracks_Impl(*this);
+    if (!mytracks->deserialize(s))
+    {
+        mytracks->release();
     }
 
     // Note: since there are no rdc1 or core-dump getter methods on the scan
@@ -1389,3 +1436,5 @@ void        ScanObject_Impl::deserialize(ScanSerializer& s)
         }
     }
 }
+
+

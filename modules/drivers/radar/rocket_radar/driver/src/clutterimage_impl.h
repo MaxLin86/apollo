@@ -1,6 +1,8 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #pragma once
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/uhtypes.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/scp-src/eng-api/uhdp-msg-structs.h"
 #include "modules/drivers/radar/rocket_radar/driver/include/clutterimage.h"
@@ -78,6 +80,14 @@ public:
             void     setup();
 
             bool     post_process();
+
+            float    doppler_interpolate(float range, float azimuth);
+
+            float    doppler_sample(uint32_t range_bin, uint32_t azimuth_bin);
+
+            float    elevation_interpolate(float range, float azimuth_fbin);
+
+            float    elevation_sample(uint32_t range_bin, uint32_t azimuth_bin);
 
     ScanObject_Impl& myscan;
 

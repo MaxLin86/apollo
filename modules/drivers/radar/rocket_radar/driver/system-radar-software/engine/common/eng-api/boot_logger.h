@@ -1,11 +1,13 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_BOOT_LOGGER_H
 #define SRS_HDR_BOOT_LOGGER_H 1
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/b0_debug_logs.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/b1_debug_logs.h"
 #include "device.h"
 #ifndef B0_DEBUG_EMULATION
-#define B0_DEBUG_EMULATION 0
+#define B0_DEBUG_EMULATION 1
 #endif
 SRS_DECLARE_NAMESPACE()
 void sysctl_debug_log(uint32_t c);
@@ -70,7 +72,7 @@ public:
     virtual uint32_t get_log_wr(void){return wr_ptr;}
     virtual uint32_t get_log_wrap(void)
     {
-        if(is_wrap)
+        if (is_wrap)
         {
             return 1;
         }

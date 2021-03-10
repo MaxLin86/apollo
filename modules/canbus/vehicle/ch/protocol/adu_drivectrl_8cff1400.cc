@@ -57,10 +57,10 @@ void Adudrivectrl8cff1400::Reset() {
   ad_adcstatus_ = Adu_drivectrl_8cff1400::AD_ADCSTATUS_NORMAL;
   ad_epb_ = Adu_drivectrl_8cff1400::AD_EPB_STANDBY;
   // Modified by shijh
-  ad_brakepercent_ = 50;
+  ad_brakepercent_ = 500;
   ad_brakereq_ = Adu_drivectrl_8cff1400::AD_BRAKEREQ_APPLY_BRAKE;
   // Modified by shijh
-  ad_maxspeedlimitreq_ = 20.0;
+  ad_maxspeedlimitreq_ = 27.0; //20.0; 
   ad_torquepercent_ = 0;
   ad_gearreq_ = Adu_drivectrl_8cff1400::AD_GEARREQ_NATURAL;
   ad_statusreq_ = Adu_drivectrl_8cff1400::AD_STATUSREQ_VEHICLE_IGNITION_REQUEST;
@@ -76,7 +76,7 @@ Adudrivectrl8cff1400* Adudrivectrl8cff1400::set_ad_vcuswverreq(
 void Adudrivectrl8cff1400::set_p_ad_vcuswverreq(uint8_t* data,
     Adu_drivectrl_8cff1400::Ad_vcuswverreqType ad_vcuswverreq) {
   int x = ad_vcuswverreq;
-
+  
   Byte to_set(data + 3);
   to_set.set_value(x, 0, 1);
 }
@@ -157,11 +157,19 @@ Adudrivectrl8cff1400* Adudrivectrl8cff1400::set_ad_brakepercent(
 // config detail: {'name': 'AD_BrakePercent', 'offset': 0.0, 'precision': 1.0, 'len': 7, 'is_signed_var': False, 'physical_range': '[0|100]', 'bit': 33, 'type': 'int', 'order': 'intel', 'physical_unit': '%'}
 void Adudrivectrl8cff1400::set_p_ad_brakepercent(uint8_t* data,
     int ad_brakepercent) {
-  ad_brakepercent = ProtocolData::BoundedValue(0, 100, ad_brakepercent);
+  /* Modify@20201223: according to Rev13 matrix, unit change from /100 to /1000 */
+  ad_brakepercent = ProtocolData::BoundedValue(0, 1000, ad_brakepercent);
   int x = ad_brakepercent;
+  
+  uint8_t half = 0;
+  half = static_cast<uint8_t>(x & 0x0F);
+  Byte to_set0(data + 3);
+  to_set0.set_value(half, 4, 4);
+  x >>= 4;
 
-  Byte to_set(data + 4);
-  to_set.set_value(x, 1, 7);
+  half = static_cast<uint8_t>(x & 0xFF);
+  Byte to_set1(data + 4);
+  to_set1.set_value(half, 0, 8);
 }
 
 
@@ -175,9 +183,10 @@ Adudrivectrl8cff1400* Adudrivectrl8cff1400::set_ad_brakereq(
 void Adudrivectrl8cff1400::set_p_ad_brakereq(uint8_t* data,
     Adu_drivectrl_8cff1400::Ad_brakereqType ad_brakereq) {
   int x = ad_brakereq;
-
-  Byte to_set(data + 4);
-  to_set.set_value(x, 0, 1);
+  
+  /* Modify@20201223: according to Rev13 matrix */
+  Byte to_set(data + 3);
+  to_set.set_value(x, 1, 1);
 }
 
 
@@ -207,11 +216,19 @@ Adudrivectrl8cff1400* Adudrivectrl8cff1400::set_ad_torquepercent(
 // config detail: {'name': 'AD_TorquePercent', 'offset': 0.0, 'precision': 1.0, 'len': 8, 'is_signed_var': False, 'physical_range': '[0|100]', 'bit': 8, 'type': 'int', 'order': 'intel', 'physical_unit': '%'}
 void Adudrivectrl8cff1400::set_p_ad_torquepercent(uint8_t* data,
     int ad_torquepercent) {
-  ad_torquepercent = ProtocolData::BoundedValue(0, 100, ad_torquepercent);
+  /* Modify@20201223: according to Rev13 matrix, unit change from /100 to /1000 */
+  ad_torquepercent = ProtocolData::BoundedValue(0, 1000, ad_torquepercent);
   int x = ad_torquepercent;
+  
+  uint8_t half = 0;
+  half = static_cast<uint8_t>(x & 0x0F);
+  Byte to_set0(data + 0);
+  to_set0.set_value(half, 4, 4);
+  x >>= 4;
 
-  Byte to_set(data + 1);
-  to_set.set_value(x, 0, 8);
+  half = static_cast<uint8_t>(x & 0xFF);
+  Byte to_set1(data + 1);
+  to_set1.set_value(half, 0, 8);
 }
 
 
@@ -226,8 +243,9 @@ void Adudrivectrl8cff1400::set_p_ad_gearreq(uint8_t* data,
     Adu_drivectrl_8cff1400::Ad_gearreqType ad_gearreq) {
   int x = ad_gearreq;
 
+  /* Modify@20201223: according to Rev13 matrix */
   Byte to_set(data + 0);
-  to_set.set_value(x, 4, 4);
+  to_set.set_value(x, 2, 2);
 }
 
 
@@ -242,8 +260,9 @@ void Adudrivectrl8cff1400::set_p_ad_statusreq(uint8_t* data,
     Adu_drivectrl_8cff1400::Ad_statusreqType ad_statusreq) {
   int x = ad_statusreq;
 
+  /* Modify@20201223: according to Rev13 matrix */
   Byte to_set(data + 0);
-  to_set.set_value(x, 0, 4);
+  to_set.set_value(x, 0, 2);
 }
 
 }  // namespace ch

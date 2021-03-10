@@ -48,4 +48,19 @@ cc_proto_library(
         ":ultra_radar_proto_lib",
     ],
 )
+proto_library(
+    name = "tire_pressure_proto_lib",
+    srcs = [
+	"tire_pressure.proto",
+    ],
+    deps = [
+	"//modules/common/proto:header_proto_lib",
+    ],
+ )
 
+cc_proto_library(
+    name = "tire_pressure_proto",
+    deps = [
+	":tire_pressure_proto_lib",
+    ],
+)

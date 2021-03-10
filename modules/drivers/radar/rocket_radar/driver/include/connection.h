@@ -1,29 +1,8 @@
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #pragma once
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/uhtypes.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/scp-src/eng-api/uhdp-msg-structs.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/scp-src/eng-api/rdc.h"
@@ -40,7 +19,6 @@
 
 class Scanning;
 class ScanObject;
-class VehicleCAN;
 class LogControl;
 
 SRS_DECLARE_NAMESPACE()
@@ -68,21 +46,10 @@ public:
     //! function at a time.
     virtual void        poll_socket() = 0;
 
-    //! register a VehicleCAN (Controller Area Network) class instance. VehicleCAN
-    //! instances registered with this interface will be polled together with
-    //! the radar UhDP network socket, ensuring they are serviced with
-    //! sufficient frequency. The VehicleCAN class instance will automatically
-    //! update the radar telemetry when appropriate CAN messages arrive. The
-    //! connection owns the registered VehicleCAN instance and will destroy it
-    //! when the connection is closed and released. Only a single VehicleCAN
-    //! instance can be registered at a time, the Connection releases any previous
-    //! instance when a new instance is registered.
-    virtual void        register_vehicle_CAN_device(VehicleCAN& v) = 0;
-
     //! Only applicable when the connected radar is running scans with a defined
     //! frame interval. This re-synchronizes the radar’s frame interval base time
     //! to the specified host time.
-    virtual void        synchronize_scan_interval(timeval host_time) = 0;
+    virtual void        synchronize_frame_interval(timeval host_time) = 0;
 
     //! Returns the number of unique antenna configurations supported by the
     //! connected radar (and its radar software). Might return zero if the radar
@@ -197,7 +164,7 @@ public:
     //! Poll for completed scans not associated with a Scanning object, in other
     //! words scans that were issued via a diagnostic test or via RDC_ScanControl
     //! messaging. This function will always return NULL if a Scanning object
-    //! has been allocated for this Connection and has not been released()
+    //! has been allocated for this Connection and has not been released
     virtual ScanObject* poll_completed_scan() = 0;
 
     //! Configure the detection, clutter image, and point cloud thresholds.
@@ -245,6 +212,10 @@ public:
     //! is generally preferred (16 on Linux, 8 on Windows). Specify <=1 to reset
     //! back to the default packet window value
     virtual void        specify_data_packet_window(uint8_t packet_window) = 0;
+
+    //! If the radar software supports this feature, the function will return a
+    //! string describing the module. This string is user defined and arbitrary
+    virtual const char* get_radar_host_name() = 0;
 
     //! If the radar software supports this feature, the function will return a
     //! string describing the module (board) name, eg: "MOD-222-Judo"
@@ -303,20 +274,44 @@ public:
     //! transmit a file on the local host to the radar's DDR backed trivial file system
     virtual bool        tftp_upload(const char* local_fname, const char* radar_fname) = 0;
 
+    //! transmit a string buffer the radar's DDR backed trivial file system
+    virtual bool        tftp_string_upload(const char* buffer, size_t size_bytes, const char* radar_fname) = 0;
+
     //! transmit a file from radar's DDR backed trivial file system to the local host
     virtual bool        tftp_download(const char* local_fname, const char* radar_fname) = 0;
+
+    //! send a message to the radar signaling that RDC1 replay uploads are
+    //! complete (this is part of the RDC1 replay process)
+    virtual void        send_rdc1_data_ready_message() = 0;
 
     //! return the software version string reported by the radar
     virtual const char* get_radar_software_version() const = 0;
 
+    //! Mark a connection as disabled, meaning that it can no longer be used to
+    //! communicate with a radar, except to cleanly close the connection. This
+    //! is intended for use in reference counting languages like Python where
+    //! a wrapped Connection instance might survive longer than intended, but
+    //! it is invalid because the sensor has been rebooted
+    virtual void        mark_connection_rebooted() = 0;
+
+    //! Return true if mark_connection_rebooted() has been called on this
+    //! Connection instance, indicating that the Connection is broken and
+    //! the radar will no longer respond to it
+    virtual bool        is_connection_rebooted() const = 0;
+
+    //! Return false if connection has been disabled by mark_connection_rebooted
+    //! or if the radar has failed to respond to any request after an appropriate
+    //! number of retransmissions
+    virtual bool        is_connection_valid() const = 0;
+
     //! Stop all scans, flush radar data, close radar connection and release
     //! all objects. When this function returns, the caller must discard all
-    //! references to Connection and Scanning.  ScanObject data is not released,
+    //! references to Connection and Scanning. ScanObject data is not released,
     //! the user maintains ownership.
     virtual void        close_and_release() = 0;
 
     //! Same as close_and_release() except the radar is also rebooted after
-    //! the connection is closed.  It will be several seconds before the radar
+    //! the connection is closed. It will be several seconds before the radar
     //! will respond to new connection attempts.
     virtual void        close_and_reboot() = 0;
 
@@ -359,19 +354,21 @@ public:
         uint32_t missing_scans;        //!< total number scans without scan info
         uint32_t data_without_scan_info; //!< scan data packets received for scans without scan info
         uint32_t tftp_retransmissions; //!< number of times a TFTP operation had to be repeated (packet drop)
+        uint32_t diag_retransmissions; //!< number of times a diag message had to be repeated (packet drop)
 
         //! convenience function to write the counters to a FILE handle
         void dump(FILE* fp) const
         {
-            if (wrong_uhdp_version)   { fprintf(fp, "wrong_uhdp_version: %d\n",   wrong_uhdp_version); }
-            if (wrong_payload_length) { fprintf(fp, "wrong_payload_length: %d\n", wrong_payload_length); }
-            if (wrong_message_type)   { fprintf(fp, "wrong_message_type: %d\n",   wrong_message_type); }
-            if (total_packets_rcvd)   { fprintf(fp, "total_packets_rcvd: %d\n",   total_packets_rcvd); }
-            if (dropped_data_packets) { fprintf(fp, "dropped_data_packets: %d\n", dropped_data_packets); }
-            if (dropped_scans)        { fprintf(fp, "dropped_scans: %d\n",        dropped_scans); }
-            if (missing_scans)        { fprintf(fp, "missing_scans: %d\n",        missing_scans); }
-            if (data_without_scan_info) { fprintf(fp, "data_without_scan_info: %d\n", data_without_scan_info); }
-            if (tftp_retransmissions) { fprintf(fp, "tftp_retransmissions: %d\n", tftp_retransmissions); }
+            if (wrong_uhdp_version)   { fprintf(fp, "wrong_uhdp_version: %u\n",   wrong_uhdp_version); }
+            if (wrong_payload_length) { fprintf(fp, "wrong_payload_length: %u\n", wrong_payload_length); }
+            if (wrong_message_type)   { fprintf(fp, "wrong_message_type: %u\n",   wrong_message_type); }
+            if (total_packets_rcvd)   { fprintf(fp, "total_packets_rcvd: %u\n",   total_packets_rcvd); }
+            if (dropped_data_packets) { fprintf(fp, "dropped_data_packets: %u\n", dropped_data_packets); }
+            if (dropped_scans)        { fprintf(fp, "dropped_scans: %u\n",        dropped_scans); }
+            if (missing_scans)        { fprintf(fp, "missing_scans: %u\n",        missing_scans); }
+            if (data_without_scan_info) { fprintf(fp, "data_without_scan_info: %u\n", data_without_scan_info); }
+            if (tftp_retransmissions) { fprintf(fp, "tftp_retransmissions: %u\n", tftp_retransmissions); }
+            if (diag_retransmissions) { fprintf(fp, "diag_retransmissions: %u\n", diag_retransmissions); }
         }
     };
 
@@ -409,4 +406,16 @@ public:
 
     //! returns the last error encountered by this instance
     virtual Err         get_last_error() const = 0;
+
+    // Same functionality as configure_radar_telemetry(), but it does not
+    // require a connection to the sensor. For use in situations where the
+    // inertial navigation system is a completely different process (or on a
+    // completely different processor) than the one managing the radar
+    // connection and radar data outputs. Returns true if temporary socket was
+    // created and UhDP message was sent.
+    //
+    // Note that the phased_array_azimuth field of UhdpTelemetryData has no
+    // effect when the telemetry is transmitted without a connection in this
+    // way.
+    static bool  connectionless_radar_telemetry_update(uint32_t radar_ip, const UhdpTelemetryData& tel);
 };

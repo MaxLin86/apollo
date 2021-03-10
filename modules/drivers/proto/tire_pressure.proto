@@ -1,0 +1,33 @@
+syntax = "proto2";
+
+package apollo.drivers;
+
+import "modules/common/proto/header.proto";
+
+message Tire_Pressure {
+  optional apollo.common.Header header = 1;
+  enum Location {
+      FRONTLEFT = 0;
+      FRONTRIGHT = 1;
+      REARLEFTOUT = 2;
+      REARLEFTINNER = 3;
+      REARRIGHTINNER = 4;
+      REARRIGHTOUT = 5;
+      ERROR = 6;
+  }
+  optional Location tire_location = 2;
+  optional float tire_pressure = 3;
+  optional float tire_temperature = 4;
+  optional uint32 sensor_loss = 5;
+  optional uint32 leakage_warning = 6;
+  optional uint32 high_temp_warning = 7;
+  enum WarnType {
+    NORMAL = 0;
+    HIGHPREWARN = 1;
+    HIGHWARN = 2;
+    LOWPREWARN = 3;
+    LOWWARN = 4;
+    ABNORMAL = 5;
+  }
+  optional WarnType presure_warning = 8;
+}

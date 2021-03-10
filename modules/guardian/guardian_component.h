@@ -80,6 +80,10 @@ class GuardianComponent : public apollo::cyber::TimerComponent {
 
   double miss_message_time_;
   double miss_monitor_time_;
+
+  canbus::Chassis::FaultLevel vcu_fault_level_;
+  int32_t vcu_fault_level2_timeout_flag_;
+  double vcu_fault_level2_timeout_time_pre_;
 };
 
 CYBER_REGISTER_COMPONENT(GuardianComponent)

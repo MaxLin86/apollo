@@ -1,37 +1,26 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_TRIM_CAL_FLASHDATA_H
 #define SRS_HDR_TRIM_CAL_FLASHDATA_H 1
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhmathtypes.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhmathtypes.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/scp-src/eng-api/default-presets.h"
 
 SRS_DECLARE_NAMESPACE()
 
 
 #define MV_PER_V    (1000.0f)
+
+
+enum EFUSE_TRIM_ENUMS {
+    SCHEMA_0 = 0,
+    SCHEMA_1 = 1,
+    SCHEMA_2 = 2,
+    SCHEMA_3 = 3,
+    NUM_EFUSE_SCHEMAS = 4
+};
+
 
 struct TrimKey
 {
@@ -117,6 +106,17 @@ struct TrimCalBData
 };
 
 
+// sanity check values
+#define THERMAL_V0_MIN              (  650.0f)
+#define THERMAL_V0_MAX              (  900.0f)
+#define THERMAL_SLOPE_MIN           (  -1.70)
+#define THERMAL_SLOPE_MAX           (  -1.30)
+#define THERMAL_V0_DEFAULT          (  780.0f)
+#define THERMAL_SLOPE_DEFAULT       (  -1.5f)
+#define MODULATOR_SCALING_MIN       (  -2.700f)
+#define MODULATOR_SCALING_MAX       (  -2.500f)
+#define MODULATOR_SCALING_DEFAULT   (  -2.602f)
+
 // *******************************************************************************************************
 // *******************************************************************************************************
 //! Bit mapping for Schema-0 ECID data
@@ -127,25 +127,25 @@ struct TrimCalBData
 
 struct TrimCalBData_schema0
 {
-    struct Cal0
+    struct Cal0 // efuse addr 47
     {
         uint32_t ro1: 16;
         uint32_t ro2: 16;
     } cal0;
 
-    struct Cal1
+    struct Cal1 // efuse addr 48
     {
         uint32_t ro3: 16;
         uint32_t /* reserved */: 16;
     } cal1;
 
-    struct Cal2
+    struct Cal2 // efuse addr 49
     {
         uint32_t digital: 16;
         uint32_t analog:  16;
     } iddq;
 
-    struct Cal3
+    struct Cal3 // efuse addr 50
     {
         uint32_t schema: 5;
         uint32_t madc_ptat_code: 3;
@@ -154,7 +154,7 @@ struct TrimCalBData_schema0
         uint32_t /* reserved */: 6;
     } thermal_diode;
 
-    struct Cal4
+    struct Cal4 // efuse addr 52
     {
         uint32_t vtr_code: 4;
         uint32_t temp_code: 4;
@@ -163,7 +163,7 @@ struct TrimCalBData_schema0
         uint32_t /* reserved */: 14;
     } master_bias;
 
-    struct Cal5
+    struct Cal5 // efuse addr 53
     {
         uint32_t v_0: 10;               // Thermal sensor 1 offset, in mV (V * 1e3)
         uint32_t vtr_code: 4;
@@ -171,7 +171,7 @@ struct TrimCalBData_schema0
         uint32_t /* reserved */: 10;
     } adie_thermal_sensor_1;
 
-    struct Cal6
+    struct Cal6 // efuse addr 54
     {
         uint32_t v_0: 10;               // Thermal sensor 2 offset, in mV (V * 1e3)
         uint32_t vtr_code: 4;
@@ -179,24 +179,24 @@ struct TrimCalBData_schema0
         uint32_t /* reserved */: 10;
     } adie_thermal_sensor_2;
 
-    struct Cal7
+    struct Cal7 // efuse addr 55
     {
         uint32_t /* reserved */: 32;
     } d_die_thermal_sensor;
 
-    struct Cal8
+    struct Cal8 // efuse addr 112
     {
         uint32_t gain : 16;             // TX modulator gain, in units of mV (V * 1e3)    16-bit signed int
         uint32_t offset : 16;           // TX modulator offset, in units of 1uV (V * 1e6) 16-bit signed int
     } madc_tx;
 
-    struct Cal9
+    struct Cal9 // efuse addr 113
     {
         uint32_t gain : 16;             // RX modulator gain, in units of mV (V * 1e3)    16-bit signed int
         uint32_t offset : 16;           // RX modulator offset, in units of 1uV (V * 1e6) 16-bit signed int
     } madc_rx;
 
-    struct Cal10
+    struct Cal10 // efuse addr 114
     {
         uint32_t gain : 16;             // SH modulator gain, in units of mV (V * 1e3)    16-bit signed int
         uint32_t offset : 16;           // SH modulator offset, in units of 1uV (V * 1e6) 16-bit signed int
@@ -210,18 +210,18 @@ struct TrimCalBData_schema0
 
 // *******************************************************************************************************
 // *******************************************************************************************************
-//! Bit mapping for Schema-1 ECID data
-//! Changes:
+//! Bit mapping for Schemas 1/2/3 ECID data
+//! Changes from Schema 0:
 //! 1) Thermal coefficients changed to C/density from C/V.
 //! 2) Bit fields shifter for MADC and thermal values to improve accuracy.
 //! 3) Scaling changed for MADC to improve accuracy.
 
-#define SCHEMA1_THERMAL_V0_SCALING          (   1.0e-3f)
-#define SCHEMA1_THERMAL_SLOPE_SCALING       ( -10.0e-6f)
-#define SCHEMA1_MODULATOR_GAIN_SCALING      (-100.0e-6f)
-#define SCHEMA1_MODULATOR_OFFSET_SCALING    (  10.0e-6f)
+#define SCHEMA123_THERMAL_V0_SCALING          (   1.0e-3f)
+#define SCHEMA123_THERMAL_SLOPE_SCALING       ( -10.0e-6f)
+#define SCHEMA123_MODULATOR_GAIN_SCALING      (-100.0e-6f)
+#define SCHEMA123_MODULATOR_OFFSET_SCALING    (  10.0e-6f)
 
-struct TrimCalBData_schema1
+struct TrimCalBData_schema123
 {
     struct Cal0
     {
@@ -298,10 +298,11 @@ struct TrimCalBData_schema1
         int16_t offset : 16;            // SH modulator offset, in units of 10uV (V * 1.0e-5) 16-bit signed int, range is [-327.68mV, 327.67mV]
     } madc_sh;
 
-    void set_defaults();
+    void set_defaults(uint32_t);
 
     void uhprint() const {}
 };
+
 
 SRS_CLOSE_NAMESPACE()
 

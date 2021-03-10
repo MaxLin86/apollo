@@ -1,31 +1,10 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_RDC_H
 #define SRS_HDR_RDC_H 1
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
 /*! \file */
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/uhtypes.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/devmm.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/event-enums.h"
@@ -45,6 +24,7 @@ class RDC_StaticImage;
 
 struct AntennaSetParameters;
 struct UhdpScanInformation;
+struct UhdpADCDescriptor;
 struct DetectionData;
 struct RDC_ThresholdControl;
 struct RDC_ScanDescriptor;
@@ -62,8 +42,13 @@ struct QiloCalBData;
 struct VrxAlignCalBData;
 struct CDataCalBData;
 struct LDOCalBData;
+struct TxGainCalData;
+struct RxGainCalData;
+struct TxBwCalData;
+struct RxBwCalData;
 struct RegulatorVoltageRecord;
 struct LdoCalibrationParameters;
+struct PeakDetCalData;
 
 //! Scan information
 //
@@ -122,7 +107,7 @@ public:
 
                             RDC_ClutterImage() {}
 
-    virtual                ~RDC_ClutterImage() {}
+    UHVIRTDESTRUCT(RDC_ClutterImage)
 
     //! Get magnitude clutter image buffer
     virtual void           *get_magnitude_image(
@@ -177,7 +162,7 @@ public:
 
                             RDC_EgoVelocity() {}
 
-    virtual                ~RDC_EgoVelocity() {}
+    UHVIRTDESTRUCT(RDC_EgoVelocity)
 
     //! Get ego velocity histogram buffer
     virtual void           *get_histogram(
@@ -215,7 +200,7 @@ public:
 
                             RDC_DetectionIterator() {}
 
-    virtual                ~RDC_DetectionIterator() {}
+    UHVIRTDESTRUCT(RDC_DetectionIterator)
 
     //! Get next detection
     //
@@ -271,7 +256,7 @@ class RDC_PointCloud
 public:
                             RDC_PointCloud() {}
 
-    virtual                ~RDC_PointCloud() {}
+    UHVIRTDESTRUCT(RDC_PointCloud)
 
     //! Get all points in the Point Cloud
     //
@@ -316,7 +301,7 @@ public:
 
                             RDC_ScanInstance() {}
 
-    virtual                ~RDC_ScanInstance() {}
+    UHVIRTDESTRUCT(RDC_ScanInstance)
 
     //! Get pointer to frame config
     virtual RDC_FrameConfig *get_frame_config(
@@ -332,6 +317,23 @@ public:
 
     //! Get complete scan information for this scan instance
     virtual RDC_ScanInfo    *get_information(
+                                    ) = 0;
+
+    //! Generate an IOVEC pair (address, offset) list which covers the sparsified
+    //! RDC3 and all the related data required to replay the scan in the
+    //! future; including noise floors and software exponents.  The user must
+    //! provide storage for the IOVEC list and incidentals.
+    //
+    //! If the function does not set any errors, the working buffer will contain
+    //! an IOVEC array terminated with a (0, X) pair. It is the user's
+    //! responsibility to push this data out of the radar
+    //
+    //! The resulting blob can be loaded back onto the radar and replayed. The
+    //! user is responsible for regenerating the same (or compatible) frame config
+    virtual void            generate_scan_blob(
+                                    uint8_t* working_buffer,             //!< user-provided working buffer storage
+                                    uint32_t working_buffer_size_bytes,  //!< size in bytes of user-provided working buffer
+                                    uint16_t maximum_datagram_size       //!< maximum number of bytes in each IOVEC
                                     ) = 0;
 
     //! Accessor used by UhDP protocol implementation for fetching scan information
@@ -400,6 +402,11 @@ public:
     //! requested with the RDC_FrameConfig
     virtual const RDC_adi_measured_dc* get_requested_dc_measurements(
                                     ) = 0;
+
+    //! Get requested ADC data, returns NULL if no ADC data was captured
+    virtual const void*     get_adc_descriptor(
+                                    UhdpADCDescriptor& desc         //!< Input/Output: user-provided storage for outputs
+                                    ) const = 0;
 
     //! Get data for an extended detection from this scan.
     //
@@ -590,9 +597,8 @@ public:
 
     //! Get scan end timestamp
     //
-    //! Returns value returned by uh_read_clock(), which is in units of
-    //! one microsecond.  This clock wraps around before 0xFFFFFFFF due
-    //! to the way it is generated from the hardware free running counter.
+    //! Returns value returned by uh_read_raw32_clock_ticks(), which wraps
+    //! at MAX_UINT32
     virtual uint32_t        get_scan_end_timestamp(
                                     ) const = 0;
 
@@ -611,11 +617,13 @@ public:
     virtual FLOAT           get_scan_board_temperature(
                                     ) const = 0;
 
-#if SABINE_B
     virtual bool            fetch_adc_cdata_correction(
                                     CDataCalBData& cdata
                                     ) = 0;
-#endif
+
+    //! Read scan error status register (interrupt_status_register) in various blocks
+    //! and report errors
+    virtual bool            generate_rspss_error_logs() = 0;
 
     //! Release a reference to this RDC_ScanInstance.
     //
@@ -641,7 +649,7 @@ public:
 
                             RDC_ScanConfig() {}
 
-    virtual                ~RDC_ScanConfig() {}
+    UHVIRTDESTRUCT(RDC_ScanConfig)
 
 
     // ====== APIs that are only effective if called BEFORE RDC_FrameConfig::configure() ======
@@ -712,7 +720,6 @@ public:
                                     ) = 0;
 
 
-
     // ====== APIs that are only effective if called AFTER RDC_FrameConfig::configure() ======
 
 
@@ -726,12 +733,12 @@ public:
 
     //! Request capture of A-Probe measurement
     //
-    //! Can be called at any time.  There is a limit to the number
-    //! of A-Probe requests which can be performed each scan, defined
-    //! by the engine.  Returns false if it was unable to add an
-    //! additional request.  The results from completed probes will be
-    //! available from each RDC_ScanInstance.  Has no effect if called
-    //! before configure()
+    //! Must be called AFTER RDC_FrameConfig::configure().
+    //! There is a limit to the number of A-Probe requests which
+    //! can be performed each scan, defined by the engine.  Returns
+    //! false if it was unable to add an additional request.  The results
+    //! from completed probes will be available from each RDC_ScanInstance.
+    //! Has no effect if called before configure()
     virtual bool            request_aprobe(
                                     const RDC_AprobeRequest& request    //!< A-Probe request descriptor
                                     ) = 0;
@@ -756,30 +763,6 @@ public:
     // CorrectionManager in response to RDC_FrameConfig::configure(). They should
     // only be called manually when over-riding the standard corrections, or
     // when you do not wish for them to be calibrated on demand.
-
-#if SABINE_A
-
-    //! Set or update the QILO correction parameters
-    virtual void            set_qilo_correction(
-                                    const QiloCalData&      qilo_cal_data   //!< Input:  Correction data structure
-                                    ) = 0;
-
-    //! Get the current QILO correction parameters
-    virtual void            get_qilo_correction(
-                                    QiloCalData&            qilo_cal_data   //!< Output: Correction data structure
-                                    ) = 0;
-
-    //! Set or update the Receiver DC correction parameters
-    virtual void            set_dc_correction(
-                                    const DCCalData&        dc_cal_data     //!< Input:  Correction data structure
-                                    ) = 0;
-
-    //! Get the current Receiver DC correction parameters
-    virtual void            get_dc_correction(
-                                    DCCalData&              dc_cal_data     //!< Output: Correction data structure
-                                    ) = 0;
-
-#elif SABINE_B
 
     //! Apply a mask of transmitters to be left powered off while scans are running (HW-12)
     //! Equivalent to setting tx_power_mask in initial RDC_ScanDescriptor
@@ -819,13 +802,33 @@ public:
                                     VrxAlignCalBData&       vrx_cal_data    //!< Output: Correction data structure
                                     ) = 0;
 
+    //! Set or update the transmitter gain settings
+    virtual void            set_tx_gains(
+                                    const TxGainCalData& tx_gain_data       //!< Input:  TX gains data structure
+                                    ) = 0;
+
+    //! Set or update the receiver gain settings
+    virtual void            set_rx_gains(
+                                    const RxGainCalData& rx_gain_data       //!< Input:  RX gains data structure
+                                    ) = 0;
+
+    //! Set or update the transmitter bandwidth settings
+    virtual void            set_tx_bandwidth(
+                                    const TxBwCalData& tx_bw_data           //!< Input:  TX bandwidth data structure
+                                    ) = 0;
+
+    //! Set or update the receiver bandwidth settings
+    virtual void            set_rx_bandwidth(
+                                    const RxBwCalData& rx_bw_data           //!< Input:  TX bandwidth data structure
+                                    ) = 0;
+
     //! must be called after configure() but before request_ldo_cal().  This
     //! function initializes the LDO calibration engine and specifies where the
     //! calibration outputs are to be stored as well as the status results.
     virtual void            register_ldo_cal(
                                     LDOCalBData& ldo_data,
                                     LDOCalBData& ldo_status,
-                                    RegulatorVoltageRecord& input_v, 
+                                    RegulatorVoltageRecord& input_v,
                                     RegulatorVoltageRecord& final_v,
                                     EventEnum    callback
                                     ) = 0;
@@ -840,10 +843,53 @@ public:
                                     const LdoCalibrationParameters* override_params
                                     ) = 0;
 
+    //! must be called after configure() but before request_ldo_cal().  This
+    //! function initializes the LDO calibration engine and specifies where the
+    //! calibration outputs are to be stored as well as the status results.
+    virtual void            register_peak_det_cal(
+                                    PeakDetCalData& peak_det_data,
+                                    PeakDetCalData& peak_det_status,
+                                    EventEnum    callback
+                                    ) = 0;
+
+    //! perform a calibration on a single LDO, optionally override the
+    //! calibration params, must be called after register_ldo_cal(), must be
+    //! called after configure(). This requested LDO calibration is triggered
+    //! when the next scan is started, and it only runs once.
+    virtual void            request_peak_det_cal(
+                                    uint16_t channel,
+                                    EventEnum    callback
+                                    ) = 0;
+
+    //! directly control the rotation applied by RSU1 (for calibration purposes only).
+    //! Must be called after configure(). rotate_pattern_count = 0 disables RSU1 rotations
+    virtual void            set_rsu1_rotations(
+                                    uint8_t  rotate_pattern_count,           //!< 5bit count of symbols to use (up to 32)
+                                    uint32_t rotate_prog0,                   //!< first 16 2-bit symbols
+                                    uint32_t rotate_prog1                    //!< last 16 2-bit symbols
+                                    ) = 0;
+
+    //! override the IQ correction and directly write to the MIQ rotation table
+    //! (for calibration purposes only). Must be called after configure()
+    //! num_rotations = 0 places the MIQ in bypass mode (disabled)
+    virtual void            set_miq_rotations(
+                                    uint32_t num_rotations,                 //!< Input: number of rotations specified per RX
+                                    IQCorrMatrix rotation_matrix[NUM_RX_PER_BANK] //!< Input: array [num_rotations][NUM_RX_PER_BANK]
+                                    ) = 0;
+
     //! Stops transmitting signals on the transmitter, only applicable if the
     //! scan desc had the RDCSCF_SIGGEN_ENABLE flag set
     virtual void            siggen_stop() = 0;
-#endif
+
+
+    //! Request a peak detection measurement to be performed during each scan.
+    //! The result is returned in UhdpScanInformation.  Only one TX bit in the
+    //! channel_map can be set in each request. Specify channel_map of 0 to
+    //! disable future peak detect measurements
+    virtual void            request_peak_detect_measurement(
+                                uint16_t channel_map,
+                                PeakDetector measure_point
+                                ) = 0;
 
     //! Set or update the TCS (Transmitter Carrier Suppression) correction parameters
     virtual void            set_tcs_correction(
@@ -865,6 +911,11 @@ public:
                                     IQCalData&              iq_cal_data     //!< Output: Correction data structure
                                     ) = 0;
 
+
+    //! Get the sampling to RSU1 output ratio
+    virtual RDC_error       get_sampling_rate_to_rsu1Out_ratio(
+                                   uint32_t& val             //!< Output:  Fsamp to RSU1output ratio
+                                   ) = 0;
 
 
     // ====== APIs that are safe to be called at any time ======
@@ -890,10 +941,33 @@ public:
                                     const uint32_t                  dprobe_cnt
                                     ) = 0;
 
+    //! Enable or disable analog (RF) loopback, select the transmitter and
+    //! receiver to loopback, and specify the (slow) rotation to apply to the
+    //! signal. Can be called at before configure() or any time between scans
+    virtual void            configure_rf_loopback(
+                                    bool                  enable,       //!< enable or disable RF loopback
+                                    uint8_t               tx_select,    //!< select the source transmitter (HW12)
+                                    uint8_t               rx_select,    //!< select the target receiver
+                                    RDC_Loopback_Rotation rotation      //!< 250Mhz, 125Mhz, 62.5Mhz, or bypass
+                                    ) = 0;
+
+    //! Control the hardware Doppler shifting operation
+    //
+    //! The interpretations of the "value" parameter depends on the mode
+    //! DSM_ABSOLUTE_OFFSET: "value" is the absolute velocity shift (m/s)
+    //! DSM_EGO_FRACTION:    "value" is a number from 0..1, and indicates the fraction of ego-velocity to shift the Doppler velocity by
+    //! DSM_EGO_OFFSET:      "value" is the velocity (m/s) offset from ego-velocity
+    //
+    virtual void           set_ego_velocity_shift(
+                                    RDC_Doppler_Shift_Update_Mode  update_mode,     //!< Doppler-shift mode selector
+                                    RDC_Doppler_Shift_RDC_Mode     rdc_shift_mode,  //!< RDC shift mode selector
+                                    FLOAT                          value            //!< Parameter, interpretation depends on mode
+                                    ) = 0;
+
     //! Phased array transmitter array steering azimuth angle (radians)
     virtual void            set_phased_array_aziumth(
-                            FLOAT                       pa_az           //!< Input:  Azimuth angle (radians) to steer the Tx beam to
-                            ) = 0;
+                                    FLOAT                 pa_az         //!< Input:  Azimuth angle (radians) to steer the Tx beam to
+                                    ) = 0;
 
     //! Request dense RDC3 data from subsequent scans. The desc describes the
     //! region of interest and number_of_scans describes the duration. Returns
@@ -910,6 +984,14 @@ public:
                                     uint32_t            request_handle  //!< Input:  Handle of request to cancel, as returned by request_extra_data()
                                     ) = 0;
 
+    //! Request raw RDC3 data to be kept after scan post-processing, so static
+    //! slice and raw activations are available to the environment. Keeping the
+    //! RDC3 data available for a longer time can have a negative impact on scan
+    //! rate performance. Can be called at any time, even while scanning
+    virtual void            request_raw_rdc3(
+                                    bool                enable          //!< Input:  If true, keep RDC3 raw data until RSI is released
+                                    ) = 0;
+
     //! Request a point cloud to be generated from dynamic RDC3 (activations),
     //! this method can be called at any time to toggle the generation of point
     //! cloud data from future scans
@@ -918,7 +1000,7 @@ public:
                                     ) = 0;
 
     //! Detection, clutter image, point cloud, side-lobe and ridge suppression thresholds.
-    //! can be called at any time, even while scanning
+    //! Can be called at any time, even while scanning
     virtual void            setup_detection_thresholds(
                                     const RDC_ThresholdControl      &thresh_ctrl     //!< Input:  New detection threshold values to use
                                     ) = 0;
@@ -932,6 +1014,21 @@ public:
                                     EventEnum           event,          //!< Input:  Event ID to post upon completion
                                     bool                notify_uhdp     //!< Input:  If true, send completed calibration scans to UhDP
                                     ) = 0;
+
+    // Replay a sparse RDC3 "blob" created by calling
+    // RDC_ScanInstance::generate_scan_blob() and serializing the address/length
+    // pairs. This will only operate correctly if this RDC_ScanConfig was
+    // configured in the exact same scan configuration as the captured scan.
+    // Scan post-processing is performed on the sparse RDC3 from the blob and,
+    // generating detections and point cloud points and a clutter image.
+    // Eventually an RDC_ScanInstance will be emitted to the object layer in the
+    // normal fashion, just as if the scan has just completed.  This function
+    // should not be called when scans are running on the radar hardware, and
+    // only one scan "blob" at a time should be in the replay state.
+    virtual void            replay_scan_blob(
+                                    const void*         blob_buffer,
+                                    uint32_t            blob_buffer_max_size
+                                    ) = 0;
 };
 
 
@@ -943,7 +1040,7 @@ public:
 
                             RDC_FrameConfig() {}
 
-    virtual                ~RDC_FrameConfig() {}
+    UHVIRTDESTRUCT(RDC_FrameConfig)
 
     //! Set default formats for clutter images
     virtual void            set_clutter_image_format(
@@ -1078,7 +1175,7 @@ public:
 
                             RDC_Layer() {}
 
-    virtual                ~RDC_Layer() {}
+    UHVIRTDESTRUCT(RDC_Layer)
 
 
     //! Get reference to the RDC_Layer singleton
@@ -1125,7 +1222,7 @@ public:
     //! Provides an external estimate of radar linear & angular velocity (e.g.: from CAN bus)
     virtual void            set_ego_velocity(
                                     vec3f_t linear,             //!< Linear velocity vector of the world, in the radar's coordinate system
-                                    quatf_t angular,            //!< Angular velocity quaternion of the world, in the radar's coordinate system
+                                    vec3f_t angular,            //!< Angular velocity quaternion of the world, in the radar's coordinate system
                                     uint32_t age_us             //!< Age of the velocidy data, in microseconds, at the time of the API call
                                     ) = 0;
 
@@ -1139,7 +1236,7 @@ public:
 
     //! Control whether ego-velocity histograms are computed and output for each scan
     virtual void            enable_ego_velocity_detection(
-                                    bool enable                 //!< Enable or disable flag
+                                    RHAL_Ego_Velocity_Mode mode //!< Mode selector for internal ego-velocity estimation
                                     ) = 0;
 
     //! Register event ID that is posted whenever basic processing for a scan has completed
@@ -1198,8 +1295,8 @@ public:
     //! In order to request an A-Probe during a scan, instead use the
     //! RDC_ScanConfig::request_aprobe() method of the RDC_ScanConfig class.
     //! When the completion callback is asynchronously triggered, the trigger
-    //! function will be passed a copy of this RDC_AprobeRequest and its
-    //! measured_value will be valid. If a scan is in progress, pending Aprobes
+    //! function will be passed a pointer to a struct MeasurementRequest, and its
+    //! "value" field will be valid. If a scan is in progress, pending Aprobes
     //! are executed in strict priority order: high priority, scan-registered
     //! Aprobes, then best effort. If a scan is not in progress, pending Aprobes
     //! are executed in priority order: high priority, scan idle, then best
@@ -1209,6 +1306,11 @@ public:
                                     EventEnum                completion,    //!< Event ID to be posted when A-Probe measurement completes
                                     RDC_AprobePriorities     pri,           //!< Priority and scheduling information
                                     const RDC_AprobeRequest& request        //!< A-Probe request descriptor
+                                    ) = 0;
+
+    virtual bool            request_peakdet(
+                                    EventEnum                completion,    //!< Event ID to be posted when Peak Detector measurement completes
+                                    const RDC_PeakDetRequest& request       //!< Peak Detector request descriptor
                                     ) = 0;
 
     //! Measure chip temperature
@@ -1231,40 +1333,14 @@ public:
     //! along with the name of the voltage rail.
     virtual FLOAT           get_input_voltage(
                                     INT             selector,           //!< Input:  Select which voltage to measure
-                                    const char *   &name                //!< Output: Name of voltage rail
+                                    const CHAR *   &name                //!< Output: Name of voltage rail
                                     ) = 0;
-
-    //! Get the current local oscillator mode
-    virtual RHAL_LOMode     get_local_oscillator_mode(
-                                    ) const = 0;
 
     //! Sets microcal enable state, returns previous state
     virtual bool            set_enable_microcal(
                                     bool enable
                                     ) = 0;
 
-#if SABINE_A
-    //! Configure periodic inter-scan DC calibrations. Specify -1 for default values, 0 to disable.
-    virtual void            set_auto_minical_interval(
-                                    INT         time_in_sec,        //!<
-                                    INT         scan_interval       //!<
-                                    ) = 0;
-
-    //! Specialty API for Sabine-A Vrx Alignment
-    virtual void            rx_delay_micro_adjust(
-                                    uint16_t    rx_no,      //!<
-                                    uint16_t    delay       //!<
-                                    ) = 0;
-
-    //! Specialty API for Sabine-A Vrx Alignment
-    virtual void            tx_delay_micro_adjust(
-                                    uint16_t    tx_no,      //!<
-                                    uint16_t    delay       //!<
-                                    ) = 0;
-
-    virtual FLOAT           get_carrier_frequency(
-                                    ) const = 0;
-#elif SABINE_B
     //! Apply a new LDO correction
     virtual void            apply_ldo_correction(
                                     const LDOCalBData& ldo_cal
@@ -1278,17 +1354,27 @@ public:
     //! Return the current default carrier frequency (in GHz)
     virtual FLOAT           get_default_carrier_frequency(
                                     ) const = 0;
+
+    virtual RDC_Sampling_rate get_fixed_adc_sample_rate(
+                                    ) const = 0;
+
+    virtual RDC_DAC_Rate    get_fixed_dac_rate(
+                                    ) const = 0;
+
     //! Measure a-die temperature
     //
     //! Returns the result of the most recent measurement of
     //! internal analog die temperature (celcius).
     virtual FLOAT           get_adie_temperature(
                                     ) const = 0;
-#endif
 
     //! Emit log messages detailing the current radar status.
     virtual void            report_status(
                                     ) const = 0;
+
+    //! Plot ASCII chart of antenna positions into the radar log
+    virtual void            plot_antenna_positions(
+                                    ) = 0;
 };
 
 SRS_CLOSE_NAMESPACE()

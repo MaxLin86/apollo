@@ -18,6 +18,7 @@ proto_library(
         "//modules/localization/proto:localization_proto_lib",
         "//modules/map/proto:map_proto_lib",
         "//modules/perception/proto:perception_proto_lib",
+        "//modules/common/proto:geometry_proto_lib",
     ],
 )
 

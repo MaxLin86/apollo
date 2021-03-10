@@ -13,4 +13,6 @@ message RocketRadarConf {
   optional double install_pos_y = 7;
   optional double install_pos_z = 8;
   optional double positive = 9 [default = 1.0];
+  optional bool   need_track = 10[default = false];
+  optional string detect_channel = 11;
 }

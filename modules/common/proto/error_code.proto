@@ -7,6 +7,7 @@ enum ErrorCode {
   // No error, returns on success.
   OK = 0;
 
+  RMT_ERROR=198;
   // Control module error codes start from here.
   CONTROL_OK =999;
   CONTROL_ERROR = 1000;

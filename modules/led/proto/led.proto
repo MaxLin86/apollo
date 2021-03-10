@@ -1,0 +1,19 @@
+syntax = "proto2";
+
+package apollo.led; 
+
+import "modules/common/proto/header.proto"; 
+message ledmsg {
+  optional apollo.common.Header header = 1; 
+  optional string word = 2;  //字母或数字
+ // enum word {
+  //  WORD_ZKYSXXJS = 0;//中科云杉信息技术
+  //  WORD_ZKYS =1;//中科云杉
+  //}
+  //optional word wordid = 2; 
+}
+
+
+message ledConf { 
+  optional string dev_serial_name = 1;  //串口设备名称
+}

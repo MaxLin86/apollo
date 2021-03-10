@@ -1,31 +1,16 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_DMAC_API_H
 #define SRS_HDR_DMAC_API_H 1
 
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/logging-enums.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/event-enums.h"
 #include "dma-enums.h"
 
 SRS_DECLARE_NAMESPACE()
 
-#if SABINE_A
-#define DMAC_MASTER_CCP         0
-#define DMAC_MASTER_HSM         1
-#define DMAC_MASTER_PERI0       2
-#define DMAC_MASTER_PER11       3
-#define DMAC_MASTER_RSP0        4
-#define DMAC_MASTER_RSP1        5
-#define DMAC_MASTER_SCP0        6
-#define DMAC_MASTER_SCP1        7
-#define DMAC_MASTER_RSP0_DMA    8
-#define DMAC_MASTER_RSP1_DMA    9
-#define DMAC_MASTER_DMAC       10
-#define DMAC_MASTER_GMAC       11
-#define DMAC_MASTER_H264       12
-#define DMAC_MASTER_RSP_SS_MAS 13
-#define DMAC_MASTER_FLEXRAY    14
-#elif SABINE_B
 #define DMAC_MASTER_CCP                     0
 #define DMAC_MASTER_HSM                     1
 #define DMAC_MASTER_SCP_R5_0_PERIPHERAL     2
@@ -42,7 +27,6 @@ SRS_DECLARE_NAMESPACE()
 #define DMAC_MASTER_RSP_SS                  13
 #define DMAC_MASTER_RESERVED1               14
 #define DMAC_MASTER_ETHERNET_CONTROLLER_1   15
-#endif
 
 #define DMA_MAX_BURST_LENGTH  0x7FU // 0x7FU
 #define DMA_MAX_WORD_SIZE     0x03U // 0x3U
@@ -86,10 +70,6 @@ struct dma_params
     uint32_t dst_burst_size; // Destination burst size
     enum dmaDriver_transfer_loc src_loc_type; // Source location type
     enum dmaDriver_transfer_loc dst_loc_type; // Destination location type
-#if SABINE_A
-    enum dmaDriver_transfer_mode trans_mode; //DMAC Transfer mode
-    enum dmaDriver_transfer_type trans_type; //Transfer type
-#endif
 };
 
 //Structure of descriptor for configuring DMAC for scatter-gather mode

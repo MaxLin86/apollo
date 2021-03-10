@@ -134,4 +134,11 @@ DECLARE_string(manuctrl_topic);
 DECLARE_string(tmc_topic);
 DECLARE_string(ultra_radar_topic);
 DECLARE_string(fused_radar_topic);
-DECLARE_string(tmc_task_topic);
+DECLARE_string(rms_rc_topic);
+DECLARE_string(rms_task_topic);
+DECLARE_string(alignement_topic);
+DECLARE_string(camera_front_1_topic);
+DECLARE_string(camera_front_3_topic);
+DECLARE_string(tire_pressure_topic);
+// Road Guide topic
+DECLARE_string(roadguide_topic);

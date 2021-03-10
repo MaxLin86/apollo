@@ -48,6 +48,8 @@ class Vcuvehicleinfo398f003d0 : public ::apollo::drivers::canbus::ProtocolData<
   // config detail: {'name': 'VCU_VehicleSpeed', 'offset': 0.0, 'precision': 0.00390625, 'len': 16, 'is_signed_var': False, 'physical_range': '[0|255]', 'bit': 8, 'type': 'double', 'order': 'intel', 'physical_unit': 'km/h'}
   double vcu_vehiclespeed(const std::uint8_t* bytes, const int32_t length) const;
 
+  int vcu_handbrakestatus(const std::uint8_t* bytes, int32_t length) const;
+
   // config detail: {'name': 'VCU_CoolantStatus', 'enum': {0: 'VCU_COOLANTSTATUS_NORMAL', 1: 'VCU_COOLANTSTATUS_COOLANT_LOW', 2: 'VCU_COOLANTSTATUS_ERROR_INDICATOR', 3: 'VCU_COOLANTSTATUS_NOT_AVAILABLE'}, 'precision': 1.0, 'len': 2, 'is_signed_var': False, 'offset': 0.0, 'physical_range': '[0|3]', 'bit': 4, 'type': 'enum', 'order': 'intel', 'physical_unit': ''}
   Vcu_vehicleinfo3_98f003d0::Vcu_coolantstatusType vcu_coolantstatus(const std::uint8_t* bytes, const int32_t length) const;
 

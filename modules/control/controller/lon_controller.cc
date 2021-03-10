@@ -369,7 +369,7 @@ Status LonController::ComputeControlCommand(
   //   cmd->set_gear_location(chassis->gear_location());       // change by why
   // }
   cmd->set_gear_location(chassis->gear_location());
-  AERROR<<chassis->gear_location();
+  //AERROR<<chassis->gear_location();
   return Status::OK();
 }
 

@@ -1,0 +1,8 @@
+<cyber>
+    <module>
+        <name>radar_front_left</name>
+        <dag_conf>/apollo/modules/drivers/radar/rocket_radar/dag/rocket_front_left.dag</dag_conf>
+        <process_name>radar_front_left</process_name>
+    </module>
+
+</cyber>

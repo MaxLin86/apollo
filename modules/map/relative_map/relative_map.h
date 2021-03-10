@@ -28,7 +28,8 @@
 #include "modules/map/relative_map/proto/relative_map_config.pb.h"
 #include "modules/perception/proto/perception_obstacle.pb.h"
 
-#include "modules/remoteManage/proto/remoteManage.pb.h"
+//#include "modules/remoteManage/proto/remoteManage.pb.h"
+#include "modules/rms/proto/rms.pb.h"
 
 #include "modules/common/monitor_log/monitor_log_buffer.h"
 #include "modules/common/status/status.h"
@@ -92,10 +93,12 @@ class RelativeMap {
   void OnChassis(const canbus::Chassis& chassis);
   void OnLocalization(const localization::LocalizationEstimate& localization);
   void OnNavigationInfo(const NavigationInfo& navigation_info);
-  void OnTmcNavigationInfo(const remoteManage::actTask& act_task) ;
+  void OnTmcNavigationInfo(const rms::msgTaskCoord& act_task) ;
+
   std::shared_ptr<NavigationInfo> GetTcsNavigation(){return tcs_navigation_msg_;}//33333333333
-  bool GetTcsNavigationStatus(){return tcs_navigator_status_;}
+  bool GetTcsNavigationStatus(){return reset_act_task_/*tcs_navigator_status_*/;}
   bool LoadMap();
+  bool LoadLocalPath() ;
  private:
   bool CreateMapFromNavigationLane(MapMsg* map_msg);
   RelativeMapConfig config_;
@@ -108,8 +111,11 @@ class RelativeMap {
   std::vector<GuidepostGroup> guidepost_group_vector_; 
   std::mutex navigation_lane_mutex_;
 
-  remoteManage::actTask act_task_;
+  std::vector<Eigen::Vector2d> local_path_points_vector_;
+
+  rms::msgTaskCoord act_task_;
   bool reset_act_task_;
+  apollo::common::Point2D traget_position_coord_;
 
   //-----------------//
   bool GenerateNavigatorPath(const std::vector<cv::Point2d>& gps_points);

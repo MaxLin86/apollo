@@ -1,6 +1,6 @@
 syntax = "proto2";
 
-message PositionConf {
+message TopConf {
     optional string output_channel = 1;
     optional double dist2radar = 2;
     optional double radar_height = 3;
@@ -13,4 +13,120 @@ message PositionConf {
     optional double min_range = 9;
     optional double snr_diff = 10;
     optional double offset = 11;
+}
+
+message TopConf2{
+    optional float  interval_reflector1 = 1; 
+    optional float  interval_reflector2 = 2; 
+    optional float  snr_min = 3;
+    optional float  delta_range = 4;
+    optional float  y_min_c = 5;
+    optional float  y_max_c = 6;
+    optional float  range_min_c = 7;
+    optional float  range_max_c = 8;
+    optional int32 num_min = 9;
+    optional int32 num_max = 10;
+    optional float err_weight = 11;
+    optional float distance_offset = 12;  
+    optional float output_range_limit = 13;
+    optional float box20_y_offset_c = 14;
+     
+    optional float  y_min_f = 15;
+    optional float  y_max_f = 16;
+    optional float  range_min_f = 17;
+    optional float  range_max_f = 18;
+    optional float  box20_y_offset_f = 19;
+  
+    optional float  y_min_r = 20;
+    optional float  y_max_r = 21;
+    optional float  range_min_r = 22;
+    optional float  range_max_r = 23;
+    optional float  box20_y_offset_r = 24;
+   
+    optional float  box20d_y_offset_c = 25;
+    optional float  box40_y_offset_c = 26;
+    optional float  box45_y_offset_c = 27;
+
+    optional float output_range_limit_max = 28;
+}
+
+message SideConf{
+    optional float  interval_reflector_f1 = 1; 
+    optional float  interval_reflector_f2 = 2; 
+    optional float  snr_min = 3;
+    optional float  delta_range = 4;
+    optional float  y_min = 5;
+    optional float  y_max = 6;
+    optional float  range_min_c = 7;
+    optional float  range_max_c = 8;
+    optional int32 num_min = 9;
+    optional int32 num_max = 10;
+    optional float err_weight = 11;
+    optional float box20_distance_offset_c = 12;  
+    optional float output_range_limit = 13;   
+
+    optional float  range_min_r = 14;
+    optional float  range_max_r = 15;
+    optional float box20_distance_offset_r = 16;  
+
+    optional float  interval_reflector_r1 = 17; 
+    optional float  interval_reflector_r2 = 18; 
+    optional float  range_min_f = 19;
+    optional float  range_max_f = 20;
+    optional float  box20_distance_offset_f = 21;  
+
+    optional float  box20d_distance_offset_c = 22;
+    optional float  box40_distance_offset_c = 23;
+    optional float  box45_distance_offset_c = 24;
+}
+
+message  SmoothConf{
+optional int32 smooth_enable = 1;
+optional float s_resolution = 2;
+optional float s_min = 3;
+optional int32 s_num = 4;
+optional float motion_std = 5;
+optional float meas_std = 6;
+}
+
+message  BoxRelPosConf{
+optional float box20_yard_rel_f = 1;
+optional float box20_yard_rel_c = 2;
+optional float box20_yard_rel_r = 3;
+
+optional float box20d_yard_rel_c = 4;
+optional float box40_yard_rel_c = 5;
+optional float box45_yard_rel_c = 6;
+
+optional float box20_bank_rel_f = 7;
+optional float box20_bank_rel_c = 8;
+optional float box20_bank_rel_r = 9;
+
+optional float box20d_bank_rel_c = 10;
+optional float box40_bank_rel_c = 11;
+optional float box45_bank_rel_c = 12;
+}
+
+message  PosLimitConf{
+optional double dist_des_rear_yard_f = 1;
+optional double dist_des_rear_yard_c = 2;
+optional double dist_des_rear_yard_r  = 3;
+optional double dist_des_rear_bank_f  = 4;
+optional double dist_des_rear_bank_c  = 5;
+optional double dist_des_rear_bank_r  = 6;
+
+optional double dist_offset_yard_f = 7;
+optional double dist_offset_yard_r = 8;
+optional double dist_offset_bank_f = 9;
+optional double dist_offset_bank_r = 10;
+}
+
+message PositionConf {
+    optional TopConf  positionpara_top = 1;    
+    optional TopConf2  positionpara_top2 = 2;    
+    optional SideConf  positionpara_topleft = 3; 
+    optional SideConf  positionpara_topright = 4;
+    optional SmoothConf positionpara_smooth = 5;
+    optional BoxRelPosConf positionpara_boxrelpos = 6;
+    optional PosLimitConf  positionpara_poslimit =7;
 }

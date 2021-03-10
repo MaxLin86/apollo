@@ -1,4 +1,4 @@
-#include "modules/drivers/radar/rocket_radar/driver/include/sra.h"
+#include "modules/drivers/radar/rocket_radar/driver/include/rra.h"
 #include "modules/drivers/radar/rocket_radar/driver/include/scanning.h"
 #include "modules/drivers/radar/rocket_radar/driver/include/scanobject.h"
 #include "modules/drivers/radar/rocket_radar/driver/include/serializer.h"
@@ -22,8 +22,6 @@ void  PointCloud_Impl::get_points(Point* output)
         return;
     }
 
-    collect_clutter_points();
-
     float azimuths_rad[MAX_MAX_ROUGH_ANGLES];
     float elevations_rad[MAX_MAX_ROUGH_ANGLES];
 
@@ -31,16 +29,20 @@ void  PointCloud_Impl::get_points(Point* output)
     const RDC_ThresholdControl& thresh = myscan.mythresh;
 
     // ego velocity derived from sensors connected to CAN bus
-    vec3f_t can  = vec3f_t(info.ego_velocity_X, info.ego_velocity_Y, info.ego_velocity_Z);
+    vec3f_t can  = vec3f_t(info.ego_linear_velocity_X, info.ego_linear_velocity_Y, info.ego_linear_velocity_Z);
 
     // ego velocity derived from static slice histogram analysis
     vec3f_t hist = vec3f_t(info.estimated_ego_velocity_X, info.estimated_ego_velocity_Y, info.estimated_ego_velocity_Z);
+    if (myscan.uhdp_version > 35 && (info.estimated_ego_flag == 0))
+    {
+        hist = 0;
+    }
 
     bool ego_vel_is_zero = can.iszero() && (hist.abs() <= 0.1 * myscan.scan_info.doppler_bin_width);
     float stationary_thresh = ego_vel_is_zero ? thresh.ego_zero_stationary_threshold_mps : thresh.ego_nonz_stationary_threshold_mps;
 
     uint32_t AZ = info.num_azimuth_angles;
-    uint32_t EL = info.num_beamforming_angles / AZ;
+    uint32_t EL = info.num_elevation_angles;
     uint32_t zero_doppler_bin = info.num_pulses / 2;
 
     for (uint32_t i = 0; i < info.num_beamforming_angles; i++)
@@ -62,6 +64,17 @@ void  PointCloud_Impl::get_points(Point* output)
         o.doppler = info.doppler_bin_width * (p.doppler_bin - (info.num_pulses / 2));
         o.mag_snr = (float)p.snr_dB / (1 << PointCloudData::PC_SNR_FRAC_BITS);
         o.flags = p.flags;
+        if (p.mag_i || p.mag_q)
+        {
+            float exp_mag = db2mag(TWO_IN_DB * (FLOAT)p.exponent);
+            o.mag_i = float(p.mag_i) * exp_mag;
+            o.mag_q = float(p.mag_q) * exp_mag;
+        }
+        else
+        {
+            o.mag_i = 0.0f;
+            o.mag_q = 0.0f;
+        }
 
         float az = (float)p.azimuth_fbin / (1 << PointCloudData::PC_AZIMUTH_FRAC_BITS);
         int az_bin_lo = (int)az;
@@ -165,25 +178,24 @@ void  PointCloud_Impl::get_points(Point* output)
 
 void  PointCloud_Impl::apply_threshold(float point_cloud_thresh)
 {
-    collect_clutter_points();
-
     if (points)
     {
         uint16_t mag_snr_min = (uint16_t)(point_cloud_thresh * (1 << PointCloudData::PC_SNR_FRAC_BITS));
-        uint32_t i = 0;
-        while (i < num_points)
+        uint32_t out_idx = 0;
+        for (uint32_t in_idx = 0; in_idx < num_points; in_idx++)
         {
-            if (points[i].snr_dB < mag_snr_min)
+            if (out_idx != in_idx)
             {
-                points[i] = points[--num_points];
+                points[out_idx] = points[in_idx];
             }
-            else
+
+            if (points[in_idx].snr_dB >= mag_snr_min)
             {
-                i++;
+                out_idx++;
             }
         }
 
-        myscan.scan_info.total_points = num_points;
+        myscan.scan_info.total_points = out_idx;
     }
 }
 
@@ -192,6 +204,17 @@ void  PointCloud_Impl::release()
 {
     myscan.release_pointcloud(*this);
 }
+
+struct PointCloudData075
+{
+    uint16_t range;
+    uint16_t azimuth_fbin;
+    uint16_t elevation_fbin;
+    uint16_t doppler_bin;
+    uint16_t snr_dB;
+    uint8_t  flags;
+    uint8_t  future_use;
+};
 
 
 bool  PointCloud_Impl::deserialize(ScanSerializer& s)
@@ -210,16 +233,40 @@ bool  PointCloud_Impl::deserialize(ScanSerializer& s)
 
         size_t len = s.begin_read_scan_data_type(fname);
 
-        if (len >= sizeof(PointCloudData) * info.total_points)
+        if (len == sizeof(PointCloudData) * info.total_points)
         {
-            // Allow total points to grow due to addition of static points from Clutter Image
-            info.total_points = len / sizeof(PointCloudData);
-
             points = new PointCloudData[info.total_points];
             ok &= s.read_scan_data_type(points, sizeof(points[0]), info.total_points);
             s.end_read_scan_data_type();
             num_points = info.total_points;
-            clutter_points_collected = true;
+        }
+        else if (len == sizeof(PointCloudData075) * info.total_points)
+        {
+            PointCloudData075* temp = new PointCloudData075[info.total_points];
+            points = new PointCloudData[info.total_points];
+
+            ok &= s.read_scan_data_type(temp, sizeof(temp[0]), info.total_points);
+            s.end_read_scan_data_type();
+
+            num_points = info.total_points;
+
+            for (uint32_t i = 0; i < info.total_points; i++)
+            {
+                const PointCloudData075& old = temp[i];
+                PointCloudData& p = points[i];
+
+                p.range = old.range;
+                p.azimuth_fbin = old.azimuth_fbin;
+                p.elevation_fbin = old.elevation_fbin;
+                p.doppler_bin = old.doppler_bin;
+                p.snr_dB = old.snr_dB;
+                p.flags = old.flags;
+                p.mag_i = 0;
+                p.mag_q = 0;
+                p.exponent = 0;
+            }
+
+            delete [] temp;
         }
         else
         {
@@ -234,8 +281,6 @@ bool  PointCloud_Impl::deserialize(ScanSerializer& s)
 bool  PointCloud_Impl::serialize(ScanSerializer& s)
 {
     bool ok = true;
-
-    collect_clutter_points();
 
     if (points)
     {
@@ -295,7 +340,7 @@ void  PointCloud_Impl::setup()
 
     const UhdpScanInformation& info = myscan.scan_info;
     uint32_t AZ = info.num_azimuth_angles;
-    uint32_t EL = info.num_beamforming_angles / AZ;
+    uint32_t EL = info.num_elevation_angles;
     uint32_t negative_range = 0;
     bool valid = true;
     for (uint32_t i = 0; i < num_points && valid; i++)
@@ -345,15 +390,7 @@ void  PointCloud_Impl::setup()
 }
 
 
-uint32_t PointCloud_Impl::get_count()
-{
-    collect_clutter_points();
-
-    return num_points;
-}
-
-
-void PointCloud_Impl::collect_clutter_points()
+void  PointCloud_Impl::extract_static_points()
 {
     if (!clutter_points_collected)
     {
@@ -361,7 +398,7 @@ void PointCloud_Impl::collect_clutter_points()
         if (ci)
         {
             const UhdpScanInformation& info = myscan.scan_info;
-            uint32_t max_num_points = info.num_range_bins * info.num_beamforming_angles;
+            uint32_t max_num_points = info.num_range_bins * info.num_azimuth_angles * info.num_elevation_angles;
             PointCloudData* cipts = new PointCloudData[max_num_points];
 
             uint32_t actual_cipt_count = ci->get_point_cloud_points(cipts, max_num_points);
@@ -390,4 +427,3 @@ void PointCloud_Impl::collect_clutter_points()
         }
     }
 }
-

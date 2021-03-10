@@ -22,6 +22,8 @@
 
 #include "modules/planning/math/piecewise_jerk/piecewise_jerk_speed_problem.h"
 
+#define trailer_len 9.0
+
 namespace apollo {
 namespace planning {
 
@@ -38,7 +40,7 @@ HybridAStar::HybridAStar(const PlannerOpenSpaceConfig& open_space_conf) {
   next_node_num_ =
       planner_open_space_config_.warm_start_config().next_node_num();
   max_steer_angle_ =
-      vehicle_param_.max_steer_angle() / vehicle_param_.steer_ratio();
+      vehicle_param_.max_steer_angle() / vehicle_param_.steer_ratio() * 0.5;//change by shzhw
   step_size_ = planner_open_space_config_.warm_start_config().step_size();
   xy_grid_resolution_ =
       planner_open_space_config_.warm_start_config().xy_grid_resolution();
@@ -144,8 +146,8 @@ bool HybridAStar::ValidityCheck(std::shared_ptr<Node3d> node) {
     double junction_pos_y = -sin(vehicle_theta)*(0.4) + traversed_y[i];
 
     double trailer_theta = -traversed_trailer_phi[i];
-    double trailer_x = cos(trailer_theta)*(-12.0) +0.0 + junction_pos_x;
-    double trailer_y = -sin(trailer_theta)*(-12.0)+0.0 + junction_pos_y;
+    double trailer_x = cos(trailer_theta)*(-trailer_len) +0.0 + junction_pos_x;
+    double trailer_y = -sin(trailer_theta)*(-trailer_len)+0.0 + junction_pos_y;
     Box2d trailer_bounding_box = Node3d::GetBoundingBox(
         vehicle_param_, trailer_x, trailer_y, trailer_theta);
 
@@ -229,7 +231,7 @@ std::shared_ptr<Node3d> HybridAStar::Next_node_generator(
          double theta_offset =last_phi -  last_trailer_phi;
          double   ds =sqrt((next_x-last_x)*(next_x-last_x)+(next_y-last_y)*(next_y-last_y))*cos(next_phi);
     double tractor_theta_offset = next_phi - last_phi;
-    double delta_theta_offset = ds/12.0*sin(theta_offset) + tractor_theta_offset;
+    double delta_theta_offset = ds/trailer_len*sin(theta_offset) + tractor_theta_offset;
     theta_offset = theta_offset + delta_theta_offset;
     double trailer_theta = next_phi - theta_offset;
     theta_offset = next_phi - trailer_theta;
@@ -249,7 +251,7 @@ std::shared_ptr<Node3d> HybridAStar::Next_node_generator(
       double vehicle_and_trailer_angle_temp = next_phi - last_trailer_phi;
       double vehicle_and_trailer_angle_last = last_phi-  last_trailer_phi;
       double vehicle_and_trailer_angle_new = (vehicle_and_trailer_angle_last + vehicle_and_trailer_angle_temp) / 2.0;
-      double trailer_wheelbase =12.0;
+      double trailer_wheelbase =trailer_len;
       double trailer_junction_radius = trailer_wheelbase / sin(vehicle_and_trailer_angle_new);
       double rear_wheel_center_arc_len = sqrt((next_x-last_x)*(next_x-last_x)+(next_y-last_y)*(next_y-last_y));
       double trailer_longitudinal_base_last_time = rear_wheel_center_arc_len / trailer_junction_radius;

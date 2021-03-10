@@ -4,7 +4,7 @@ module_config {
     timer_components {
     class_name: "tmcComponent"
     config {
-      name: "tmc"
+      name: "tmc1"
       config_file_path: "/apollo/modules/tmc/conf/tmc_conf.pb.txt"
       interval: 25
     }

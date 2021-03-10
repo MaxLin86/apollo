@@ -1,0 +1,23 @@
+syntax = "proto2";
+
+package apollo.rms;
+
+import "modules/common/proto/header.proto";
+import "modules/common/proto/geometry.proto";
+
+message msgRms {
+        optional apollo.common.Header header = 1;
+}
+
+message msgTaskCoord{
+        optional apollo.common.Header header = 1;
+	optional uint32 task_flag = 2;
+	optional uint32 task_type = 3;
+        optional uint32 machine_type = 4; 
+        optional uint32 machine_num = 5;
+        optional uint32 machine_status = 6;
+	optional uint32 box_type = 7;
+	optional uint32 box_position = 8;
+        optional apollo.common.Point2D dst_coord = 9;
+        repeated apollo.common.Point2D task_coord = 10;
+}

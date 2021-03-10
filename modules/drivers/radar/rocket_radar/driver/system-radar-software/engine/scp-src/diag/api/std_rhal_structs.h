@@ -1,7 +1,9 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_STD_RHAL_STRUCTS_H
 #define SRS_HDR_STD_RHAL_STRUCTS_H 1
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 
 SRS_DECLARE_NAMESPACE()
 
@@ -69,7 +71,15 @@ struct RLLD_adc_pattern
 
 struct RLLD_proc_only_config
 {
-    uint32_t use_synthetic_rdc1;
+    uint32_t input_rdc1;
+    uint32_t set_scale_factors;
+    uint8_t feu_wgt0_mult_scale;
+    uint8_t feu_wgt1_mult_scale;
+    uint8_t feu_wgt2_mult_scale;
+    uint8_t feu_wgt3_mult_scale;
+    uint8_t rau_mat_norm;
+    uint32_t get_stv;
+    uint32_t get_threshold;
 };
 
 SRS_CLOSE_NAMESPACE()

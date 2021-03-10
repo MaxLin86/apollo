@@ -33,7 +33,7 @@ const int32_t Vcuvehicleinfo198f001d0::ID = 0x98f001d0;
 void Vcuvehicleinfo198f001d0::Parse(const std::uint8_t* bytes, int32_t length,
                          ChassisDetail* chassis) const {
   chassis->mutable_ch()->mutable_vcu_vehicleinfo1_98f001d0()->set_vcu_dtc(vcu_dtc(bytes, length));
-  chassis->mutable_ch()->mutable_vcu_vehicleinfo1_98f001d0()->set_vcu_cumulatedmileage(vcu_cumulatedmileage(bytes, length));
+  /* chassis->mutable_ch()->mutable_vcu_vehicleinfo1_98f001d0()->set_vcu_cumulatedmileage(vcu_cumulatedmileage(bytes, length)); */
   chassis->mutable_ch()->mutable_vcu_vehicleinfo1_98f001d0()->set_vcu_modulestatus(vcu_modulestatus(bytes, length));
   chassis->mutable_ch()->mutable_vcu_vehicleinfo1_98f001d0()->set_vcu_batterysoh(vcu_batterysoh(bytes, length));
   chassis->mutable_ch()->mutable_vcu_vehicleinfo1_98f001d0()->set_vcu_batterysoc(vcu_batterysoc(bytes, length));
@@ -43,14 +43,14 @@ void Vcuvehicleinfo198f001d0::Parse(const std::uint8_t* bytes, int32_t length,
 }
 
 // config detail: {'name': 'vcu_dtc', 'offset': 0.0, 'precision': 1.0, 'len': 8, 'is_signed_var': False, 'physical_range': '[0|255]', 'bit': 40, 'type': 'int', 'order': 'intel', 'physical_unit': ''}
-int Vcuvehicleinfo198f001d0::vcu_dtc(const std::uint8_t* bytes, int32_t length) const {
+Vcu_vehicleinfo1_98f001d0::Vcu_dtcType Vcuvehicleinfo198f001d0::vcu_dtc(const std::uint8_t* bytes, int32_t length) const {
   Byte t0(bytes + 5);
   int32_t x = t0.get_byte(0, 8);
 
   int ret = x;
-  return ret;
+  return static_cast<Vcu_vehicleinfo1_98f001d0::Vcu_dtcType>(ret);
 }
-
+/* 
 // config detail: {'name': 'vcu_cumulatedmileage', 'offset': 0.0, 'precision': 20.0, 'len': 16, 'is_signed_var': False, 'physical_range': '[0|1310000]', 'bit': 48, 'type': 'double', 'order': 'intel', 'physical_unit': 'km'}
 double Vcuvehicleinfo198f001d0::vcu_cumulatedmileage(const std::uint8_t* bytes, int32_t length) const {
   Byte t0(bytes + 7);
@@ -64,7 +64,7 @@ double Vcuvehicleinfo198f001d0::vcu_cumulatedmileage(const std::uint8_t* bytes, 
   double ret = x * 20.000000;
   return ret;
 }
-
+ */
 // config detail: {'name': 'vcu_modulestatus', 'enum': {0: 'VCU_MODULESTATUS_NORMAL', 1: 'VCU_MODULESTATUS_L1_WARNING', 2: 'VCU_MODULESTATUS_L2_FAULT', 3: 'VCU_MODULESTATUS_L3_FAULT', 4: 'VCU_MODULESTATUS_OTHER'}, 'precision': 1.0, 'len': 3, 'is_signed_var': False, 'offset': 0.0, 'physical_range': '[0|7]', 'bit': 32, 'type': 'enum', 'order': 'intel', 'physical_unit': ''}
 Vcu_vehicleinfo1_98f001d0::Vcu_modulestatusType Vcuvehicleinfo198f001d0::vcu_modulestatus(const std::uint8_t* bytes, int32_t length) const {
   Byte t0(bytes + 4);

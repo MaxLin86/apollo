@@ -45,7 +45,7 @@ class RelativeMapComponent final : public ::apollo::cyber::TimerComponent {
   std::shared_ptr<cyber::Reader<localization::LocalizationEstimate>>
       localization_reader_ = nullptr;
   std::shared_ptr<cyber::Reader<NavigationInfo>> navigation_reader_ = nullptr;
-  std::shared_ptr<cyber::Reader<apollo::remoteManage::actTask>> tmc_navigation_reader_ = nullptr;
+  std::shared_ptr<cyber::Reader<apollo::rms::msgTaskCoord>> tmc_navigation_reader_ = nullptr;
 
   RelativeMap relative_map_;
 };

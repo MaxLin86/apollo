@@ -56,19 +56,7 @@ bool UhnderRadarComponent::Init() {
   install_pos_z_ = uhnder_radar_config_.install_pos_z();
 
   radarMsg_.Clear();
-  if (radar_id_ == "middle")
-  {
-    radarMsg_.set_radar_id(0);
-  }
-  else if (radar_id_ == "left")
-  {
-    radarMsg_.set_radar_id(1);
-  }
-  else if (radar_id_ == "right")
-  {
-    radarMsg_.set_radar_id(-1);
-  }
-  else if (radar_id_ == "right_corner")
+  if (radar_id_ == "right_corner")
   {
     radarMsg_.set_radar_id(-2);
   }
@@ -76,10 +64,7 @@ bool UhnderRadarComponent::Init() {
   {
     radarMsg_.set_radar_id(2);
   }
-  else if (radar_id_ == "rear")
-  {
-    radarMsg_.set_radar_id(-3);
-  }
+
 
   ThresholdPreset thre = uhnder_radar_config_.threshold();
   if (thre == LOW) {
@@ -202,7 +187,7 @@ bool UhnderRadarComponent::poll() {
   uint32_t radar_ip, local_ip;
 
   inet_pton(AF_INET, radar_ip_, &radar_ip);
-  inet_pton(AF_INET, "192.168.95.133", &local_ip);
+  inet_pton(AF_INET, "192.168.95.146", &local_ip);
 
   ConsoleLogger logger;
   Connection* con = make_connection(radar_ip, local_ip, 3, logger, false);
@@ -254,19 +239,8 @@ bool UhnderRadarComponent::poll() {
     return false;
   }
   
-  std::string filename("result");
-  filename =filename + "_" + radar_id_ + "_track.txt";
-  std::ofstream outfile;
-  outfile.open(filename, std::ios::out);
-  outfile << std::setprecision(3);
-
-  std::string filename1("result");
-  filename1 =filename1 + "_" + radar_id_ + "_meas.txt";
-  std::ofstream outfile2;
-  outfile2.open(filename1, std::ios::out);
-  outfile2 << std::setprecision(3);
-
   ScanObject* scan = s->wait_for_scan();
+
   while (!apollo::cyber::IsShutdown()) { 
     double timestamp = apollo::common::time::Clock::NowInSeconds();
     double delta = timestamp - track_process_->timestamp_;
@@ -323,7 +297,7 @@ bool UhnderRadarComponent::poll() {
               trackObjects_[i].pos_y * sin(install_agle_) + install_pos_x_;
       pos_y = trackObjects_[i].pos_x * sin(install_agle_) +
               trackObjects_[i].pos_y * cos(install_agle_) + install_pos_y_;
-      pos_z = install_pos_z_ + trackObjects_[i].pos_z;
+      pos_z = 0.0; // 
 
       vel_x = trackObjects_[i].vel_x * cos(install_agle_) -
               trackObjects_[i].vel_y * sin(install_agle_) ;
@@ -341,14 +315,9 @@ bool UhnderRadarComponent::poll() {
       obs->set_lateral_vel(vel_y);
       obs->set_longitude_accel(trackObjects_[i].acc_x);
       obs->set_lateral_accel(trackObjects_[i].acc_y);
-
-      // outfile << i << std::setw(15) << trackObjects_[i].id << std::setw(15)
-      //   << pos_x << std::setw(15) << pos_y << std::setw(15) << pos_z
-      //   << std::setw(15) << vel_x << std::setw(15) << vel_y
-      //   << std::setw(15) << trackObjects_[i].acc_x << std::setw(15)
-      //   << trackObjects_[i].acc_y << std::setw(15)
-      //   << trackObjects_[i].lifetime << std::setw(15)
-      //   << trackObjects_[i].count << std::endl;
+      obs->set_flags(false);
+      obs->set_counters(1);
+      obs->set_lifetime(trackObjects_[i].lifetime);
     }
     common::util::FillHeader(node_->Name(), &radarMsg_);
     tmpradarMsg_.mutable_radarobs()->CopyFrom(radarMsg_);
@@ -401,8 +370,7 @@ bool UhnderRadarComponent::poll() {
     scan->release();
     scan = s->wait_for_scan();
   }
- // outfile2.close();
-  outfile.close();
+ 
   return true;
 }
 

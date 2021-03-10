@@ -41,6 +41,7 @@
 #include "modules/localization/msf/local_integ/localization_integ.h"
 
 #include "modules/localization/foo/self_car_tracking.h"
+#include "modules/routing/proto/routing.pb.h"
 
 
 /**
@@ -77,7 +78,11 @@ class MSFLocalization {
   void SetPublisher(const std::shared_ptr<LocalizationMsgPublisher> &publisher);
 
   void OnChassis(const canbus::Chassis& chassis);
-  void LocalizationDRCorrect(LocalizationEstimate &localization);
+  bool LoadMap();
+
+    void OnRouting(const routing::RoutingResponse& routing);
+
+  void LocalizationDRCorrect(LocalizationEstimate &localization, LocalizationStatus &localization_status);
   bool msf_localization_DR_filter_init;
   bool DR_ekf_init;
 
@@ -106,6 +111,16 @@ class MSFLocalization {
   std::unique_ptr<MSFLocalizationDRCorrectFilter> msf_localization_DR_filter_;
   std::unique_ptr<TrailerLocalizationFilter> trailer_localization_filter_;
   std::unique_ptr<SelfCarLocalizationTracking> DR_correct_localizer_;
+
+      std::mutex bestgnsspos_msg_mutex_;
+  drivers::gnss::GnssBestPose bestgnsspos_msg_;
+
+  std::mutex gnssheading_msg_mutex_;
+  drivers::gnss::Heading gnss_heading_msg_;
+
+    routing::RoutingResponse routing_;
+  std::mutex routing_mutex_;
+
 
   // FRIEND_TEST(MSFLocalizationTest, InitParams);
 

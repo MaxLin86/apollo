@@ -1,0 +1,13 @@
+
+
+module_config {
+    module_library : "/apollo/bazel-bin/modules/lidar/lidar.so"
+    timer_components {
+        class_name : "LidarComponent"
+        config {
+            name: "lidar"
+            config_file_path: "/apollo/modules/lidar/conf/lidar_conf.pb.txt"
+            interval: 200
+        }
+    }
+}

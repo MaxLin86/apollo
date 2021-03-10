@@ -1,15 +1,14 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_APROBESINGLE_H
 #define SRS_HDR_APROBESINGLE_H 1
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "aprobe_enums.h"
-#if SABINE_B
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/scp-src/eng-api/cal-a/ldo-cal-flashdata.h"
-#endif
 
 SRS_DECLARE_NAMESPACE()
 
-#define DEFAULT_NUM_SAMPLES 32768
 
 // *****************************************************************************
 //! Test input structure for "aprobesingle::getSingleAprobeValue"
@@ -56,7 +55,6 @@ struct aprobeSingle_getSingleAprobeValue_output
 };
 
 
-
 // *****************************************************************************
 //! Test input structure for "aprobesingle::selectAprobe"
 struct aprobeSingle_selectAprobe_input
@@ -64,12 +62,10 @@ struct aprobeSingle_selectAprobe_input
     //! Specify which MADC to probe: 0 = TX, 1 = SH, 2 = RX
     uint32_t bus;
     //! Specify which channel (0 to 11 for TX, 1 for SH, 0 to 7 for RX)
-    uint32_t channel;
+    int32_t channel;
     //! Spcify which point to probe
     uint32_t hash_code;
 };
-
-
 
 
 // *****************************************************************************
@@ -79,8 +75,6 @@ struct aprobeSingle_releaseAprobe_input
     //! Specify which MADC to probe: 0 = TX, 1 = SH, 2 = RX
     uint32_t bus;
 };
-
-
 
 
 // *****************************************************************************
@@ -93,14 +87,12 @@ struct aprobeSingle_getAprobeCal_output
 };
 
 
-
 // *****************************************************************************
 struct aprobeSingle_setTestPin_input
 {
     //! Specify which bus to connect: 0 = TX, 1 = SH, 2 = RX, all others=off
     int32_t bus;
 };
-
 
 
 // *****************************************************************************
@@ -119,8 +111,6 @@ struct aprobeSingle_measureLdoVoltage_output
     //! The output value of the aprobe normalized (typically a voltage)
     FLOAT output;
 };
-
-
 
 
 // *****************************************************************************
@@ -145,7 +135,6 @@ struct aprobeSingle_calLdoVoltage_output
 };
 
 
-
 // *****************************************************************************
 //! Test input structure for "aprobesingle::set_clock"
 struct aprobeSingle_setClock_input
@@ -165,7 +154,6 @@ struct aprobeSingle_setClock_output
 };
 
 
-
 // *****************************************************************************
 //! Test input structure for "aprobesingle::diagnostic_test"
 struct aprobeSingle_diagnosticTest_input
@@ -175,7 +163,7 @@ struct aprobeSingle_diagnosticTest_input
 
     //! Specify additional divide ratio
     uint32_t parameter;
-    
+
     uint32_t other0, other1;
 };
 
@@ -187,9 +175,26 @@ struct aprobeSingle_diagnosticTest_output
 };
 
 
+// *****************************************************************************
+//! Test input structure for "aprobesingle::diagnostic_test"
+struct aprobeSingle_snapshot_input
+{
+    //! Specify operation
+    uint32_t operation; // Off/On/Dump
+
+    int32_t delay_count;
+    int32_t run_count;
+
+    //! Specify register block mask to be copied
+    uint32_t mask;
+
+    //! Specify triggering measurement
+    uint32_t bus;
+    int32_t channel;
+    uint32_t hash;
+};
 
 
-#if SABINE_B
 // *****************************************************************************
 //! Test input structure for "aprobesingle::cal_ldo"
 struct aprobeSingle_bulkCalLdo_input
@@ -228,12 +233,15 @@ struct aprobeSingle_bulkAprobeRead_input
     uint32_t channel;
 };
 
+#if defined(BUILD_SABINE_REMOTE_API)
+enum { MAX_NUM_BULK_MEASUREMENTS = 230 };
+#endif
+
 //! Test output structure for "aprobesingle::bulk_aprobe_read"
 struct aprobeSingle_bulkAprobeRead_output
 {
     uint32_t data[MAX_NUM_BULK_MEASUREMENTS];
 };
-
 
 
 //! Test input structure for "aprobesingle::bulk_aprobe_write"
@@ -251,13 +259,31 @@ struct aprobeSingle_bulkAprobeWrite_input
 
 
 // *****************************************************************************
-//! Test output structure for "aprobesingle::bulk_aprobe_write"
-struct aprobeSingle_measureTemperature_output
+//! Test output structure for "aprobesingle::measure_temperature"
+struct aprobeSingle_measureTemperature_input
 {
-    //! Sensor 1 temperature
-    FLOAT temp_sensor_1;
+    //! Sensor to read
+    uint32_t temp_sensor_enum;
+    uint32_t channel;
 };
 
+struct aprobeSingle_measureTemperature_output
+{
+    //! Sensor temperature
+    FLOAT temp_sensor_c;
+};
+
+
+// *****************************************************************************
+//! Test input structure for "aprobesingle::set_ldo_cal_parameters"
+struct aprobeSingle_setLdoCalParameters_input
+{
+    //! Specify which enumerated LDO parameter set to update
+    uint32_t ldo_enum;
+
+    //! New parameters
+    LdoCalibrationParameters parameters;
+};
 
 
 // *****************************************************************************
@@ -272,11 +298,10 @@ struct aprobeSingle_registerDump_input
 struct aprobeSingle_registerDump_output
 {
     uint32_t length;
-    
+
     //! The calibration engine status
     uint32_t data[0x2c0/4];
 };
-
 
 
 #define NUM_MEASUREMENT_POINTS  6
@@ -288,10 +313,6 @@ struct aprobeSingle_regSweep_output
     uint32_t sweep_running;
     FLOAT measurement[NUM_MEASUREMENT_POINTS][REGISTER_MAX];
 };
-
-
-
-#endif
 
 SRS_CLOSE_NAMESPACE()
 

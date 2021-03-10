@@ -1,30 +1,9 @@
+// Copyright (C) Uhnder, Inc. All rights reserved. Confidential and Proprietary - under NDA.
+// Refer to SOFTWARE_LICENSE file for details
 #ifndef SRS_HDR_OSIOVEC_H
 #define SRS_HDR_OSIOVEC_H 1
-// START_SOFTWARE_LICENSE_NOTICE
-// -------------------------------------------------------------------------------------------------------------------
-// Copyright (C) 2016-2019 Uhnder, Inc. All rights reserved.
-// This Software is the property of Uhnder, Inc. (Uhnder) and is Proprietary and Confidential.  It has been provided
-// under license for solely use in evaluating and/or developing code for Uhnder products.  Any use of the Software to
-// develop code for a product not manufactured by or for Uhnder is prohibited.  Unauthorized use of this Software is
-// strictly prohibited.
-// Restricted Rights Legend:  Use, Duplication, or Disclosure by the Government is Subject to Restrictions as Set
-// Forth in Paragraph (c)(1)(ii) of the Rights in Technical Data and Computer Software Clause at DFARS 252.227-7013.
-// THIS PROGRAM IS PROVIDED UNDER THE TERMS OF THE UHNDER END-USER LICENSE AGREEMENT (EULA). THE PROGRAM MAY ONLY
-// BE USED IN A MANNER EXPLICITLY SPECIFIED IN THE EULA, WHICH INCLUDES LIMITATIONS ON COPYING, MODIFYING,
-// REDISTRIBUTION AND WARRANTIES. PROVIDING AFFIRMATIVE CLICK-THROUGH CONSENT TO THE EULA IS A REQUIRED PRECONDITION
-// TO YOUR USE OF THE PROGRAM. YOU MAY OBTAIN A COPY OF THE EULA FROM WWW.UHNDER.COM. UNAUTHORIZED USE OF THIS
-// PROGRAM IS STRICTLY PROHIBITED.
-// THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES ARE GIVEN, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING
-// WARRANTIES OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT AND TITLE.  RECIPIENT SHALL HAVE
-// THE SOLE RESPONSIBILITY FOR THE ADEQUATE PROTECTION AND BACK-UP OF ITS DATA USED IN CONNECTION WITH THIS SOFTWARE.
-// IN NO EVENT WILL UHNDER BE LIABLE FOR ANY CONSEQUENTIAL DAMAGES WHATSOEVER, INCLUDING LOSS OF DATA OR USE, LOST
-// PROFITS OR ANY INCIDENTAL OR SPECIAL DAMAGES, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-// SOFTWARE, WHETHER IN ACTION OF CONTRACT OR TORT, INCLUDING NEGLIGENCE.  UHNDER FURTHER DISCLAIMS ANY LIABILITY
-// WHATSOEVER FOR INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS OF ANY THIRD PARTY.
-// -------------------------------------------------------------------------------------------------------------------
-// END_SOFTWARE_LICENSE_NOTICE
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/logging.h"
 #include "event-handler.h"
 
@@ -36,6 +15,7 @@ class BaseIOVec
 {
 public:
 
+    UHVIRTDESTRUCT(BaseIOVec)
     virtual void*     get_data_pointer() = 0;
     virtual uint32_t  get_data_length() const = 0;
 
@@ -43,13 +23,13 @@ public:
     virtual uint32_t  get_buffer_size() const = 0;
     virtual void      release() = 0;
 
-    bool      is_bare() const        { return get_buffer_size() == 0; }
+            bool      is_bare() const        { return get_buffer_size() == 0; }
 
-    bool      is_free() const        { return state == IOVEC_STATE_FREE; }
+            bool      is_free() const        { return state == IOVEC_STATE_FREE; }
 
-    bool      is_alloc() const       { return state == IOVEC_STATE_USER_ALLOC; }
+            bool      is_alloc() const       { return state == IOVEC_STATE_USER_ALLOC; }
 
-    bool      is_eth() const         { return state == IOVEC_STATE_ETH_DRIVER; }
+            bool      is_eth() const         { return state == IOVEC_STATE_ETH_DRIVER; }
 
     enum IovecStatesEnum
     {
@@ -61,19 +41,25 @@ public:
     enum { USER_DATA_SIZE = 8 };
 
     CHAR              user_data[USER_DATA_SIZE];
-    uint32_t          src_interface;        // incomimg packets only
-    uint32_t          local_ip;             // incomimg packets only
     BaseIOVec*        iovec_next;
-    int32_t           tx_complete_handle;
-    int32_t           num_iovec_in_packet;
     IovecStatesEnum   state;
-    bool              end_of_frame;       /* must be set on last iovec of a packet */
+    uint32_t          local_ip;             // incomimg packets only
+    bool              end_of_frame;         // must be set on last iovec of a packet
+    uint8_t           src_interface;        // incomimg packets only
+    uint8_t           num_iovec_in_packet;  // must be configured on first iovec of a packet
+    int8_t            tx_complete_handle;   // optional, defaults to -1 (no handle)
 };
 
+
+//! When you allocate a LoadedIOVec you must specify how many bytes of header
+//! will be prepended to your packet before it is transmitted. This pre-aligns
+//! the data write pointer (offset) such that when all of the headers are pushed
+//! the resulting packet is properly memory-aligned
 class LoadedIOVec : public BaseIOVec
 {
 public:
 
+    UHVIRTDESTRUCT(LoadedIOVec)
     virtual void*    get_data_pointer()      { return payload + offset; }
 
     virtual uint32_t get_data_length() const { return data_length; }
@@ -214,13 +200,13 @@ public:
         if (data_length == sizeof(T))
         {
             uh_memcpy(&msg, payload + offset, sizeof(T));
-            offset = MAX_PREPENDED_HEADER_BYTES;
+            offset = 0;
             data_length = 0;
             return true;
         }
         else
         {
-            offset = MAX_PREPENDED_HEADER_BYTES;
+            offset = 0;
             data_length = 0;
             return false;
         }
@@ -253,7 +239,7 @@ public:
                 addtl_payload = NULL;
                 length = 0;
             }
-            offset = MAX_PREPENDED_HEADER_BYTES;
+            offset = 0;
             data_length = 0;
             return true;
         }
@@ -261,7 +247,7 @@ public:
         {
             addtl_payload = NULL;
             length = 0;
-            offset = MAX_PREPENDED_HEADER_BYTES;
+            offset = 0;
             data_length = 0;
             return false;
         }
@@ -274,48 +260,41 @@ public:
     void align_header(uint32_t header_bytes)
     {
         UHASSERT(data_length == 0);
-        offset = header_bytes + MIN_BYTE_ALIGN;
-        offset -= (uintptr_t)(payload) % MIN_BYTE_ALIGN;
+        offset = header_bytes;
     }
 
 
 protected:
 
-    enum { MAX_PREPENDED_HEADER_BYTES = 64 };
-
-    enum { MIN_BYTE_ALIGN = 8 };
-
     void reset(uint32_t payload_bytes, uint32_t header_bytes)
     {
         max_payload_size = payload_bytes;
         data_length = 0;
-        align_header(header_bytes);
         end_of_frame = true;
         iovec_next = NULL;
         num_iovec_in_packet = 1;
         tx_complete_handle = -1;
+        align_header(header_bytes);
     }
 
-
-    uint32_t offset;
-    uint32_t data_length;
-    uint32_t buffer_size;
-    uint32_t max_payload_size;
-
-    /*! the size of this element is meaningless, since we allocate additional
-     * room after each instance to provide room for payload */
-    CHAR     payload[MAX_PREPENDED_HEADER_BYTES];
+    CHAR*    payload;
+    uint16_t offset;                // starting write offset, to align final packet starting byte
+    uint16_t data_length;           // total packet data
+    uint16_t buffer_size;           // total allocated buffer size at boot
+    uint16_t max_payload_size;      // user-allocated size (temporary limit)
 
     friend class IOVecPool;
 };
+
 
 class BareIOVec : public BaseIOVec
 {
 public:
 
-    void     set_data_length(uint32_t l) { len = l; }
+    UHVIRTDESTRUCT(BareIOVec)
+            void     set_data_length(uint32_t l) { len = l; }
 
-    void     set_data_pointer(void* ptr) { data_ptr = ptr; }
+            void     set_data_pointer(void* ptr) { data_ptr = ptr; }
 
     virtual void*    get_data_pointer()      { return data_ptr; }
 
@@ -338,7 +317,6 @@ protected:
         num_iovec_in_packet = 1;
         tx_complete_handle = -1;
     }
-
 
     static BareIOVec* free_list;
 
@@ -363,6 +341,7 @@ class IOVecPool : public EventHandler
 {
 public:
 
+    UHVIRTDESTRUCT(IOVecPool)
     static IOVecPool& instance();
 
     void            init();

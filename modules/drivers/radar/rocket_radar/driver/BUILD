@@ -4,7 +4,7 @@ package(default_visibility = ["//visibility:public"])
 cc_library(
     name = "rocket_radar_api",
     srcs =[
-        "libsrapi.a",
+        "librrapi.a",
     ],
     includes = [
         "driver",

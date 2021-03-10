@@ -153,7 +153,7 @@ class VehicleController {
 
   virtual void SetLimits() {}
   // Added by shijh
-  virtual void SetFaultLevel(int32_t error_level, int32_t dtc) {}
+  virtual void SetFaultLevel(bool has_error_level, bool has_error_dtc, int32_t error_level, int32_t dtc) {}
   virtual void MaxSpeedLimit(double limit) {}
   virtual void SetAdStatusReq(int32_t request){}
 

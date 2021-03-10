@@ -15,6 +15,12 @@
 #include "modules/canbus/proto/chassis.pb.h"
 #include "modules/common/math/quaternion.h"
 
+#include "modules/drivers/gnss/proto/gnss_best_pose.pb.h"
+#include "modules/drivers/gnss/proto/heading.pb.h"
+
+#include "modules/common/filters/ins_guidepost_fusion_ekf.h"
+#include "modules/routing/proto/routing.pb.h"
+#include "modules/localization/msf/common/util/frame_transform.h"
 
 
 
@@ -38,9 +44,19 @@ namespace localization {
   std::shared_ptr<canbus::Chassis> chassis;
   //canbus::Chassis chassis;
   std::shared_ptr<LocalizationEstimate> localization_estimate;
+    std::shared_ptr<LocalizationStatus> localization_status;  
+  std::shared_ptr<drivers::gnss::GnssBestPose> best_gnss_pos;
+  std::shared_ptr<drivers::gnss::Heading> gnss_heading;
+  std::shared_ptr<routing::RoutingResponse> routing;
   };
   
-
+struct GuidepostGroup
+{
+public:
+  std::string id;//路标组路标1 id
+	double x;//路标组路标1 x坐标
+  double y;//路标组路标1 y坐标
+};
 
 class SelfCarLocalizationTracking {
  public:
@@ -110,20 +126,30 @@ class TrailerLocalizationFilter {
 class MSFLocalizationDRCorrectFilter {
    public:
   apollo::common::KalmanFilterInterface *kalman_filter_;
+    apollo::common::KalmanFilterInterface *guidepost_kalman_filter_;
   MSFLocalizationDRCorrectFilter(){
     kf_coor_sys_ = 1;
   }
   ~MSFLocalizationDRCorrectFilter(){
     delete kalman_filter_;
+    delete guidepost_kalman_filter_;
   }
   apollo::common::KalmanFilterInterface* CreateKalmanFilter(int kf_coor_sys);
   // Predict object rect
   bool InitKalmanFilter(LocalView &local_view);
   void KalmanFilterPredict(LocalView &local_view);
-  void KalmanFilterCorrect(LocalView &local_view);
+  void KalmanFilterCorrect(LocalView &local_view, bool is_update_gps);
+
+
+  apollo::common::KalmanFilterInterface* CreateGuidepostKalmanFilter(int kf_coor_sys);
+  void KalmanFilterGuidepostCorrect(LocalView &local_view, const std::vector<GuidepostGroup> &guideposts);
+  
 
   static int kf_coor_sys_;
   LocalView local_view_;
+
+  std::vector<GuidepostGroup> guidepost_groups_; 
+  uint64 cur_perception_guidepost_index_;
 };
 
 

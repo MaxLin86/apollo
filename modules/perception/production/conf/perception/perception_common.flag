@@ -87,7 +87,8 @@
 --start_visualizer=false
 --fusion_debug_display=false
 --lane_debug_display=false
---guide_post_debug_display=false
+--guide_post_debug_display=true
+--log_file=false
 --guide_post_start_id=52
 --guide_post_end_id=491
 --guide_post_direction=true

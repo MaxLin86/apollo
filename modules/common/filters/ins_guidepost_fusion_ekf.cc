@@ -288,8 +288,8 @@ void GuidepostEKF::JacobianMeasurement(const cv::Mat &state_pre,
 
 void GuidepostEKF::JacobianMeasurementNoise(cv::Mat &jacobian_measurement_noise) {
   jacobian_measurement_noise.setTo(cv::Scalar::all(0.0));
- jacobian_measurement_noise.at<double>(0,0) = 0.3162;
- jacobian_measurement_noise.at<double>(1,1) = 0.3162;
+ jacobian_measurement_noise.at<double>(0,0) = 0.1;//0.3162;
+ jacobian_measurement_noise.at<double>(1,1) = 0.1;//0.3162;
 }
 
 }  // namespace common

@@ -1,11 +1,148 @@
-output_channel: "/apollo/positioin_est"
-dist2radar: -3.2073
-radar_height : 0.0
-target_height : 13.3555 
-px_diff : 0.15
-py_diff : 2.0 
-snr_min : 45.0
-sigma : 0.2
-min_range: 6.99
-snr_diff: 5.0
-offset: 0.20
+positionpara_top{
+  dist2radar: 0.4738
+  radar_height : 0.0
+  target_height : 13.4718 
+  px_diff : 0.10
+  py_diff : 2.0 
+  snr_min : 48.0
+  sigma : 0.2
+  min_range: 6.999
+  snr_diff: 4.0
+  offset: 0.0
+}
+
+positionpara_top2{
+  interval_reflector1 : 0.9916178
+  interval_reflector2 : 1.1620502
+  snr_min : 30.0
+  delta_range : 0.1
+  y_min_c : -7.0
+  y_max_c : 2.0
+  range_min_c : 9.0
+  range_max_c : 14.0
+  num_min : 3
+  num_max : 30
+  err_weight : 0.3
+  distance_offset : 2.8779
+  output_range_limit : 0.5
+  box20_y_offset_c : -5.6371
+  
+  y_min_f : -9.0
+  y_max_f : -1.0
+  range_min_f : 9.0
+  range_max_f : 14.0
+  box20_y_offset_f : -13.9761
+  
+  y_min_r : -3.0
+  y_max_r : 4.0
+  range_min_r : 9.0
+  range_max_r : 14.0
+  box20_y_offset_r : 5.4033
+
+  box20d_y_offset_c : -4.1370
+  box40_y_offset_c : -5.9370
+  box45_y_offset_c : -5.9370
+  
+  output_range_limit_max : 2.0
+}
+
+positionpara_topleft{
+  interval_reflector_f1 : 1.2274
+  interval_reflector_f2 : 0.9031
+  snr_min : 30.0
+  delta_range : 0.1
+  y_min : -2.0
+  y_max : 2.0
+  range_min_c : 1.5
+  range_max_c : 8.0
+  num_min : 3
+  num_max : 30
+  err_weight : 0.3
+  box20_distance_offset_c : 4.8317
+  output_range_limit : 0.5
+
+  range_min_r :  3.0
+  range_max_r :  9.0
+  box20_distance_offset_r : 7.9086
+
+  interval_reflector_r1 : 1.1897
+  interval_reflector_r2 : 1.4751
+  range_min_f : 3.0
+  range_max_f : 12.0
+  box20_distance_offset_f :  8.8248
+
+  box20d_distance_offset_c : 4.8317
+  box40_distance_offset_c : 4.8317
+  box45_distance_offset_c : 4.8317
+}
+
+positionpara_topright{
+  interval_reflector_f1 : 1.2274
+  interval_reflector_f2 : 0.9031
+  snr_min : 30.0
+  delta_range : 0.07
+  y_min : -2.0
+  y_max : 2.0
+  range_min_c : 1.5
+  range_max_c : 8.0
+  num_min : 3
+  num_max : 30
+  err_weight : 0.3
+  box20_distance_offset_c : 4.8317
+  output_range_limit : 0.5
+
+  range_min_r :  3.0
+  range_max_r :  9.0
+  box20_distance_offset_r : 7.9086
+
+  interval_reflector_r1 : 1.1897
+  interval_reflector_r2 : 1.4751
+  range_min_f : 3.0
+  range_max_f : 12.0
+  box20_distance_offset_f :  8.8248
+
+  box20d_distance_offset_c : 4.8317
+  box40_distance_offset_c : 4.8317
+  box45_distance_offset_c : 4.8317
+}
+
+positionpara_smooth{
+  smooth_enable : 1
+  s_resolution : 0.01
+  s_min : 0.4
+  s_num : 160
+  motion_std : 0.02
+  meas_std : 0.07
+}
+
+positionpara_boxrelpos{
+  box20_yard_rel_f : 1.48
+  box20_yard_rel_c : 5.72
+  box20_yard_rel_r : 8.28
+  box20d_yard_rel_c : 2.02
+  box40_yard_rel_c : 2.02
+  box45_yard_rel_c : 2.02
+
+  box20_bank_rel_f : 2.21
+  box20_bank_rel_c : 4.92
+  box20_bank_rel_r : 8.63
+  box20d_bank_rel_c : 2.24
+  box40_bank_rel_c : 1.82
+  box45_bank_rel_c : 1.82
+}
+
+positionpara_poslimit{
+  dist_des_rear_yard_f  : 4.0
+  dist_des_rear_yard_c  : 7.0
+  dist_des_rear_yard_r  :  10.0
+
+  dist_offset_yard_f : 4.0
+  dist_offset_yard_r : 1.5
+
+  dist_des_rear_bank_f   : 0.0
+  dist_des_rear_bank_c  : 0.0
+  dist_des_rear_bank_r   : 0.0
+  
+  dist_offset_bank_f : 10.0
+  dist_offset_bank_r : 10.0 
+}

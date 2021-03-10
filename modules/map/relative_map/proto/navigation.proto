@@ -7,6 +7,7 @@ import "modules/common/proto/pnc_point.proto";
 import "modules/localization/proto/localization.proto";
 import "modules/map/proto/map.proto";
 import "modules/perception/proto/perception_obstacle.proto";
+import "modules/common/proto/geometry.proto";
 
 message NavigationPath {
   optional apollo.common.Path path = 1;
@@ -41,4 +42,20 @@ message MapMsg {
   
   // guidepost marker info from perception and map
   optional apollo.perception.LaneMarker guidepost_marker = 5;
+
+  // target position
+  optional apollo.common.Point2D traget_position_coord = 7;
+  
+  //machine status
+  optional int32 machine_status = 8;
+
+  //box position
+  optional int32 box_position = 9;
+
+  //machine type
+  optional int32 machine_type = 10;
+
+  //task_type
+  optional int32 task_type = 11;
+
 }

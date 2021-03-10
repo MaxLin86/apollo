@@ -32,7 +32,7 @@ apollo::common::KalmanFilterInterface * TrackingSelfCarObject::CreateGuidepostKa
 int TrackingSelfCarObject::kf_coor_sys_ = 0;
 
 bool TrackingSelfCarObject::InitKalmanFilter(bool ins_localization_valid, NewLocalView &local_view,
-      const std::vector<GuidepostGroup> &guideposts) {
+      const std::vector<NewGuidepostGroup> &guideposts) {
   // init state of ekf
   cv::Point2d init_pose;
   double init_theta = 0.0;
@@ -157,7 +157,7 @@ void TrackingSelfCarObject::KalmanFilterPredict(NewLocalView &local_view) {
 
 
 void TrackingSelfCarObject::KalmanFilterGuidepostCorrect(NewLocalView &local_view,
-         const std::vector<GuidepostGroup> &guideposts) {
+         const std::vector<NewGuidepostGroup> &guideposts) {
 
   GuidepostEKF *guidepost_ekf = dynamic_cast<GuidepostEKF *>(guidepost_kalman_filter_);
   

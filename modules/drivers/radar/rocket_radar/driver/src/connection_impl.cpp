@@ -1,14 +1,14 @@
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhnder-common.h"
-#include "modules/drivers/radar/rocket_radar/driver/include/sra.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhnder-common.h"
+#include "modules/drivers/radar/rocket_radar/driver/include/rra.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/srs-profiling.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/connection_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/scanning_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/src/scanobject_impl.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/scp-src/diag/api/diag_calibrate_structs.h"
 
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhstdlib.h"
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhunistd.h"
-#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-uhnder/coredefs/uhinet.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhstdlib.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhunistd.h"
+#include "modules/drivers/radar/rocket_radar/driver/system-radar-software/env-reference/coredefs/uhinet.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/common/eng-api/uhtypes.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/scp-src/eng-api/uhmath.h"
 #include "modules/drivers/radar/rocket_radar/driver/system-radar-software/engine/scp-src/eng-api/uhdp-msg-structs.h"
@@ -25,7 +25,6 @@
 #include "modules/drivers/radar/rocket_radar/driver/src/uhdp//logaggr.h"
 
 #include <assert.h>
-#include <signal.h>
 #include <stdio.h>
 
 #ifdef _WIN32
@@ -47,107 +46,13 @@ static const char* radar_hang_message =
 
 static const char* diag_hang_message =
 "*** Diag %s::%s has hung, or is taking too long to complete.  Diags are not supposed\n"
-"*** to take longer than one second, this one has taken more than 5 seconds.  We do\n"
+"*** to take longer than one second, this diag has not completed in many seconds.  We do\n"
 "*** allow exceptions for this rule in a few situations, particularly for calibration\n"
-"*** To extend the timeout one must set the environment variable UHDP_HELLO_TIMEOUT\n"
-"*** in your script. For example:\n"
+"*** To extend the diag timeout one must set the environment variable UHDP_HELLO_TIMEOUT\n"
+"*** prior to connecting to the radar. For example:\n"
 "***\n"
-"*** import os; os.environ['UHDP_HELLO_TIMEOUT'] = '5'\n"
+"*** import os; os.environ['UHDP_HELLO_TIMEOUT'] = '1'\n"
 "***\n";
-
-static bool ctrl_c_pressed /* = false */;
-#if __APPLE__
-sig_t        orignal_sigint_handler /* = NULL */;
-#else
-#if _WIN32
-typedef void (*sighandler_t)(int);
-#endif
-sighandler_t orignal_sigint_handler /* = NULL */;
-#endif
-
-static const char* uhdp_msg_type_names[] =
-{
-   "UHDP_TYPE_HELLO",
-   "UHDP_TYPE_CAPTURE_CONTROL",
-   "UHDP_TYPE_DISCOVERY",
-   "UHDP_TYPE_SCAN_INFORMATION",
-   "UHDP_TYPE_SCAN_READY",
-   "UHDP_TYPE_PRINT",
-   "UHDP_TYPE_SCAN_CONTROL",
-   "UHDP_TYPE_PPA",
-   "UHDP_TYPE_CONTROL_ACK",
-   "UHDP_TYPE_CONN_CLOSE",
-   "UHDP_TYPE_ADC",
-   "UHDP_TYPE_RDC1",
-   "UHDP_TYPE_RDC2",
-   "UHDP_TYPE_RDC3",
-   "UHDP_TYPE_STATIC_SLICE",
-   "UHDP_TYPE_STATIC_SLICE_BIN",
-   "UHDP_TYPE_HISTOGRAM",
-   "UHDP_TYPE_REG_CORE_DUMP",
-   "UHDP_TYPE_COVARIANCE",
-   "UHDP_TYPE_SVD",
-   "UHDP_TYPE_DETECTIONS",
-   "UHDP_TYPE_CLUTTER_IMAGE",
-   "UHDP_TYPE_MUSIC_SAMPLES",
-   "UHDP_TYPE_ZERO_DOPPLER",
-   "UHDP_TYPE_RANGE_BINS",
-   "UHDP_TYPE_ANGLE_BINS",
-   "UHDP_TYPE_ENV_SCAN_DATA",
-   "UHDP_TYPE_POINT_CLOUD",
-   "UHDP_TYPE_DPROBE_DC_DATA",
-   "UHDP_TYPE_29",
-   "UHDP_TYPE_30",
-   "UHDP_TYPE_31",
-   "UHDP_TYPE_32",
-   "UHDP_TYPE_REQUEST_FLUSH",
-   "UHDP_TYPE_CLOSE_ACK",
-   "UHDP_TYPE_FLUSH",
-   "UHDP_TYPE_DIAG_DISCOVERY",
-   "UHDP_TYPE_DIAG_REQUEST",
-   "UHDP_TYPE_DIAG_COMPLETE",
-   "UHDP_TYPE_DIAG_FORCE_STOP",
-   "UHDP_TYPE_LOG_PRODUCER_NAME",
-   "UHDP_TYPE_ANTENNA_CONFIG",
-   "UHDP_TYPE_LOG_MESSAGE",
-   "UHDP_TYPE_LOG_TASK_NAME",
-   "UHDP_TYPE_DATA_WINDOW",
-   "UHDP_TYPE_STATE_QUERY",
-   "UHDP_TYPE_STATE_RESPONSE",
-   "UHDP_TYPE_STATE_PEEK",
-   "UHDP_TYPE_STATE_POKE",
-   "UHDP_TYPE_TIME_ALIGN",
-   "UHDP_TYPE_LOG_AGGR",
-   "UHDP_TYPE_LOG_AGGR_ACK",
-   "UHDP_TYPE_TELEMETRY_DATA",
-   "UHDP_TYPE_MUSIC_CONTROL",
-   "UHDP_TYPE_THRESHOLD",
-   "UHDP_TYPE_BULK_UPLOAD",
-   "UHDP_TYPE_BULK_UPLOAD_ACK",
-   "UHDP_TYPE_LOG_CONTROL",
-   "UHDP_TYPE_LLD_CORE_DUMP",
-   "UHDP_TYPE_DPROBE_CONFIG",
-};
-
-static void con_sigint_handler(int arg)
-{
-    static bool once /* = false */;
-
-    if (!once)
-    {
-        /* clean shutdown path */
-        printf("\nSRA: Caught CTRL+C, attempting a clean shutdown\n");
-        ctrl_c_pressed = true;
-        once = true;
-        /* pass the signal up to Python (if in the context of pySRA) */
-        orignal_sigint_handler(arg);
-    }
-    else
-    {
-        printf("SRA: Caught second CTRL+C, hard-shutdown\n");
-        exit(1);
-    }
-}
 
 struct NopHandler : public ProtHandlerBase
 {
@@ -155,30 +60,12 @@ struct NopHandler : public ProtHandlerBase
 
     void handle_packet(const char* payload, uint32_t len)
     {
-        printf("NOP handler type %u, %x, len=%u\n", my_type, my_type, len);
+        //printf("NOP handler type %u, %x, len=%u\n", my_type, my_type, len);
         my_con.counters.wrong_message_type++;
     }
 
     Connection_Impl& my_con;
     uint32_t my_type;
-};
-
-struct UHPHandler : public ProtHandlerBase
-{
-    // modern SRS only sends this message in response to UHDP version mismatch,
-    // so we treat it very specially
-    void handle_packet(const char* payload, uint32_t len)
-    {
-        //uint32_t cpuid = *(uint32_t*)payload;
-        payload += sizeof(uint32_t);
-        len -= sizeof(uint32_t);
-        char* msg = const_cast<char*>(payload);
-        msg[len - 5] = 0;
-        free(last_msg);
-        last_msg = strdup(msg);
-    }
-
-    static char* last_msg;
 };
 
 char* UHPHandler::last_msg;
@@ -297,7 +184,7 @@ public:
 };
 
 
-void Connection_Impl::allocate_protocols()
+void            Connection_Impl::allocate_protocols()
 {
     memset(uhdp_table, 0, sizeof(uhdp_table));
 
@@ -306,13 +193,14 @@ void Connection_Impl::allocate_protocols()
     uhdp_table[UHDP_TYPE_PRINT]             = new UHPHandler();
     uhdp_table[UHDP_TYPE_PPA]               = new PPAHandler(*this);
     uhdp_table[UHDP_TYPE_LOG_AGGR]          = new LogAggregateHandler(log_agent, *logcontrol, *msg_disc);
-    uhdp_table[UHDP_TYPE_LOG_PRODUCER_NAME] = dynamic_cast<ProtHandlerBase*>(logcontrol);
+    uhdp_table[UHDP_TYPE_LOG_PRODUCER_NAME] = static_cast<ProtHandlerBase*>(logcontrol);
     uhdp_table[UHDP_TYPE_LOG_MESSAGE]       = msg_disc;
     uhdp_table[UHDP_TYPE_DIAG_DISCOVERY]    = new DiagDiscHandler();
     uhdp_table[UHDP_TYPE_ANTENNA_CONFIG]    = new AntennaConfigDiscHandler();
     uhdp_table[UHDP_TYPE_LOG_TASK_NAME]     = new PPADiscHandler();
     uhdp_table[UHDP_TYPE_ENV_CONTROL_DATA]  = new EnvControlDataHandler(*this);
     uhdp_table[UHDP_TYPE_ENV_CONTROL_ACK]   = new EnvControlAckHandler(*this);
+    uhdp_table[UHDP_TYPE_FAST_CAPTURE]      = new FastCaptureHandler(*this);
 
     for (uint32_t i = 0; i < 256; i++)
     {
@@ -321,46 +209,6 @@ void Connection_Impl::allocate_protocols()
             uhdp_table[i] = new NopHandler(*this, i);
         }
     }
-
-    if (!orignal_sigint_handler)
-    {
-        orignal_sigint_handler = signal(SIGINT, con_sigint_handler);
-    }
-    else
-    {
-        /* reset any previous cleanly handled ctrl+c event */
-        ctrl_c_pressed = false;
-    }
-}
-
-
-Connection_Impl::~Connection_Impl()
-{
-    if (sockfd > 0)
-    {
-#ifdef _WIN32
-        closesocket(sockfd);
-        WSACleanup();
-#else
-        close(sockfd);
-#endif
-    }
-
-    delete vehicle;
-    delete [] hw_unit_names;
-    delete [] lld_core_dump_buffer;
-
-    for (uint32_t i = 0; i < 256; i++)
-    {
-        delete uhdp_table[i];
-    }
-
-    free(const_cast<char*>(srs_version_str));
-    free(const_cast<char*>(module_name));
-    free(const_cast<char*>(module_type_name));
-    free(const_cast<char*>(motherboard_type_name));
-    free(const_cast<char*>(antennaboard_type_name));
-    free(const_cast<char*>(antenna_module_type_name));
 }
 
 
@@ -382,35 +230,48 @@ uint32_t        Connection_Impl::get_basic_antenna_config_id(BasicAntennaConfigE
     return ant->get_basic_antenna_config_id(bac);
 }
 
-void Connection_Impl::register_vehicle_CAN_device(VehicleCAN& v)
+bool            Connection_Impl::apply_rdc3_blob(uint32_t scan_sequence_number, char* blob, uint32_t size_bytes)
 {
-    delete vehicle;
-    vehicle = &v;
-}
-
-
-void Connection_Impl::send_uhdp(UhdpHeader* hdr)
-{
-    hdr->version = connection_uhdp_version;
-    if (hdr->total_length)
+    while (cur_in_scan)
     {
-        sendto_mutex.acquire();
-        int res = sendto(sockfd, (char*)hdr, hdr->total_length, 0, (struct sockaddr*)&radar_ip4addr, sizeof(radar_ip4addr));
-        sendto_mutex.release();
-        if (res < 0)
+        if (scan_sequence_number == cur_in_scan->scan_info.scan_sequence_number)
         {
-            perror("sendto() error: ");
+            break;
         }
+        if (last_scan_seq != cur_in_scan->scan_info.scan_sequence_number)
+        {
+            counters.dropped_scans++;
+        }
+
+        ScanObject_Impl* scan = cur_in_scan;
+        cur_in_scan = cur_in_scan->next_scan_object;
+        queue_completed_scan(scan);
+    }
+
+    // note cur_in_scan should be non-null 99.9% of the time, the only
+    // time it should be null is if the scan information message was dropped
+    if (cur_in_scan)
+    {
+        cur_in_scan->attach_blob(blob, size_bytes);
+        return true;
     }
     else
     {
-        counters.wrong_payload_length++;
-        printf("Dropping outgoing UHDP message of type %d (%s), message length 0\n", hdr->message_type, uhdp_msg_type_names[hdr->message_type]);
+        last_in_scan = NULL;
+        return false;
     }
 }
 
+void            Connection_Impl::send_rdc1_data_ready_message()
+{
+    UhdpHeader hdr;
+    hdr.message_type = UHDP_TYPE_RDC1_DATA_READY;
+    hdr.total_length = sizeof(UhdpHeader);
+    send_uhdp(&hdr);
+}
 
-void Connection_Impl::diag_force_stop()
+
+void            Connection_Impl::diag_force_stop()
 {
     UhdpHeader hdr;
     hdr.message_type = UHDP_TYPE_DIAG_FORCE_STOP;
@@ -418,305 +279,6 @@ void Connection_Impl::diag_force_stop()
     send_uhdp(&hdr);
 }
 
-
-int Connection_Impl::send_hello(uint32_t radar_ip, uint32_t timeout_sec, uint32_t uhdp_ver)
-{
-    uint16_t uhdp_port = UHDP_PORT;
-    const char* portstr = getenv("SABINE_UHDP_PORT");
-    if (portstr)
-    {
-        int envport = atoi(portstr);
-        if (envport > 0 && envport < 0xFFFF)
-        {
-            uhdp_port = (uint16_t)envport;
-        }
-    }
-
-    //printf("Attempting to connect with uhdp_ver %d\n", uhdp_ver);
-    connection_uhdp_version = uhdp_ver;
-
-    // setup radar UDP IPv4 address
-    memset(&radar_ip4addr, 0, sizeof(radar_ip4addr));
-    radar_ip4addr.sin_family = AF_INET;
-    radar_ip4addr.sin_port = htons(uhdp_port);
-    radar_ip4addr.sin_addr.s_addr = radar_ip;
-
-    // learn local UDP listening port (since we bound to port 0, allowing the
-    // O/S to pick an availabe port)
-    struct sockaddr_in lcladdr;
-    socklen_t addrlen = sizeof(lcladdr);
-    memset(&lcladdr, 0, sizeof(lcladdr));
-    getsockname(sockfd, (struct sockaddr*)&lcladdr, &addrlen);
-
-    // construct HELLO message
-    char msgbuf[MAX_UDP_DATAGRAM];
-    UhdpHeader*       uhdp = (UhdpHeader*)msgbuf;
-    UhdpHelloMessage* msg  = (UhdpHelloMessage*)(uhdp + 1);
-
-    uhdp->message_type = UHDP_TYPE_HELLO;
-    uhdp->total_length = sizeof(UhdpHeader) + sizeof(UhdpHelloMessage);
-    memset(msg, 0, sizeof(UhdpHelloMessage));
-    msg->logger_ip_address = 0;
-    msg->radar_ip_address  = ntohl(radar_ip);
-    msg->logger_UDP_port   = ntohs(lcladdr.sin_port);
-
-    //printf("Sending HELLO\n");
-    send_uhdp(uhdp);
-
-    timeval tv;
-
-    // configure recvfrom() to block until a datagram or timeout
-#if _WIN32
-    int timeout_ms = timeout_sec * 1000;
-    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout_ms, sizeof(timeout_ms));
-#else
-    tv.tv_sec = timeout_sec;
-    tv.tv_usec = 0;
-    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));
-#endif
-
-    struct sockaddr_in remaddr;
-    int recvlen = recvfrom(sockfd, msgbuf, MAX_UDP_DATAGRAM, 0,
-                           (struct sockaddr*)&remaddr, &addrlen);
-    if (recvlen < 0)
-    {
-#if _WIN32
-        if (WSAGetLastError() == WSAETIMEDOUT)
-        {
-            // timeout
-            return - 1;
-        }
-#else
-        if (errno == EWOULDBLOCK)
-        {
-            // timeout
-            return -1;
-        }
-#endif
-        else
-        {
-            perror("recvfrom() error: ");
-            return -1;
-        }
-    }
-
-    gettimeofday(&tv, NULL);
-
-    counters.total_packets_rcvd++;
-
-    if (UHDP_TYPE_DISCOVERY == uhdp->message_type)
-    {
-        UhdpDiscovery* disc = (UhdpDiscovery*)(uhdp + 1);
-        assert(disc->discovery_state == 0);
-        msgbuf[uhdp->total_length] = 0;
-        char* disc_ver = (char*)(disc + 1);
-        srs_version_str = strdup(disc_ver);
-
-        // this is our first glance at the radar clock, it should be very close to
-        // the time of connection, so we'll call it the connection epoch for
-        // now. Later we might refine this estimation.
-        uint64_t host_time = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                             (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
-        radar_host_delta = host_time - disc->timestamp;
-        training_radar_host_delta = radar_host_delta;
-
-        if (connection_uhdp_version >= 29)
-        {
-            disc_ver += strlen(disc_ver) + 1;
-            module_name = strdup(disc_ver);
-            disc_ver += strlen(disc_ver) + 1;
-            module_type_name = strdup(disc_ver);
-            disc_ver += strlen(disc_ver) + 1;
-            motherboard_type_name = strdup(disc_ver);
-            disc_ver += strlen(disc_ver) + 1;
-            antennaboard_type_name = strdup(disc_ver);
-            disc_ver += strlen(disc_ver) + 1;
-            antenna_module_type_name = strdup(disc_ver);
-            disc_ver += strlen(disc_ver) + 1;
-        }
-        else
-        {
-            module_name = strdup("Unknown");
-            module_type_name = strdup("Uhknown");
-            motherboard_type_name = strdup("Unknown");
-            antennaboard_type_name = strdup("Unknown");
-            antenna_module_type_name = strdup("Unknown");
-        }
-        if (connection_uhdp_version >= 30)
-        {
-            float geoms[5];
-            memcpy(&geoms[0], disc_ver, sizeof(geoms)); // prevent alignment issues
-            rear_axle_distance = geoms[0];
-            centerline_distance = geoms[1];
-            mount_height = geoms[2];
-            mount_azimuth = geoms[3];
-            mount_elevation = geoms[4];
-        }
-    }
-    else if (UHDP_TYPE_PRINT == uhdp->message_type)
-    {
-        UHPHandler uhp;
-        uhp.handle_packet((char*)(uhdp + 1), recvlen);
-        return -2;
-    }
-    else
-    {
-        printf("Unexpected message type %d\n", uhdp->message_type);
-        return -1;
-    }
-
-    if (radar_ip != remaddr.sin_addr.s_addr || htons(uhdp_port) != remaddr.sin_port)
-    {
-        char ipbuf[64];
-        printf("Response came from unexpected IP %s or port %d\n",
-                inet_ntop(AF_INET, &remaddr, ipbuf, sizeof(ipbuf)),
-                ntohs(remaddr.sin_port));
-        return -1;
-    }
-
-    struct DiscoveryAck
-    {
-        UhdpHeader hdr;
-        uint32_t   discovery_msg_count;
-    };
-
-    DiscoveryAck ack;
-    ack.hdr.version = connection_uhdp_version;
-    ack.hdr.total_length = sizeof(DiscoveryAck);
-    ack.hdr.message_type = UHDP_TYPE_DISCOVERY;
-    ack.discovery_msg_count = 0;
-
-    if (connection_uhdp_version >= 28)
-    {
-        send_uhdp(&ack.hdr);
-    }
-
-    // Process all discovery messages before returning
-    for(;;)
-    {
-        int recvlen = recvfrom(sockfd, msgbuf, MAX_UDP_DATAGRAM, 0,
-                               (struct sockaddr*)&remaddr, &addrlen);
-        if (recvlen < 0)
-        {
-            if (ctrl_c_pressed)
-            {
-                return -1;
-            }
-#if _WIN32
-            if (WSAGetLastError() == WSAETIMEDOUT)
-            {
-                // timeout
-                continue;
-            }
-#else
-            if (errno == EWOULDBLOCK)
-            {
-                // timeout
-                continue;
-            }
-#endif
-            else
-            {
-                perror("recvfrom() error: ");
-                return -1;
-            }
-        }
-
-        counters.total_packets_rcvd++;
-
-        if (uhdp->version != connection_uhdp_version)
-        {
-            counters.wrong_uhdp_version++;
-            continue;
-        }
-
-        if (uhdp->total_length != recvlen)
-        {
-            counters.wrong_payload_length++;
-            continue;
-        }
-
-        recvlen -= sizeof(UhdpHeader);
-
-        if (UHDP_TYPE_DISCOVERY == uhdp->message_type)
-        {
-            UhdpDiscovery* disc = (UhdpDiscovery*)(uhdp + 1);
-
-            if (disc->discovery_state == 0)
-            {
-                // We received a second (or third) discovery start message. This
-                // means the radar was slow and the previous discovery start was
-                // a response to a previous HELLO request.
-                printf("Ignoring duplicate DISCOVERY start message\n");
-
-                // reset the discovery message count, and re-acknowledge the
-                // HELLO
-                ack.discovery_msg_count = 0;
-                if (connection_uhdp_version >= 28)
-                {
-                    send_uhdp(&ack.hdr);
-                }
-                continue;
-            }
-
-#if _WIN32
-            // configure recvfrom() to have no blocking
-            ULONG NonBlock = 1;
-            bool ok = true;
-            if (ioctlsocket(sockfd, FIONBIO, &NonBlock) == SOCKET_ERROR)
-            {
-                printf("ioctlsocket() failed with error %d\n", WSAGetLastError());
-                ok = false;
-            }
-            // configure large send/receive buffers (Windows defaults to 8K, W10 64K)
-            int buffer_size = 128 * 1024;
-            ok &= setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (const char*)&buffer_size, sizeof(buffer_size)) == 0;
-            ok &= setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (const char*)&buffer_size, sizeof(buffer_size)) == 0;
-            assert(ok);
-#else
-            if (use_thread)
-            {
-                // configure recvfrom() to block until a datagram or a short 100us timeout
-                tv.tv_sec = 0;
-                tv.tv_usec = 100;
-                setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));
-            }
-            else
-            {
-                tv.tv_sec = 0;
-                tv.tv_usec = 1;
-                setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));
-                fcntl(sockfd, O_NONBLOCK, 0);
-            }
-#endif
-            connection_active = true;
-
-            // in some circumstances, the radar might have more than one HELLO
-            // queued up in its ethernet receive queue and it responds to each
-            // of them in series. We want to ignore all of this extra discovery
-            // info; it can only do harm to these classes
-            uhdp_table[UHDP_TYPE_DISCOVERY]->disable();
-            uhdp_table[UHDP_TYPE_LOG_PRODUCER_NAME]->disable();
-            uhdp_table[UHDP_TYPE_LOG_MESSAGE]->disable();
-            uhdp_table[UHDP_TYPE_DIAG_DISCOVERY]->disable();
-            uhdp_table[UHDP_TYPE_LOG_TASK_NAME]->disable();
-            return 0;
-        }
-        else
-        {
-            if (connection_uhdp_version >= 28)
-            {
-                ack.discovery_msg_count++;
-                send_uhdp(&ack.hdr);
-            }
-
-            //printf("received type %d (%s), message length %d\n", uhdp->message_type, uhdp_msg_type_names[uhdp->message_type], recvlen);
-            uhdp_table[uhdp->message_type]->handle_packet((char*)(uhdp + 1), recvlen);
-        }
-    }
-
-    return 0;
-}
 
 bool            Connection_Impl::send_control_message(UhdpControlMessageType t, const char* msg, uint32_t len)
 {
@@ -871,6 +433,11 @@ uint32_t        Connection_Impl::run_diag_by_id(uint32_t diag_id,
         last_err = CON_DIAG_INPUT_TOO_LARGE;
         return 0;
     }
+    if (input_bytesize > 1024)
+    {
+        last_err = CON_DIAG_INPUT_TOO_LARGE;
+        return 0;
+    }
 
     msg->diag_sequence_number = diag_sequence_number;
     msg->class_id = diag_id;
@@ -889,8 +456,7 @@ uint32_t        Connection_Impl::run_diag_by_id(uint32_t diag_id,
 
     timeval tv;
     gettimeofday(&tv, NULL);
-    diag_last_resend = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                       (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
+    diag_last_resend = uint64_t(USEC_PER_SEC) * tv.tv_sec + tv.tv_usec;
 
     if (use_thread)
     {
@@ -938,6 +504,12 @@ uint32_t        Connection_Impl::run_diag_by_id(uint32_t diag_id,
     if ((output_size > output_bytesize) || (output_size && !outputs))
     {
         last_err = CON_DIAG_OUTPUT_TOO_LARGE;
+
+        if (outputs && output_bytesize)
+        {
+            // go ahead and copy partial output
+            memcpy(outputs, comp + 1, output_bytesize);
+        }
     }
     else if (comp->diag_sequence_number != diag_sequence_number)
     {
@@ -988,8 +560,7 @@ uint32_t        Connection_Impl::peek_register(uint32_t reg_addr, uint32_t read_
 
     timeval tv;
     gettimeofday(&tv, NULL);
-    peek_last_resend = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                       (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
+    peek_last_resend = uint64_t(USEC_PER_SEC) * tv.tv_sec + tv.tv_usec;
 
     send_uhdp(uhdp);
 
@@ -1025,6 +596,15 @@ uint32_t        Connection_Impl::peek_register(uint32_t reg_addr, uint32_t read_
     return *(uint32_t*)(resp + 1);
 }
 
+const char*     Connection_Impl::get_radar_host_name()
+{
+    static ModuleFlashData data;
+    data.set_defaults();
+
+    run_diag_by_name("tfs", "get_module_cfg", NULL, 0, &data, sizeof(data));
+
+    return &data.radar_hostname[0];
+}
 
 uint32_t        Connection_Impl::query_radar_status_bitmask()
 {
@@ -1042,8 +622,7 @@ uint32_t        Connection_Impl::query_radar_status_bitmask()
 
     timeval tv;
     gettimeofday(&tv, NULL);
-    status_last_resend = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                         (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
+    status_last_resend = uint64_t(USEC_PER_SEC) * tv.tv_sec + tv.tv_usec;
 
     send_uhdp(uhdp);
 
@@ -1079,11 +658,7 @@ uint32_t        Connection_Impl::query_radar_status_bitmask()
 
 bool            Connection_Impl::is_sabine_b()
 {
-    if (sabine_type == ST_UNKNOWN)
-    {
-        (void)query_radar_status_bitmask();
-    }
-
+    assert(sabine_type != ST_UNKNOWN); // should always be known
     return sabine_type == ST_SABINE_B;
 }
 
@@ -1110,8 +685,7 @@ bool            Connection_Impl::peek_memory(uint32_t dev_addr, uint32_t byte_co
 
     timeval tv;
     gettimeofday(&tv, NULL);
-    peek_last_resend = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                       (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
+    peek_last_resend = uint64_t(USEC_PER_SEC) * tv.tv_sec + tv.tv_usec;
 
     send_uhdp(uhdp);
 
@@ -1185,8 +759,7 @@ bool            Connection_Impl::poke_memory(uint32_t dev_addr, uint32_t bytecou
 
     timeval tv;
     gettimeofday(&tv, NULL);
-    peek_last_resend = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                       (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
+    peek_last_resend = uint64_t(USEC_PER_SEC) * tv.tv_sec + tv.tv_usec;
 
     send_uhdp(uhdp);
 
@@ -1247,8 +820,7 @@ bool            Connection_Impl::poke_register(uint32_t reg_addr, uint32_t write
 
     timeval tv;
     gettimeofday(&tv, NULL);
-    peek_last_resend = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                       (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
+    peek_last_resend = uint64_t(USEC_PER_SEC) * tv.tv_sec + tv.tv_usec;
 
     send_uhdp(uhdp);
 
@@ -1379,14 +951,12 @@ bool            Connection_Impl::configure_data_capture(const UhdpCaptureControl
     memcpy(hdr + 1, &cap_ctrl, sizeof(UhdpCaptureControl));
 
     cap->command_sequence_number = command_sequence_number;
-    if (cap->enable_mask & DL_POINT_CLOUD) cap->enable_mask |= DL_CI;
 
     resend_count = 0;
 
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    control_last_resend = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                          (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
+    control_last_resend = uint64_t(USEC_PER_SEC) * tv.tv_sec + tv.tv_usec;
 
     send_uhdp(hdr);
 
@@ -1450,8 +1020,7 @@ int            Connection_Impl::send_scan_control(const RDC_ScanControl& scan_ct
 
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    control_last_resend = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                          (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
+    control_last_resend = uint64_t(USEC_PER_SEC) * tv.tv_sec + tv.tv_usec;
 
     send_uhdp(hdr);
 
@@ -1487,39 +1056,6 @@ int            Connection_Impl::send_scan_control(const RDC_ScanControl& scan_ct
     }
 
     return 0;
-}
-
-bool            Connection_Impl::scan_available()
-{
-    scanlist_mutex.acquire();
-    bool ret = !!first_out_scan;
-    scanlist_mutex.release();
-
-    return ret;
-}
-
-ScanObject*     Connection_Impl::poll_completed_scan()
-{
-    if (scan_available())
-    {
-        scanlist_mutex.acquire();
-
-        ScanObject_Impl* scan = first_out_scan;
-        first_out_scan = first_out_scan->next_scan_object;
-        if (!first_out_scan)
-        {
-            last_out_scan = NULL;
-        }
-
-        scanlist_mutex.release();
-
-        // the user now owns this ScanObject; the Connection has no references to it
-        return scan;
-    }
-    else
-    {
-        return NULL;
-    }
 }
 
 
@@ -1621,7 +1157,6 @@ void            Connection_Impl::register_dcmeasurement_requests(
     send_uhdp(hdr);
 }
 
-
 const char*     Connection_Impl::get_requestable_hardware_unit_names()
 {
     if (hw_unit_names)
@@ -1644,8 +1179,7 @@ const char*     Connection_Impl::get_requestable_hardware_unit_names()
 
     timeval tv;
     gettimeofday(&tv, NULL);
-    core_dump_last_resend = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                            (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
+    core_dump_last_resend = uint64_t(USEC_PER_SEC) * tv.tv_sec + tv.tv_usec;
 
     if (use_thread)
     {
@@ -1688,8 +1222,7 @@ const uint32_t* Connection_Impl::get_hardware_unit_core_dump(const char* hw_unit
 
     timeval tv;
     gettimeofday(&tv, NULL);
-    core_dump_last_resend = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                            (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
+    core_dump_last_resend = uint64_t(USEC_PER_SEC) * tv.tv_sec + tv.tv_usec;
 
     if (use_thread)
     {
@@ -1727,7 +1260,6 @@ Scanning*       Connection_Impl::setup_scanning(const RDC_ScanControl& scanctrl,
     UhdpCaptureControl capctrl;
     capctrl = cc;
     capctrl.capture_mode = DL_NORMAL;
-    if (cc.enable_mask & DL_POINT_CLOUD) capctrl.enable_mask |= DL_CI;
     configure_data_capture(capctrl); // blocking wait for ACK
 
     RDC_ScanControl ctrl;
@@ -1748,16 +1280,19 @@ Scanning*       Connection_Impl::setup_scanning(const RDC_ScanControl& scanctrl,
 
 void            Connection_Impl::release_scanning(Scanning_Impl& s)
 {
-    UhdpCaptureControl capctrl;
-    capctrl.set_defaults();
-    capctrl.capture_mode = DL_IDLE;
-    configure_data_capture(capctrl);
+    if (connection_active)
+    {
+        UhdpCaptureControl capctrl;
+        capctrl.set_defaults();
+        capctrl.capture_mode = DL_IDLE;
+        configure_data_capture(capctrl);
 
-    RDC_ScanControl scanctrl;
-    scanctrl.defaults();
-    scanctrl.scan_count = 0;
-    scanctrl.scan_loop_count = 0;
-    send_scan_control(scanctrl, NULL);
+        RDC_ScanControl scanctrl;
+        scanctrl.defaults();
+        scanctrl.scan_count = 0;
+        scanctrl.scan_loop_count = 0;
+        send_scan_control(scanctrl, NULL);
+    }
 
     assert(myscanning == &s);
     delete &s;
@@ -1765,82 +1300,7 @@ void            Connection_Impl::release_scanning(Scanning_Impl& s)
 }
 
 
-void Connection_Impl::thread_main()
-{
-#if _WIN32
-    FD_SET write_set;
-    FD_SET read_set;
-#else
-    fd_set write_set;
-    fd_set read_set;
-#endif
-
-    while (connection_active)
-    {
-#if _WIN32
-        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
-#endif
-        FD_ZERO(&write_set);
-        FD_ZERO(&read_set);
-        FD_SET(sockfd, &read_set);
-        int nfds = 1;
-
-        if (vehicle)
-        {
-            FD_SET(vehicle->get_file_handle(), &read_set);
-            nfds++;
-        }
-
-        // wait for a message, or 1ms
-        timeval tv;
-        tv.tv_sec = 0;
-        tv.tv_usec = 1000;
-        select(nfds + 1, &read_set, &write_set, NULL, &tv);
-
-        poll_socket();
-    }
-}
-
-void Connection_Impl::poll_socket()
-{
-    poll_mutex.acquire();
-
-    poll_socket_internal();
-
-    if (vehicle && vehicle->poll())
-    {
-        UhdpTelemetryData tel;
-        memset(&tel, 0, sizeof(tel));
-        float temp_y = deg2rad(vehicle->yaw_rate) * vehicle->axle_dist;
-        float temp_x = sqrtf(fabs((vehicle->vel_kmph_x * vehicle->vel_kmph_x) -
-                                  (vehicle->vel_kmph_y * vehicle->vel_kmph_y)));
-        tel.ego_velocity.x      = -temp_x / 3.6f;
-        tel.ego_velocity.y      = -temp_y / 3.6f;
-        tel.ego_velocity.z      = -vehicle->vel_kmph_z / 3.6f;
-        tel.ego_acceleration.x  = -vehicle->acc_mpsps_x;
-        tel.ego_acceleration.y  = -vehicle->acc_mpsps_y;
-        tel.ego_acceleration.z  = -vehicle->acc_mpsps_z;
-        tel.yaw_rate            = vehicle->yaw_rate;
-        tel.braking_pressure    = vehicle->brake_pressure;
-        tel.steering_turn_angle = vehicle->steering_angle;
-
-        timeval cur_time;
-        gettimeofday(&cur_time, NULL);
-
-        uint64_t age_us = (cur_time.tv_sec - vehicle->update_time.tv_sec) * 1000 * 1000;
-        if (cur_time.tv_usec >= vehicle->update_time.tv_usec)
-            age_us += cur_time.tv_usec - vehicle->update_time.tv_usec;
-        else
-            age_us -= vehicle->update_time.tv_usec - cur_time.tv_usec;
-
-        tel.telemetry_age_us = age_us;
-        configure_radar_telemetry(tel);
-    }
-
-    poll_mutex.release();
-}
-
-void Connection_Impl::queue_completed_scan(ScanObject_Impl* scan)
+void            Connection_Impl::queue_completed_scan(ScanObject_Impl* scan)
 {
     // this scan has completed transmission, or is never going to receive scan data
     uint32_t expected = scanlist_cond.get();
@@ -1865,674 +1325,15 @@ void Connection_Impl::queue_completed_scan(ScanObject_Impl* scan)
 }
 
 
-void Connection_Impl::abort_connection()
+void            Connection_Impl::synchronize_frame_interval(timeval host_time)
 {
-    // this connection is closing, free all queued ScanObjects
-    while (cur_in_scan)
-    {
-        ScanObject_Impl* cur = cur_in_scan;
-        cur_in_scan = cur_in_scan->next_scan_object;
-        delete cur;
-    }
-    last_in_scan = NULL;
+    frame_interval_base_host_time = host_time;
 
-    scanlist_mutex.acquire();
-    while (first_out_scan)
-    {
-        ScanObject_Impl* cur = first_out_scan;
-        first_out_scan = first_out_scan->next_scan_object;
-        delete cur;
-    }
-    last_out_scan = NULL;
-    scanlist_mutex.release();
-
-    // unblock any threads waiting for a scan
-    connection_active = false;
-    scanlist_cond.set(0);
-
-    // unblock any blocked threads
-    diag_comp_event.trigger();
-    peek_comp_event.trigger();
-    control_ack_event.trigger();
+    send_frame_interval_base_time();
 }
 
 
-void Connection_Impl::poll_socket_internal()
-{
-    // How many packets do we give the radar at a time?
-    struct sockaddr_in remaddr;
-    socklen_t addrlen = sizeof(remaddr);
-
-    // these pointers never change, so we can define them outside the loop
-    char msgbuf[MAX_UDP_DATAGRAM];
-    const UhdpHeader* uhdp = (const UhdpHeader*)msgbuf;
-    const char*       payload = (const char*)(uhdp + 1);
-    const UhdpDataHeader* win = (const UhdpDataHeader*)payload;
-
-    timeval tv;
-    gettimeofday(&tv, NULL);
-    uint64_t cur_timestamp = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                             (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
-
-    // check for timeouts
-    if (diag_last_resend)
-    {
-        uint64_t timeout = (3 * UH_CLOCK_TICS_PER_SECOND / 2) * timeout_scale * (resend_count + 1);
-        if (ctrl_c_pressed && resend_count > 0)
-        {
-            abort_connection();
-            return;
-        }
-        else if (cur_timestamp - diag_last_resend > timeout)
-        {
-            if (++resend_count < MAX_RESEND_COUNT)
-            {
-                send_uhdp((UhdpHeader*)diag_msgbuf);
-                diag_last_resend = cur_timestamp;
-            }
-            else
-            {
-                diag_is_hung = true;
-                diag_last_resend = cur_timestamp;
-                diag_comp_event.trigger();
-            }
-        }
-    }
-    if (core_dump_last_resend)
-    {
-        uint64_t timeout = (3 * UH_CLOCK_TICS_PER_SECOND / 2) * timeout_scale * (resend_count + 1);
-        if (ctrl_c_pressed && resend_count > 0)
-        {
-            abort_connection();
-            return;
-        }
-        else if (cur_timestamp - core_dump_last_resend > timeout)
-        {
-            if (++resend_count < MAX_RESEND_COUNT)
-            {
-                send_uhdp((UhdpHeader*)lld_core_dump_msg_buffer);
-                core_dump_last_resend = cur_timestamp;
-            }
-            else
-            {
-                core_dump_last_resend = cur_timestamp;
-                core_dump_ack_event.trigger();
-            }
-        }
-    }
-    if (peek_last_resend)
-    {
-        uint64_t timeout = (3 * UH_CLOCK_TICS_PER_SECOND / 2) * timeout_scale * (resend_count + 1);
-        if (ctrl_c_pressed && resend_count > 0)
-        {
-            abort_connection();
-            return;
-        }
-        else if (cur_timestamp - peek_last_resend > timeout)
-        {
-            if (++resend_count < MAX_RESEND_COUNT)
-            {
-                send_uhdp((UhdpHeader*)peek_buffer);
-                peek_last_resend = cur_timestamp;
-            }
-            else
-            {
-                printf("Peek/Poke is not responding, aborting connection\n");
-                abort_connection();
-                return;
-            }
-        }
-    }
-    if (status_last_resend)
-    {
-        uint64_t timeout = UH_CLOCK_TICS_PER_SECOND * timeout_scale;
-        if (ctrl_c_pressed && resend_count > 0)
-        {
-            abort_connection();
-            return;
-        }
-        else if (cur_timestamp - status_last_resend > timeout)
-        {
-            if (++resend_count < 3)
-            {
-                send_uhdp((UhdpHeader*)status_buffer);
-                status_last_resend = cur_timestamp;
-            }
-            else
-            {
-                printf("Status Request is not responding, aborting connection\n");
-                abort_connection();
-                return;
-            }
-        }
-    }
-    if (control_last_resend)
-    {
-        uint64_t timeout = (UH_CLOCK_TICS_PER_SECOND * 2) * timeout_scale * (resend_count + 1);
-        if (ctrl_c_pressed && resend_count > 0)
-        {
-            abort_connection();
-            return;
-        }
-        else if (cur_timestamp - control_last_resend > timeout)
-        {
-            if (++resend_count < MAX_RESEND_COUNT)
-            {
-                send_uhdp((UhdpHeader*)control_msg_buffer);
-                control_last_resend = cur_timestamp;
-            }
-            else
-            {
-                printf("No response to scan or capture control message, aborting connection\n");
-                abort_connection();
-                return;
-            }
-        }
-    }
-    if (request_close_time)
-    {
-        // only request close once, timeout after two seconds.  This is the
-        // stall you see in SCC when trying to close a dead connection
-        if (ctrl_c_pressed && resend_count > 0)
-        {
-            abort_connection();
-            return;
-        }
-        else if (cur_timestamp - request_close_time > UH_CLOCK_TICS_PER_SECOND * 2 * timeout_scale)
-        {
-            printf("Radar is not responding to connection close requests, aborting connection\n");
-            abort_connection();
-            return;
-        }
-    }
-
-    // process received datagrams until it returns empty
-    for (;;)
-    {
-        int recvlen = recvfrom(sockfd, msgbuf, MAX_UDP_DATAGRAM, 0,
-                               (struct sockaddr*)&remaddr, &addrlen);
-        if (recvlen < 0)
-        {
-#if _WIN32
-            int err = WSAGetLastError();
-            if (err == WSAEWOULDBLOCK || err == WSAETIMEDOUT)
-            {
-                // timeout
-                return;
-            }
-#else
-            if (errno == EWOULDBLOCK)
-            {
-                // timeout
-                return;
-            }
-#endif
-            else
-            {
-                perror("recvfrom() error: ");
-                return;
-            }
-        }
-
-        counters.total_packets_rcvd++;
-
-        if (uhdp->version != connection_uhdp_version)
-        {
-            counters.wrong_uhdp_version++;
-            continue;
-        }
-
-        if (uhdp->total_length != recvlen)
-        {
-            counters.wrong_payload_length++;
-            continue;
-        }
-
-        recvlen -= sizeof(UhdpHeader);
-
-        if (uhdp->message_type == UHDP_TYPE_TIME_ALIGN)
-        {
-            const UhdpTimeAlignment& ta = *reinterpret_cast<const UhdpTimeAlignment*>(payload);
-
-            gettimeofday(&tv, NULL);
-            uint64_t cur_timestamp = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                                     (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
-            int64_t new_delta = cur_timestamp - ta.timestamp64;
-
-            // if this delta is smaller than the previously known delta, assume
-            // that we had slightly less latency in getting this packet and
-            // record the new delta. otherwise, take the new delta every 100
-            // scans in case there is slow drift.
-            if (new_delta < training_radar_host_delta ||
-                (scanlist_cond.get() % 100) == 0)
-            {
-                training_radar_host_delta = new_delta;
-            }
-            else if (scan_interval_base_host_time.tv_sec &&
-                    ((scanlist_cond.get() % 100) == 90))
-            {
-                radar_host_delta = training_radar_host_delta;
-                //printf("delta: %lld\n", radar_host_delta);
-                send_scan_interval_base_time();
-            }
-
-            last_time_align = ta;
-            continue;
-        }
-        else if (uhdp->message_type == UHDP_TYPE_SCAN_INFORMATION)
-        {
-            const UhdpScanInformation& msg = *reinterpret_cast<const UhdpScanInformation *>(payload);
-
-            // UhdpScanInformation.current_time - radar timestamp when message was sent
-            // UhdpScanInformation.scan_timestamp - radar timestamp when this scan ended
-            // both timestamps are in units of 1 microsecond.
-            //
-            // derive microseconds since scan end timestamp by subtracting them
-            timeval host_local_time;
-            int32_t usec_since_scan_end;
-            if (msg.current_time < msg.scan_timestamp)
-            {
-                if (is_sabine_b())
-                {
-                    // Wrap detected. The 32bit clock counter wraps around at (2^36) / 200 =
-                    // 343597383 = 0x147AE147. Since the counter wraps early, we cannot
-                    // rely on integer subtraction giving the correct answer
-                    usec_since_scan_end = msg.current_time + (0x147AE147 - msg.scan_timestamp);
-                }
-                else
-                {
-                    // Wrap detected. The 32bit clock counter wraps around at (2^36) / 125 =
-                    // 549755813.888 ~= 0x20C49BA6. Since the counter wraps early, we cannot
-                    // rely on integer subtraction giving the correct answer
-                    usec_since_scan_end = msg.current_time + (0x20C49BA6 - msg.scan_timestamp);
-                }
-            }
-            else
-            {
-                usec_since_scan_end = msg.current_time - msg.scan_timestamp;
-            }
-
-            if (last_time_align.scan_sequence_number == msg.scan_sequence_number)
-            {
-                // leverage the time alignment message to map the scan end
-                // directly into host time
-
-                uint64_t radar_scan_end = last_time_align.timestamp64 - usec_since_scan_end;
-                uint64_t host_scan_end = radar_scan_end + radar_host_delta;
-                host_local_time.tv_sec = host_scan_end / (1000 * 1000);
-                host_local_time.tv_usec = host_scan_end - host_local_time.tv_sec * (1000 * 1000);
-            }
-            else
-            {
-                // this should be a rare condition (packet drop), derive scan
-                // end time by subtracting it from the current time (less
-                // accurate, since it cannot account for network latencies)
-
-                gettimeofday(&host_local_time, NULL);
-
-                if (usec_since_scan_end > host_local_time.tv_usec)
-                {
-                    host_local_time.tv_sec--;
-                    usec_since_scan_end -= host_local_time.tv_usec;
-                    host_local_time.tv_usec = 1000 * 1000 - usec_since_scan_end;
-                }
-                else
-                {
-                    host_local_time.tv_usec -= usec_since_scan_end;
-                }
-            }
-
-            while (host_local_time.tv_usec > 1000 * 1000)
-            {
-                host_local_time.tv_sec++;
-                host_local_time.tv_usec -= 1000 * 1000;
-            }
-
-            ScanObject_Impl* obj = new ScanObject_Impl();
-            obj->handle_scan_info(&msg, recvlen, host_local_time, connection_uhdp_version);
-            obj->srs_version_str = strdup(srs_version_str);
-            obj->module_name = strdup(module_name);
-            obj->module_type_name = strdup(module_type_name);
-            obj->motherboard_type_name = strdup(motherboard_type_name);
-            obj->antennaboard_type_name = strdup(antennaboard_type_name);
-            obj->antenna_module_type_name = strdup(antenna_module_type_name);
-            obj->rear_axle_distance = rear_axle_distance;
-            obj->centerline_distance = centerline_distance;
-            obj->mount_height = mount_height;
-            obj->mount_azimuth = mount_azimuth;
-            obj->mount_elevation = mount_elevation;
-
-            // append scan to input list (raw radar output order)
-            if (last_in_scan)
-            {
-                last_in_scan->next_scan_object = obj;
-                last_in_scan = obj;
-            }
-            else
-            {
-                cur_in_scan = last_in_scan = obj;
-            }
-
-            char buf[sizeof(UhdpHeader) + sizeof(uint32_t)];
-            UhdpHeader* hdr = (UhdpHeader*)buf;
-            hdr->message_type = UHDP_TYPE_SCAN_READY;
-            hdr->total_length = sizeof(UhdpHeader) + sizeof(uint32_t);
-            *(uint32_t*)(hdr + 1) = msg.scan_sequence_number + 1;
-
-            send_uhdp(hdr);
-            continue;
-        }
-        else if (uhdp->message_type == UHDP_TYPE_LOG_AGGR)
-        {
-            uhdp_table[uhdp->message_type]->handle_packet(payload, recvlen);
-
-            UhdpHeader* msg = const_cast<UhdpHeader*>(uhdp);
-            msg->message_type = UHDP_TYPE_LOG_AGGR_ACK;
-            msg->total_length = sizeof(UhdpHeader) + sizeof(uint32_t);
-            send_uhdp(msg);
-            continue;
-        }
-        else if (uhdp->message_type == UHDP_TYPE_CLOSE_ACK)
-        {
-            abort_connection();
-            return;
-        }
-        else if (uhdp->message_type == UHDP_TYPE_DIAG_COMPLETE)
-        {
-            if (diag_last_resend)
-            {
-                UhdpDiagComplete* comp = (UhdpDiagComplete*)(uhdp + 1);
-                if (comp->diag_sequence_number == diag_sequence_number)
-                {
-                    // mark diag as complete
-                    diag_last_resend = 0;
-                    // overwrite input resend buffer with the output message
-                    memcpy(diag_msgbuf, uhdp, recvlen + sizeof(UhdpHeader));
-                    // unlock the diag mutex, allowing user thread to resume
-                    diag_comp_event.trigger();
-                }
-                else
-                {
-                    printf("SRA: Ignoring diag complete response for seq %X, expecting %X\n",
-                           comp->diag_sequence_number, diag_sequence_number);
-                }
-            }
-            else
-            {
-                printf("SRA: Ignoring redundant diag complete response\n");
-            }
-            continue;
-        }
-        else if (uhdp->message_type == UHDP_TYPE_CONTROL_ACK)
-        {
-            if (control_last_resend)
-            {
-                control_last_resend = 0;
-                if (recvlen == sizeof(uint32_t) + sizeof(uint64_t))
-                {
-                    gettimeofday(&tv, NULL);
-                    uint64_t cur_timestamp = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                                             (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
-                    uint64_t timestamp64;
-                    memcpy(&timestamp64, (char*)(uhdp + 1) + sizeof(uint32_t), sizeof(timestamp64));
-
-                    int64_t new_delta = cur_timestamp - timestamp64;
-                    if (new_delta < radar_host_delta)
-                    {
-                        radar_host_delta = new_delta;
-                    }
-                }
-                // overwrite input resend buffer with the ACK message
-                memcpy(control_msg_buffer, uhdp, recvlen + sizeof(UhdpHeader));
-                // unlock the diag mutex, allowing user thread to resume
-                control_ack_event.trigger();
-            }
-            else
-            {
-                printf("Control ACK received but none expected\n");
-            }
-            continue;
-        }
-        else if (uhdp->message_type == UHDP_TYPE_STATE_PEEK ||
-                 uhdp->message_type == UHDP_TYPE_STATE_POKE)
-        {
-            if (peek_last_resend)
-            {
-                UhdpPeekResp* resp = (UhdpPeekResp*)payload;
-
-                if (resp->sequence_id == peek_sequence_number)
-                {
-                    peek_last_resend = 0;
-                    memcpy(peek_buffer, uhdp, recvlen + sizeof(UhdpHeader));
-                    peek_comp_event.trigger();
-                }
-            }
-            continue;
-        }
-        else if (uhdp->message_type == UHDP_TYPE_STATE_RESPONSE)
-        {
-            if (status_last_resend)
-            {
-                status_last_resend = 0;
-                memcpy(status_buffer, uhdp, recvlen + sizeof(UhdpHeader));
-                peek_comp_event.trigger();
-            }
-            continue;
-        }
-        else if (uhdp->message_type == UHDP_TYPE_FLUSH)
-        {
-            // the radar claims no scans are queued for transmission, so we
-            // clear the incoming and pending lists
-            ScanObject_Impl* orig = cur_in_scan;
-
-            if (cur_in_scan)
-            {
-                cur_in_scan->finish_uhdp(last_msg_type);
-            }
-
-            last_msg_type = UHDP_TYPE_HELLO;
-
-            // all scan objects in the incoming linked list are complete
-            while (cur_in_scan)
-            {
-                if (cur_in_scan != orig)
-                {
-                    if (cur_in_scan->scan_info.num_pulses != 8)
-                    {
-                        // do not count dummy scans
-                        counters.dropped_scans++;
-                    }
-                }
-                ScanObject_Impl* scan = cur_in_scan;
-                cur_in_scan = cur_in_scan->next_scan_object;
-                queue_completed_scan(scan);
-            }
-            last_in_scan = NULL;
-            continue;
-        }
-        else if (uhdp->message_type == UHDP_TYPE_LLD_CORE_DUMP)
-        {
-            if (core_dump_last_resend)
-            {
-                UhdpLLDCoreDumpResponse* msg  = (UhdpLLDCoreDumpResponse*)(uhdp + 1);
-
-                if (msg->hardware_unit_name[0] == '?')
-                {
-                    uint32_t namelen = recvlen - sizeof(*msg);
-                    if (!hw_unit_names)
-                    {
-                        hw_unit_names = new char[namelen + 1];
-                        memcpy(const_cast<char*>(hw_unit_names), (char*)(msg + 1), namelen);
-                        const_cast<char*>(hw_unit_names)[namelen] = 0;
-                        core_dump_last_resend = 0;
-                        core_dump_ack_event.trigger();
-                    }
-                    else
-                    {
-                        counters.dropped_data_packets++;
-                    }
-                }
-                else
-                {
-                    uint32_t tuple_length = recvlen - sizeof(*msg);
-                    uint32_t tuple_count = tuple_length / (2 * sizeof(uint32_t));
-                    uint32_t* tuples = (uint32_t*)(msg + 1);
-
-                    if (msg->cur_tuple_pair == 0)
-                    {
-                        // re-allocate buffer on first message receive
-                        delete [] lld_core_dump_buffer;
-                        lld_core_dump_buffer = new uint32_t[2 * msg->total_tuple_pairs];
-                        lld_core_dump_size = sizeof(uint32_t) * 2 * msg->total_tuple_pairs;
-
-                        memcpy(lld_core_dump_buffer, tuples, tuple_length);
-                        lld_core_dump_receive_count = tuple_count;
-                    }
-                    else if (lld_core_dump_size != msg->total_tuple_pairs * 2 * sizeof(uint32_t))
-                    {
-                        // first tuple message was dropped
-                        counters.dropped_data_packets++;
-                    }
-                    else if (!lld_core_dump_buffer)
-                    {
-                        // first tuple message was dropped
-                        counters.dropped_data_packets++;
-                    }
-                    else if (msg->cur_tuple_pair != lld_core_dump_receive_count)
-                    {
-                        // intermediate tuple message was dropped
-                        counters.dropped_data_packets++;
-                    }
-                    else
-                    {
-                        memcpy(&lld_core_dump_buffer[2 * lld_core_dump_receive_count], tuples, tuple_length);
-                        lld_core_dump_receive_count += tuple_count;
-                    }
-
-                    if (lld_core_dump_receive_count == msg->total_tuple_pairs)
-                    {
-                        core_dump_last_resend = 0;
-                        core_dump_ack_event.trigger();
-                    }
-                }
-            }
-        }
-        else if ((uhdp->message_type < UHDP_TYPE_ADC) || (uhdp->message_type > UHDP_TYPE_FLUSH))
-        {
-            /* non-radar-data message type */
-            uhdp_table[uhdp->message_type]->handle_packet(payload, recvlen);
-            continue;
-        }
-
-        /**** Radar Data Packet, with Data Window Header ****/
-
-        if (win->scan_sequence_num != last_scan_seq)
-        {
-            current_window = INITIAL_PACKET_WINDOW;
-            cur_pkt_counter = 0;
-
-            // new scan sequence number indicates previous scan is complete
-            if (cur_in_scan)
-            {
-                cur_in_scan->finish_uhdp(last_msg_type);
-            }
-
-            last_msg_type = UHDP_TYPE_HELLO; // NOP
-
-            // flush incoming list up to new sequence number; these scans were dropped
-            while (cur_in_scan)
-            {
-                if (win->scan_sequence_num == cur_in_scan->scan_info.scan_sequence_number)
-                {
-                    break;
-                }
-                if (last_scan_seq != cur_in_scan->scan_info.scan_sequence_number)
-                {
-                    counters.dropped_scans++;
-                }
-
-                ScanObject_Impl* scan = cur_in_scan;
-                cur_in_scan = cur_in_scan->next_scan_object;
-                queue_completed_scan(scan);
-            }
-
-            // note cur_in_scan should be non-null 99.9% of the time, the only
-            // time it should be null is if the scan information message was dropped
-            if (!cur_in_scan)
-            {
-                last_in_scan = NULL;
-            }
-        }
-        else if (uhdp->message_type != last_msg_type)
-        {
-            // new message type, finalize previous message type
-            if (cur_in_scan)
-            {
-                if (win->packet_counter != cur_pkt_counter)
-                {
-                    cur_in_scan->abort_uhdp(last_msg_type);
-                }
-                else
-                {
-                    cur_in_scan->finish_uhdp(last_msg_type);
-                }
-            }
-            last_msg_type = UHDP_TYPE_HELLO; // NOP
-        }
-
-        if (win->packet_counter != cur_pkt_counter)
-        {
-            /* a packet was dropped, abort this file */
-            if (cur_in_scan)
-            {
-                cur_in_scan->abort_uhdp(uhdp->message_type);
-            }
-            counters.dropped_data_packets += win->packet_counter - cur_pkt_counter;
-            cur_pkt_counter = win->packet_counter + 1;
-            continue;
-        }
-
-        if (cur_pkt_counter + (additional_packet_window / 2) > current_window)
-        {
-            current_window += additional_packet_window;
-
-            char buf[sizeof(UhdpHeader) + sizeof(UhdpDataWindow)];
-            UhdpHeader* hdr = (UhdpHeader*)buf;
-            hdr->message_type = UHDP_TYPE_DATA_WINDOW;
-            hdr->total_length = sizeof(buf);
-
-            UhdpDataWindow* winmsg = (UhdpDataWindow*)(hdr + 1);
-            winmsg->scan_sequence_number = win->scan_sequence_num;
-            winmsg->max_packet_counter = current_window;
-
-            send_uhdp(hdr);
-        }
-
-        if (cur_in_scan)
-        {
-            cur_in_scan->handle_uhdp(uhdp->message_type, payload, recvlen);
-        }
-        else
-        {
-            counters.data_without_scan_info++;
-        }
-
-        cur_pkt_counter = win->packet_counter + 1;
-        last_msg_type = uhdp->message_type;
-        last_scan_seq = win->scan_sequence_num;
-    }
-}
-
-
-void            Connection_Impl::synchronize_scan_interval(timeval host_time)
-{
-    scan_interval_base_host_time = host_time;
-
-    send_scan_interval_base_time();
-}
-
-
-void            Connection_Impl::send_scan_interval_base_time()
+void            Connection_Impl::send_frame_interval_base_time()
 {
     char buf[sizeof(UhdpHeader) + sizeof(UhdpTimeAlignment)];
     UhdpHeader* hdr = (UhdpHeader*)buf;
@@ -2540,8 +1341,7 @@ void            Connection_Impl::send_scan_interval_base_time()
     hdr->total_length = sizeof(buf);
 
     // map host time to radar time
-    uint64_t t = (uint64_t)UH_CLOCK_TICS_PER_SECOND * scan_interval_base_host_time.tv_sec +
-                 (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * scan_interval_base_host_time.tv_usec;
+    uint64_t t = uint64_t(USEC_PER_SEC) * frame_interval_base_host_time.tv_sec + frame_interval_base_host_time.tv_usec;
     UhdpTimeAlignment* atime = (UhdpTimeAlignment*)(hdr + 1);
     atime->timestamp64 = t - radar_host_delta;
     atime->timestamp32 = 0;
@@ -2587,52 +1387,13 @@ ScanObject_Impl* Connection_Impl::scan_wait()
 }
 
 
-int Connection_Impl::create_socket()
+void            Connection_Impl::close_and_release()
 {
-#ifdef _WIN32
-    WSADATA wsadata;
-    // request socket version 2.2
-    if (WSAStartup(MAKEWORD(2, 2), &wsadata) != 0)
+    if (mysensorgroup)
     {
-        printf("Windows socket err: %d\n", WSAGetLastError());
-        return -1;
+        printf("Connections in a SensorGroup cannot be closed ad-hoc, ignoring close_and_release()\n");
+        return;
     }
-#endif
-    if (getenv("UHDP_HELLO_TIMEOUT"))
-    {
-        // If the user is setting UHDP_HELLO_TIMEOUT, they are almost certainly
-        // dealing with a very slow simulation (likely a chip design simulator)
-        // that is achingly slow. All timeouts should be scaled appropriately.
-        timeout_scale = 100;
-    }
-
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd < 0)
-    {
-        printf("Cannot create socket, err %d\n", sockfd);
-        return -1;
-    }
-
-    struct sockaddr_in myaddr;
-    memset(&myaddr, 0, sizeof(myaddr));
-
-    uint16_t listen_port = 0;
-    myaddr.sin_family = AF_INET;
-    myaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    myaddr.sin_port = htons(listen_port);
-
-    if (bind(sockfd, (struct sockaddr*)&myaddr, sizeof(myaddr)) < 0)
-    {
-        printf("Unable to bind local socket\n");
-        return -1;
-    }
-
-    return 0;
-}
-
-void Connection_Impl::close_and_release()
-{
-    released = true;
 
     if (myscanning)
     {
@@ -2649,22 +1410,25 @@ void Connection_Impl::close_and_release()
 
         struct timeval tv;
         gettimeofday(&tv, NULL);
-        request_close_time = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                             (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
+        request_close_time = uint64_t(USEC_PER_SEC) * tv.tv_sec + tv.tv_usec;
     }
 
     if (use_thread)
     {
-        // main loop waits for CLOSE_ACK, then exits. blocking wait
+        // when UHDP_TYPE_CLOSE_ACK is received, abort_connection() gets called
         stop();
     }
 
     delete this;
 }
 
-void Connection_Impl::close_and_reboot()
+void            Connection_Impl::close_and_reboot()
 {
-    released = true;
+    if (mysensorgroup)
+    {
+        printf("Connections in a SensorGroup cannot be closed ad-hoc, ignoring close_and_reboot()\n");
+        return;
+    }
 
     if (myscanning)
     {
@@ -2683,265 +1447,16 @@ void Connection_Impl::close_and_reboot()
 
         struct timeval tv;
         gettimeofday(&tv, NULL);
-        request_close_time = (uint64_t)UH_CLOCK_TICS_PER_SECOND * tv.tv_sec +
-                             (uint64_t)UH_CLOCK_TICS_PER_MICRO_SECONDS * tv.tv_usec;
+        request_close_time = uint64_t(USEC_PER_SEC) * tv.tv_sec + tv.tv_usec;
     }
 
     if (use_thread)
     {
-        // main loop waits for CLOSE_ACK, then exits. blocking wait
+        // when UHDP_TYPE_CLOSE_ACK is received, abort_connection() gets called
         stop();
     }
 
     delete this;
-}
-
-MakeConnectionError last_err;
-
-
-enum {
-    MIN_SUPPORTED_UHDP_VERSION = 24,
-    MAX_SUPPORTED_UHDP_VERSION = 32,
-    REBOOT_RETRIES = 3,
-    CONNECTION_RETRIES = 5,
-    BOOT_CAL_TIMEOUT_RETRIES = 20,
-};
-
-
-class Connection*   make_connection(uint32_t radar_ip, uint32_t timeout_sec, UserLogAgent& log_agent, bool use_thread)
-{
-    srand(time(0)); // make rand() more random
-
-    Connection_Impl* con = new Connection_Impl(log_agent, use_thread);
-
-    if (con->create_socket() < 0)
-    {
-        last_err = MCE_SOCKET_FAILURE;
-        delete con;
-        return NULL;
-    }
-
-    // TODO: last_err = MCE_INVALID_RADAR_IP
-
-    uint32_t ver = MAX_SUPPORTED_UHDP_VERSION;
-    if (getenv("UHDP_OLD"))
-    {
-        // Radars with version 31..33 might not be able to negotiate a lower
-        // UhDP version number, so we have this hack to start with version 31
-        ver = 31;
-    }
-    for (; ver >= MIN_SUPPORTED_UHDP_VERSION; ver--)
-    {
-        int ret = con->send_hello(radar_ip, timeout_sec, ver);
-        if (ret == 0)
-        {
-            last_err = MCE_NO_ERROR;
-            break;
-        }
-        if (ret == -2)
-        {
-            last_err = MCE_UHDP_VERSION_MISMATCH;
-        }
-        else
-        {
-            last_err = MCE_NO_RESPONSE;
-            delete con;
-            return NULL;
-        }
-    }
-
-    if (last_err == MCE_UHDP_VERSION_MISMATCH)
-    {
-        printf("%s\n", UHPHandler::last_msg);
-        delete con;
-        return NULL;
-    }
-
-    if (use_thread)
-    {
-        con->start();
-    }
-
-    last_err = MCE_NO_ERROR;
-    return con;
-}
-
-namespace {
-
-bool reboot(Connection& con)
-{
-    con.run_diag("sabine_reset", "reset");
-    DiagReturnCodeEnum code;
-    con.get_last_diag_error(code);
-    con.close_and_release();
-    uh_usleep(3 * 1000 * 1000); // wait 3 seconds for watchdog timeout
-    return code == DIAG_RET_SUCCESS;
-}
-
-bool run_warmup_scans(Connection& con)
-{
-    RDC_ScanControl ctrl;
-    ctrl.defaults();
-    ctrl.scan_count = 1000;
-
-    RDC_ScanDescriptor desc;
-    desc.set_defaults(VP1a);
-
-    UhdpCaptureControl capctrl;
-    capctrl.set_defaults();
-
-    Scanning* s = con.setup_scanning(ctrl, &desc, capctrl);
-    if (s)
-    {
-        int32_t i;
-        for (i = 0; i < ctrl.scan_count; i++)
-        {
-            ScanObject* scan = s->wait_for_scan();
-            if (scan)
-            {
-                scan->release();
-            }
-            else
-            {
-                break;
-            }
-        }
-        s->release();
-        return i == ctrl.scan_count;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-bool run_vrx_align_field_mode(Connection& con)
-{
-    Calibrate_cal_vrx_align_control_input ctrl;
-    ctrl.rb_halfwidth = 10;
-    ctrl.flip_threshold = 60;
-    ctrl.rx_flip_time = 250;
-    ctrl.tx_extra_threshold = 50;
-    ctrl.tx_flip_time = 250;
-    ctrl.tx_nflip = 3;
-    ctrl.max_iterations = 50;
-    ctrl.verbose = false;
-    ctrl.factory_mode = false;
-    ctrl.umsk_mode = 1;
-
-    // temporarily increase allowed diag time for field mode
-    uint32_t save_timeout = static_cast<Connection_Impl&>(con).timeout_scale;
-    static_cast<Connection_Impl&>(con).timeout_scale = 100;
-
-    DiagReturnCodeEnum code;
-    con.run_diag("calibrate", "calibrate_vrx_align_control", ctrl);
-    con.get_last_diag_error(code);
-    if (code == DIAG_RET_SUCCESS)
-    {
-        con.run_diag("calibrate", "calibrate_vrx_align_run");
-        con.run_diag("calibrate", "calibrate_vrx_align_release");
-    }
-    else
-    {
-        con.run_diag("calibrate", "abort");
-    }
-
-    static_cast<Connection_Impl&>(con).timeout_scale = save_timeout;
-
-    uint32_t state_mask = con.query_radar_status_bitmask();
-    return !!(state_mask & STATE_ATTR_VRX_ALIGN);
-}
-
-}
-
-
-Connection* make_good_connection(uint32_t radar_ip, UserLogAgent& log_agent, bool use_thread)
-{
-    for (uint32_t i = 0; i < REBOOT_RETRIES; i++)
-    {
-        Connection* con = NULL;
-        for (uint32_t x = 0; x < CONNECTION_RETRIES; x++)
-        {
-            con = make_connection(radar_ip, 2, log_agent, use_thread);
-            if (con)
-            {
-                break;
-            }
-            printf("No response in 1 second, retry %d of %d...\n", x, CONNECTION_RETRIES);
-        }
-        if (!con)
-        {
-            last_err = MCE_NO_RESPONSE;
-            return NULL;
-        }
-        if (con->is_sabine_b())
-        {
-            return con;
-        }
-
-        uint32_t status = con->query_radar_status_bitmask();
-        for (uint32_t x = 0; x < BOOT_CAL_TIMEOUT_RETRIES; x++)
-        {
-            if (status & STATE_ATTR_OBJECT_INIT)
-            {
-                break;
-            }
-
-            uh_usleep(1000 * 1000); // wait for radar to complete boot-up
-            status = con->query_radar_status_bitmask();
-        }
-
-        if (!(status & STATE_ATTR_ADI_SYNC))
-        {
-            printf("\n\nADI sync failure, the radar must be rebooted\n\n\n");
-            if (reboot(*con))
-            {
-                continue;
-            }
-            else
-            {
-                last_err = MCE_BAD_STATE;
-                return NULL;
-            }
-        }
-        if (!(status & STATE_ATTR_VRX_ALIGN))
-        {
-            printf("\n\nBoot Vrx Alignment (field mode) failed, running warmup scans...\n\n\n");
-            if (!run_warmup_scans(*con))
-            {
-                con->close_and_release();
-                return NULL;
-            }
-            printf("\n\nRetrying field mode after warmup scans...\n\n\n");
-            if (run_vrx_align_field_mode(*con))
-            {
-                break;
-            }
-            else if (reboot(*con))
-            {
-                continue;
-            }
-            else
-            {
-                last_err = MCE_BAD_STATE;
-                return NULL;
-            }
-        }
-
-        uh_usleep(100 * 1000); // wait boot logs to quiesce
-        last_err = MCE_NO_ERROR;
-        return con;
-    }
-
-    printf("Radar is not able to complete boot calibrations successfully, scanning not possible\n");
-    last_err = MCE_BAD_STATE;
-    return NULL;
-}
-
-
-MakeConnectionError get_last_connection_error()
-{
-    return last_err;
 }
 
 const char* UserLogAgent::cpu_names[] = { "SCP", "DSP1", "DSP2", "CCP", "HSM", NULL };

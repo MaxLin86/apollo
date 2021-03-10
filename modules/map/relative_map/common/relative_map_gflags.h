@@ -31,4 +31,6 @@ DECLARE_string(virtual_lane_marker_fliename);
 DECLARE_int32(virtual_lane_marker_running_cycs);
 
 DECLARE_bool(tmc_navigation_points);
+DECLARE_double(path_smooth_param_alpha);
+DECLARE_double(path_smooth_param_beta);
 //---------------------------------------------
