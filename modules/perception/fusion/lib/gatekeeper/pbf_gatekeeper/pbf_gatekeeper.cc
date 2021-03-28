@@ -73,7 +73,7 @@ bool PbfGatekeeper::AbleToPublish(const TrackPtr &track) {
       (!params_.use_camera_3d || invisible_in_camera)) {
     auto sensor_obj = track->GetFusedObject();
     if (sensor_obj != nullptr && sensor_obj->GetBaseObject()->sub_type !=
-                                     base::ObjectSubType::TRAFFICCONE) {
+                                     base::ObjectSubType::CONETANK) {
       return false;
     }
   }
@@ -184,7 +184,7 @@ bool PbfGatekeeper::CameraAbleToPublish(const TrackPtr &track, bool is_night) {
         camera_object->GetBaseObject()->camera_supplement.local_center.norm();
     // If sub_type of object is traffic cone publish it regardless of range
     if ((camera_object->GetBaseObject()->sub_type ==
-         base::ObjectSubType::TRAFFICCONE) ||
+         base::ObjectSubType::CONETANK) ||
         (range >= params_.min_camera_publish_distance ||
          ((camera_object->GetBaseObject()->type ==
            base::ObjectType::UNKNOWN_UNMOVABLE) &&

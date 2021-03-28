@@ -109,10 +109,13 @@ new_local_repository(
 )
 
 # Caffe
-new_local_repository(
+#new_local_repository(
+new_git_repository(
     name = "caffe",
     build_file = "third_party/caffe.BUILD",
-    path = "/usr/include/caffe",
+    #path = "/usr/include/caffe",
+    tag = "v0.0.1",
+    remote = "https://gitee.com/maxlin86/caffe-apollo-yolo",
 )
 ## tensorrt
 new_local_repository(

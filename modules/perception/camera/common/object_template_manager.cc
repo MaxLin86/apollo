@@ -30,20 +30,18 @@ namespace perception {
 namespace camera {
 
 std::vector<base::ObjectSubType> kTypeCanBeRef = {base::ObjectSubType::CAR,
-                                                  base::ObjectSubType::VAN};
+                                                  base::ObjectSubType::PERSON,
+                                                  base::ObjectSubType::CARRIAGE,
+                                                  base::ObjectSubType::CONETANK,};
 
 std::vector<base::ObjectSubType> kTypeRefinedByTemplate = {
-    base::ObjectSubType::CAR,        base::ObjectSubType::VAN,
-    base::ObjectSubType::BUS,        base::ObjectSubType::TRUCK,
-    base::ObjectSubType::PEDESTRIAN, base::ObjectSubType::TRAFFICCONE,
-    base::ObjectSubType::CYCLIST,    base::ObjectSubType::MOTORCYCLIST,
+    base::ObjectSubType::CAR,        base::ObjectSubType::PERSON,
+    base::ObjectSubType::CARRIAGE,        base::ObjectSubType::CONETANK,
 };
 
 std::vector<base::ObjectSubType> kTypeRefinedByRef = {
-    base::ObjectSubType::BUS,        base::ObjectSubType::TRUCK,
-    base::ObjectSubType::PEDESTRIAN, base::ObjectSubType::TRAFFICCONE,
-    base::ObjectSubType::CYCLIST,    base::ObjectSubType::MOTORCYCLIST,
-    base::ObjectSubType::TRICYCLIST};
+    base::ObjectSubType::CAR,        base::ObjectSubType::PERSON,
+    base::ObjectSubType::CARRIAGE, base::ObjectSubType::CONETANK,};
 
 ObjectTemplateManager::ObjectTemplateManager() {}
 
@@ -125,19 +123,25 @@ bool ObjectTemplateManager::Init(
   min_template_hwl_.clear();
   mid_template_hwl_.clear();
   max_template_hwl_.clear();
+
+  LoadVehMinMidMaxTemplates(base::ObjectSubType::CARRIAGE, proto.car());
   LoadVehMinMidMaxTemplates(base::ObjectSubType::CAR, proto.car());
-  LoadVehMinMidMaxTemplates(base::ObjectSubType::VAN, proto.van());
-  LoadVehMinMidMaxTemplates(base::ObjectSubType::TRUCK, proto.truck());
-  LoadVehMinMidMaxTemplates(base::ObjectSubType::BUS, proto.bus());
-  LoadVehMinMidMaxTemplates(base::ObjectSubType::CYCLIST, proto.cyclist());
-  LoadVehMinMidMaxTemplates(base::ObjectSubType::MOTORCYCLIST,
-                            proto.motorcyclist());
-  LoadVehMinMidMaxTemplates(base::ObjectSubType::TRICYCLIST,
-                            proto.tricyclist());
-  LoadVehMinMidMaxTemplates(base::ObjectSubType::PEDESTRIAN,
-                            proto.pedestrian());
-  LoadVehMinMidMaxTemplates(base::ObjectSubType::TRAFFICCONE,
-                            proto.trafficcone());
+  LoadVehMinMidMaxTemplates(base::ObjectSubType::CONETANK, proto.car());
+  LoadVehMinMidMaxTemplates(base::ObjectSubType::PERSON, proto.car());
+
+  // LoadVehMinMidMaxTemplates(base::ObjectSubType::CAR, proto.car());
+  // LoadVehMinMidMaxTemplates(base::ObjectSubType::VAN, proto.van());
+  // LoadVehMinMidMaxTemplates(base::ObjectSubType::TRUCK, proto.truck());
+  // LoadVehMinMidMaxTemplates(base::ObjectSubType::BUS, proto.bus());
+  // LoadVehMinMidMaxTemplates(base::ObjectSubType::CYCLIST, proto.cyclist());
+  // LoadVehMinMidMaxTemplates(base::ObjectSubType::MOTORCYCLIST,
+  //                           proto.motorcyclist());
+  // LoadVehMinMidMaxTemplates(base::ObjectSubType::TRICYCLIST,
+  //                           proto.tricyclist());
+  // LoadVehMinMidMaxTemplates(base::ObjectSubType::PEDESTRIAN,
+  //                           proto.pedestrian());
+  // LoadVehMinMidMaxTemplates(base::ObjectSubType::TRAFFICCONE,
+  //                           proto.trafficcone());
 
   template_hwl_.resize(0);
   template_hwl_.push_back(min_template_hwl_);
@@ -151,20 +155,25 @@ bool ObjectTemplateManager::Init(
       proto.unknown_movable().speed_limit();
   type_speed_limit_[base::ObjectSubType::UNKNOWN_UNMOVABLE] =
       proto.unknown_unmovable().speed_limit();
+
   type_speed_limit_[base::ObjectSubType::CAR] = proto.car().speed_limit();
-  type_speed_limit_[base::ObjectSubType::VAN] = proto.van().speed_limit();
-  type_speed_limit_[base::ObjectSubType::TRUCK] = proto.truck().speed_limit();
-  type_speed_limit_[base::ObjectSubType::BUS] = proto.bus().speed_limit();
-  type_speed_limit_[base::ObjectSubType::CYCLIST] =
-      proto.cyclist().speed_limit();
-  type_speed_limit_[base::ObjectSubType::MOTORCYCLIST] =
-      proto.motorcyclist().speed_limit();
-  type_speed_limit_[base::ObjectSubType::TRICYCLIST] =
-      proto.tricyclist().speed_limit();
-  type_speed_limit_[base::ObjectSubType::PEDESTRIAN] =
-      proto.pedestrian().speed_limit();
-  type_speed_limit_[base::ObjectSubType::TRAFFICCONE] =
-      proto.trafficcone().speed_limit();
+  type_speed_limit_[base::ObjectSubType::PERSON] = proto.car().speed_limit();
+  type_speed_limit_[base::ObjectSubType::CONETANK] = proto.car().speed_limit();
+  type_speed_limit_[base::ObjectSubType::CARRIAGE] = proto.car().speed_limit();
+  // type_speed_limit_[base::ObjectSubType::CAR] = proto.car().speed_limit();
+  // type_speed_limit_[base::ObjectSubType::VAN] = proto.van().speed_limit();
+  // type_speed_limit_[base::ObjectSubType::TRUCK] = proto.truck().speed_limit();
+  // type_speed_limit_[base::ObjectSubType::BUS] = proto.bus().speed_limit();
+  // type_speed_limit_[base::ObjectSubType::CYCLIST] =
+  //     proto.cyclist().speed_limit();
+  // type_speed_limit_[base::ObjectSubType::MOTORCYCLIST] =
+  //     proto.motorcyclist().speed_limit();
+  // type_speed_limit_[base::ObjectSubType::TRICYCLIST] =
+  //     proto.tricyclist().speed_limit();
+  // type_speed_limit_[base::ObjectSubType::PEDESTRIAN] =
+  //     proto.pedestrian().speed_limit();
+  // type_speed_limit_[base::ObjectSubType::TRAFFICCONE] =
+  //     proto.trafficcone().speed_limit();
 
   type_can_be_ref_ = kTypeCanBeRef;
   type_refined_by_template_ = kTypeRefinedByTemplate;

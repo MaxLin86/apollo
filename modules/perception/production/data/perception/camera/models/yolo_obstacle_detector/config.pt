@@ -1,15 +1,16 @@
 model_param {
-  model_name: "./3d-r4-half"
-  model_type: "RTNetInt8"
-  weight_file: "deploy.model"
-  proto_file: "deploy.pt"
+  model_name: "./zkys"
+  model_type: "RTNet"
+  weight_file: "yolov2t5.caffemodel"
+  proto_file: "yolov2t5.prototxt"
   anchors_file: "anchors.txt"
   types_file: "types.txt"
-  calibratetable_root: "./3d-r4-half"
+  calibratetable_root: "./zkys"
   confidence_threshold: 0.2
   offset_ratio: 0.288889
   cropped_ratio: 0.711111
   resized_width: 1440
+  #resized_width: 480
   aligned_pixel: 32
   min_2d_height: 10
   min_3d_height: 0.1
@@ -22,15 +23,22 @@ model_param {
   # num_areas: 4
   border_ratio: 0.01
 }
-net_param {
-  det1_loc_blob: "loc_pred"
-  det1_obj_blob: "obj_pred"
-  det1_cls_blob: "cls_pred"
-  det1_ori_blob: "ori_pred"
-  det1_dim_blob: "dim_pred"
+#net_param {
+#  det1_loc_blob: "loc_pred"
+#  det1_obj_blob: "obj_pred"
+#  det1_cls_blob: "cls_pred"
+#  det1_ori_blob: "ori_pred"
+#  det1_dim_blob: "dim_pred"
+#  input_blob: "data"
+#  feat_blob: "conv3_3"
+#}
+
+net_param
+{
+  det1_loc_blob: "region"
   input_blob: "data"
-  feat_blob: "conv3_3"
 }
+
 nms_param {
   type: "NormalNMS"
   threshold: 0.5

@@ -51,6 +51,7 @@ void ParseNetParam(const NetParameter &net_param,
                    std::vector<LayerParameter> *order) {
   for (int i = 0; i < net_param.layer_size(); ++i) {
     LayerParameter tensorrt_layer_param = net_param.layer(i);
+    AERROR << "PARSE NET PARAM type: " << tensorrt_layer_param.type();
     if (tensorrt_layer_param.type() == "Input") {
       InputParameter input = tensorrt_layer_param.input_param();
       nvinfer1::DimsCHW dims{static_cast<int>(input.shape(0).dim(1)),
@@ -88,6 +89,7 @@ void ParseNetParam(const NetParameter &net_param,
     } else {
       order->push_back(tensorrt_layer_param);
     }
+    AERROR <<  i << " " << tensorrt_layer_param.type() << " " << tensor_dims_map->size() << "  " << tensor_modify_map->size() << " " << order->size();
   }
 }
 

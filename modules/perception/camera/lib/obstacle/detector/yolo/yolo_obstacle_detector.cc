@@ -125,6 +125,12 @@ bool YoloObstacleDetector::InitNet(const yolo::YoloParam &yolo_param,
   // init Net
   const auto &model_type = model_param.model_type();
   AINFO << "model_type=" << model_type;
+  AERROR<<"model_type=" << model_type;
+  AERROR<<"proto_file=" << proto_file;
+  AERROR<<"weight_file=" << weight_file;
+  AERROR<<"output_names=" << output_names[0];
+  AERROR<<"input_names=" << input_names[0];
+  AERROR<<"model_root=" << model_root;
   inference_.reset(inference::CreateInferenceByName(model_type, proto_file,
                                                     weight_file, output_names,
                                                     input_names, model_root));
@@ -274,6 +280,10 @@ bool YoloObstacleDetector::Init(const ObstacleDetectorInitOptions &options) {
   LoadParam(yolo_param_);
   min_dims_.min_2d_height /= static_cast<float>(height_);
 
+  if (!InitNet(yolo_param_, model_root)) {
+    return false;
+  }
+
   if (!LoadAnchors(anchors_file, &anchors_)) {
     return false;
   }
@@ -283,10 +293,10 @@ bool YoloObstacleDetector::Init(const ObstacleDetectorInitOptions &options) {
   if (!LoadExpand(expand_file, &expands_)) {
     return false;
   }
+  AERROR << expands_.size();
+  AERROR << types_.size();
   CHECK(expands_.size() == types_.size());
-  if (!InitNet(yolo_param_, model_root)) {
-    return false;
-  }
+  
   InitYoloBlob(yolo_param_.net_param());
   if (!InitFeatureExtractor(model_root)) {
     return false;

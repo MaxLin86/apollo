@@ -350,22 +350,30 @@ std::string Visualizer::sub_type_to_string(const base::ObjectSubType type) {
       return "UNMO";
     case base::ObjectSubType::CAR:
       return "CAR";
-    case base::ObjectSubType::VAN:
-      return "VAN";
-    case base::ObjectSubType::TRUCK:
-      return "TRUC";
-    case base::ObjectSubType::BUS:
-      return "BUS";
-    case base::ObjectSubType::CYCLIST:
-      return "CYC";
-    case base::ObjectSubType::MOTORCYCLIST:
-      return "MCYC";
-    case base::ObjectSubType::TRICYCLIST:
-      return "TCYC";
-    case base::ObjectSubType::PEDESTRIAN:
-      return "PED";
-    case base::ObjectSubType::TRAFFICCONE:
-      return "CONE";
+    case base::ObjectSubType::CARRIAGE:
+      return "CARRIAGE";
+    case base::ObjectSubType::PERSON:
+      return "PERSON";
+    case base::ObjectSubType::CONETANK:
+      return "CONETANK";
+    // case base::ObjectSubType::CAR:
+    //   return "CAR";
+    // case base::ObjectSubType::VAN:
+    //   return "VAN";
+    // case base::ObjectSubType::TRUCK:
+    //   return "TRUC";
+    // case base::ObjectSubType::BUS:
+    //   return "BUS";
+    // case base::ObjectSubType::CYCLIST:
+    //   return "CYC";
+    // case base::ObjectSubType::MOTORCYCLIST:
+    //   return "MCYC";
+    // case base::ObjectSubType::TRICYCLIST:
+    //   return "TCYC";
+    // case base::ObjectSubType::PEDESTRIAN:
+    //   return "PED";
+    // case base::ObjectSubType::TRAFFICCONE:
+    //   return "CONE";
     default:
       break;
   }

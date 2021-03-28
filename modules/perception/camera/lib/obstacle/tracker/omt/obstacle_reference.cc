@@ -224,7 +224,7 @@ void ObstacleReference::CorrectSize(CameraFrame *frame) {
       }
 
       // h from history reference vote
-      if (obj->sub_type != base::ObjectSubType::TRAFFICCONE || height.empty()) {
+      if (obj->sub_type != base::ObjectSubType::CONETANK || height.empty()) {
         float cy = frame->camera_k_matrix(1, 2);
         cy = std::min(supplement.box.ymax - 1, cy);
         for (auto &&reference : reference_[sensor]) {
