@@ -57,8 +57,7 @@ void RTNet::ConstructMap(const LayerParameter &layer_param,
     tensor_map->insert(std::pair<std::string, nvinfer1::ITensor *>(
         top_name, layer->getOutput(i)));
     layer->getOutput(i)->setName(top_name.c_str());
-    // AERROR << " CONSTRUCT MAP: " << layer->getOutput(i) << " " << top_name << " " <<  layer_param.name() << tensor_map->at("layer1-conv")->getName() << " "  << tensor_map->at("layer1-conv")->getDimensions().nbDims;;
-  }
+   }
 }
 
 void RTNet::addConvLayer(const LayerParameter &layer_param,
@@ -106,8 +105,6 @@ void RTNet::addConvLayer(const LayerParameter &layer_param,
     AERROR << "CONV EMPTY";
    // CHECK THIS 
   ConstructMap(layer_param, convLayer, tensor_map, tensor_modify_map);
-
-  // AERROR << "CHECK in add conv:  ------" <<  tensor_map->at(layer_param.name())->getName() << " "  << tensor_map->at(layer_param.name())->getDimensions().nbDims;
 
 #if LOAD_DEBUG
   auto tmp_out_dims = convLayer->getOutput(0)->getDimensions();
@@ -314,13 +311,10 @@ void RTNet::addBatchnormLayer(const LayerParameter &layer_param,
   nvinfer1::Weights power{nvinfer1::DataType::kFLOAT, nullptr, 0};
   AERROR << "STEP1";
   AERROR << layer_param.name().c_str() << " " << layer_param.name().c_str()[0] << " " <<  layer_param.name().c_str()[1] << " " << weight_map->size() << " " << power.count << " " << net->getNbLayers () ;
-  // shift scale power
-  // typedef std::map<std::string, std::vector<nvinfer1::Weights>> WeightMap;
-  // WeightMap *weight_map;
+
    nvinfer1::DataType typea = (*inputs[0]).getType();
    int ptypea = int(typea);
    AERROR << ptypea << " " <<  (*weight_map)[layer_param.name().c_str()][0].count << " " << (*weight_map)[layer_param.name().c_str()][1].count;
-  // AERROR << (*inputs[0]).getType();
 
   const float scaleParam = 0.0125f;
      nvinfer1::Weights power2{nvinfer1::DataType::kFLOAT, nullptr, 0};
@@ -456,33 +450,10 @@ void RTNet::addLayer(const LayerParameter &layer_param,
                      WeightMap *weight_map, nvinfer1::INetworkDefinition *net,
                      TensorMap *tensor_map,
                      TensorModifyMap *tensor_modify_map) {
-  // AERROR <<"layer type: " << layer_param.type();
-  // AERROR << net->getNbInputs ();
-
-  // const float scaleParam = 0.0125f;
-  //    nvinfer1::Weights power2{nvinfer1::DataType::kFLOAT, nullptr, 0};
-  //    nvinfer1::Weights shift{nvinfer1::DataType::kFLOAT, nullptr, 0};
-  //    nvinfer1::Weights scale{nvinfer1::DataType::kFLOAT, &scaleParam, 1};
-  // nvinfer1::IScaleLayer* scale_1 = net->addScale(*inputs[0], nvinfer1::ScaleMode::kUNIFORM, shift, scale, power2);
-  //  if (scale_1)
-  //   AERROR << "add layer NO EMPTY";
-  // else
-  //  AERROR << "add layer EMPTY";
 
   if (layer_param.type() == "Convolution") {
     addConvLayer(layer_param, inputs, weight_map, net, tensor_map,
                  tensor_modify_map);
-
-  //                const float scaleParamX = 0.0125f;
-  //    nvinfer1::Weights power2X{nvinfer1::DataType::kFLOAT, nullptr, 0};
-  //    nvinfer1::Weights shiftX{nvinfer1::DataType::kFLOAT, nullptr, 0};
-  //    nvinfer1::Weights scaleX{nvinfer1::DataType::kFLOAT, &scaleParamX, 1};
-  // nvinfer1::IScaleLayer* scale_1X = net->addScale(*inputs[0], nvinfer1::ScaleMode::kUNIFORM, shiftX, scaleX, power2X);
-  //  if (scale_1X)
-  //   AERROR << "afterconv NO EMPTY";
-  // else
-  //  AERROR << "afterconv  EMPTY";
-
   } else if (layer_param.type() == "Deconvolution") {
     addDeconvLayer(layer_param, inputs, weight_map, net, tensor_map,
                    tensor_modify_map);
@@ -774,28 +745,13 @@ void RTNet::parse_with_api(
   // addINput 后 tensor_map 尺寸增加1
   AERROR << "add input flag: "<<addFlag <<" " <<  shapes.size() <<" " <<  tensor_dims_map.size()<<" "  << order.size() << " " << tensor_modify_map_.size() <<" " << tensor_map.size();
  AERROR << "CHECK:  ------" <<  tensor_map["data"]->getName() << " " << tensor_map["data"]->getDimensions ().nbDims;
-    // AERROR << "CHECK:  ------" <<  tensor_map["layer1-conv"]->getName() << " "  << tensor_map["layer1-conv"]->getDimensions ().nbDims;
-  // for (auto layer_param: order)
-  // {
-  //   AERROR<<layer_param.GetCachedSize() << " " << layer_param.bottom(0) << " " << layer_param.top(0) << " ";
-  // }
-  // exit(0);
-  // int i = 0;
   
   AERROR << "order size: " << order.size();
   for (auto layer_param : order) {
-    // TODO: PRINT ORDER DIRECT
     std::vector<nvinfer1::ITensor *> inputs;
 
     for (int j = 0; j < layer_param.bottom_size(); j++) {
 
-// ConvolutionParameter conv = layer_param.convolution_param();
-//   ConvParam param;
-//   CHECK(ParserConvParam(conv, &param));
-//   nvinfer1::IConvolutionLayer *convLayer = nullptr;
-//   int size = conv.num_output() * param.kernel_w * param.kernel_h * inputs[0]->getDimensions().d[0];
-//   AERROR << "print conv param: "<< inputs[0]->getName() << " " << inputs[0]->getDimensions().nbDims << " " <<  inputs[0]->getDimensions().d[0] << " " <<  inputs[0]->getDimensions().d[1] << " "<<  inputs[0]->getDimensions().d[2];
-      
       AERROR << j <<  " " << layer_param.bottom(j)<< " " << tensor_modify_map_.size();
       std::string name = tensor_modify_map_[layer_param.bottom(j)];
       nvinfer1::ITensor* cur_tensor = tensor_map[name];
@@ -804,55 +760,16 @@ void RTNet::parse_with_api(
       AERROR << "inputs push back: " << j <<" "<< name << " " <<  cur_tensor->getName() << " " <<cur_tensor->getDimensions ().nbDims;
     }
     AERROR << "input_size:  " << inputs.size() <<"  input0_name: "<< inputs[0]->getName() << "  lyaerparam_bottom_size: " << layer_param.bottom_size()<< " "<<"layer type: " << layer_param.type();
-
-    // const float scaleParam = 0.0125f;
-    // nvinfer1::Weights power2{nvinfer1::DataType::kFLOAT, nullptr, 0};
-    // nvinfer1::Weights shift{nvinfer1::DataType::kFLOAT, nullptr, 0};
-    // nvinfer1::Weights scale{nvinfer1::DataType::kFLOAT, &scaleParam, 1};
-    // nvinfer1::IScaleLayer* scale_1 = network_->addScale(*inputs[0], nvinfer1::ScaleMode::kUNIFORM, shift, scale, power2);
-    // if (scale_1)
-    //   AERROR << "before add NO EMPTY";
-    // else
-    //   AERROR << "before add EMPTY";
-
-    // nvinfer1::ActivationType type = nvinfer1::ActivationType::kSIGMOID;
-    // nvinfer1::IActivationLayer *reluLayer = network_->addActivation(*inputs[0], type);
-    // if (reluLayer)
-    //   AERROR << "before add relu NO EMPTY";
-    // else
-    //   AERROR << "before add relu EMPTY";
-
     
     addLayer(layer_param, inputs.data(), layer_param.bottom_size(),
              &weight_map_, network_, &tensor_map, &tensor_modify_map_);
     AERROR << "CHECK:  ------" <<  tensor_map["data"]->getName() << " " << tensor_map["data"]->getDimensions().nbDims;
-    // AERROR << "CHECK:  ------" <<  tensor_map["layer1-conv"]->getName() << " "  << tensor_map["layer1-conv"]->getDimensions().nbDims;
      AERROR << "after add layer: " <<" " <<  shapes.size() <<" " <<  tensor_dims_map.size()<<" "  << order.size() << " " << tensor_modify_map_.size() <<" " << tensor_map.size();
     
     std::string name2 = tensor_modify_map_[layer_param.bottom(0)];
       nvinfer1::ITensor* cur_tensor2 = tensor_map[name2];
       AERROR << "after add laye tensor: " << name2 << " " <<  cur_tensor2->getName() << " " << cur_tensor2->getDimensions ().nbDims;
 
-    
-    
-    // const float scaleParam = 0.0125f;
-    //  nvinfer1::Weights power2{nvinfer1::DataType::kFLOAT, nullptr, 0};
-    //  nvinfer1::Weights shift{nvinfer1::DataType::kFLOAT, nullptr, 0};
-    //  nvinfer1::Weights scale{nvinfer1::DataType::kFLOAT, &scaleParam, 1};
-    // nvinfer1::IScaleLayer* scale_2 = network_->addScale(*inputs[0], nvinfer1::ScaleMode::kUNIFORM, shift, scale, power2);
-    // if (scale_2)
-    //   AERROR << "after add NO EMPTY";
-    // else
-    //   AERROR << "after add EMPTY";
-
-    // nvinfer1::IActivationLayer *reluLayer2 = network_->addActivation(*inputs[0], type);
-    // if (reluLayer2)
-    //   AERROR << "after add relu NO EMPTY";
-    // else
-    //   AERROR << "after add relu EMPTY";
-    // i++;
-    // if (i==4)
-    //   exit(0);
   }
   AERROR << "I AM HERE!";
 
