@@ -121,6 +121,7 @@ bool YoloObstacleDetector::InitNet(const yolo::YoloParam &yolo_param,
   output_names.push_back(net_param.area_id_blob());
   output_names.push_back(net_param.visible_ratio_blob());
   output_names.push_back(net_param.cut_off_ratio_blob());
+  output_names.push_back(net_param.region_output_blob());
 
   // init Net
   const auto &model_type = model_param.model_type();
@@ -146,115 +147,116 @@ bool YoloObstacleDetector::InitNet(const yolo::YoloParam &yolo_param,
   if (!inference_->Init(shape_map)) {
     return false;
   }
+  AERROR << "READY TO INFER";
   inference_->Infer();
   return true;
 }
 
 void YoloObstacleDetector::InitYoloBlob(const yolo::NetworkParam &net_param) {
-  auto obj_blob_scale1 = inference_->get_blob(net_param.det1_obj_blob());
-  auto obj_blob_scale2 = inference_->get_blob(net_param.det2_obj_blob());
-  auto obj_blob_scale3 = inference_->get_blob(net_param.det3_obj_blob());
-  int output_height_scale1 = obj_blob_scale1->shape(1);
-  int output_width_scale1 = obj_blob_scale1->shape(2);
-  int obj_size = output_height_scale1 * output_width_scale1 *
-                 static_cast<int>(anchors_.size()) / anchorSizeFactor;
-  if (obj_blob_scale2) {
-    int output_height_scale2 = obj_blob_scale2->shape(1);
-    int output_width_scale2 = obj_blob_scale2->shape(2);
-    int output_height_scale3 = obj_blob_scale3->shape(1);
-    int output_width_scale3 = obj_blob_scale3->shape(2);
-    obj_size = (output_height_scale1 * output_width_scale1 +
-                output_height_scale2 * output_width_scale2 +
-                output_height_scale3 * output_width_scale3) *
-               static_cast<int>(anchors_.size()) / anchorSizeFactor / numScales;
-  }
 
-  yolo_blobs_.res_box_blob.reset(
-      new base::Blob<float>(1, 1, obj_size, kBoxBlockSize));
-  yolo_blobs_.res_cls_blob.reset(new base::Blob<float>(
-      1, 1, static_cast<int>(types_.size() + 1), obj_size));
-  yolo_blobs_.res_cls_blob->cpu_data();
-  overlapped_.reset(
-      new base::Blob<bool>(std::vector<int>{obj_k_, obj_k_}, true));
-  overlapped_->cpu_data();
-  overlapped_->gpu_data();
-  idx_sm_.reset(new base::Blob<int>(std::vector<int>{obj_k_}, true));
-  yolo_blobs_.anchor_blob.reset(
-      new base::Blob<float>(1, 1, static_cast<int>(anchors_.size() / 2), 2));
-  yolo_blobs_.expand_blob.reset(
-      new base::Blob<float>(1, 1, 1, static_cast<int>(expands_.size())));
-  auto expand_cpu_data = yolo_blobs_.expand_blob->mutable_cpu_data();
-  memcpy(expand_cpu_data, expands_.data(), expands_.size() * sizeof(float));
-  auto anchor_cpu_data = yolo_blobs_.anchor_blob->mutable_cpu_data();
-  memcpy(anchor_cpu_data, anchors_.data(), anchors_.size() * sizeof(float));
-  yolo_blobs_.anchor_blob->gpu_data();
+//   auto obj_blob_scale1 = inference_->get_blob(net_param.det1_obj_blob());
+//   auto obj_blob_scale2 = inference_->get_blob(net_param.det2_obj_blob());
+//   auto obj_blob_scale3 = inference_->get_blob(net_param.det3_obj_blob());
+//   int output_height_scale1 = obj_blob_scale1->shape(1);
+//   int output_width_scale1 = obj_blob_scale1->shape(2);
+//   int obj_size = output_height_scale1 * output_width_scale1 *
+//                  static_cast<int>(anchors_.size()) / anchorSizeFactor;
+//   if (obj_blob_scale2) {
+//     int output_height_scale2 = obj_blob_scale2->shape(1);
+//     int output_width_scale2 = obj_blob_scale2->shape(2);
+//     int output_height_scale3 = obj_blob_scale3->shape(1);
+//     int output_width_scale3 = obj_blob_scale3->shape(2);
+//     obj_size = (output_height_scale1 * output_width_scale1 +
+//                 output_height_scale2 * output_width_scale2 +
+//                 output_height_scale3 * output_width_scale3) *
+//                static_cast<int>(anchors_.size()) / anchorSizeFactor / numScales;
+//   }
+
+//   yolo_blobs_.res_box_blob.reset(
+//       new base::Blob<float>(1, 1, obj_size, kBoxBlockSize));
+//   yolo_blobs_.res_cls_blob.reset(new base::Blob<float>(
+//       1, 1, static_cast<int>(types_.size() + 1), obj_size));
+//   yolo_blobs_.res_cls_blob->cpu_data();
+//   overlapped_.reset(new base::Blob<bool>(std::vector<int>{obj_k_, obj_k_}, true));
+//   overlapped_->cpu_data();
+//   overlapped_->gpu_data();
+//   idx_sm_.reset(new base::Blob<int>(std::vector<int>{obj_k_}, true));
+//   yolo_blobs_.anchor_blob.reset( new base::Blob<float>(1, 1, static_cast<int>(anchors_.size() / 2), 2));
+//   yolo_blobs_.expand_blob.reset(new base::Blob<float>(1, 1, 1, static_cast<int>(expands_.size())));
+//   auto expand_cpu_data = yolo_blobs_.expand_blob->mutable_cpu_data();
+//   memcpy(expand_cpu_data, expands_.data(), expands_.size() * sizeof(float));
+//   auto anchor_cpu_data = yolo_blobs_.anchor_blob->mutable_cpu_data();
+//   memcpy(anchor_cpu_data, anchors_.data(), anchors_.size() * sizeof(float));
+//   yolo_blobs_.anchor_blob->gpu_data();
 
   image_.reset(new base::Image8U(height_, width_, base::Color::RGB));
 
-  yolo_blobs_.det1_loc_blob =
-      inference_->get_blob(yolo_param_.net_param().det1_loc_blob());
-  yolo_blobs_.det1_obj_blob =
-      inference_->get_blob(yolo_param_.net_param().det1_obj_blob());
-  yolo_blobs_.det1_cls_blob =
-      inference_->get_blob(yolo_param_.net_param().det1_cls_blob());
-  yolo_blobs_.det1_ori_conf_blob =
-      inference_->get_blob(yolo_param_.net_param().det1_ori_conf_blob());
-  yolo_blobs_.det1_ori_blob =
-      inference_->get_blob(yolo_param_.net_param().det1_ori_blob());
-  yolo_blobs_.det1_dim_blob =
-      inference_->get_blob(yolo_param_.net_param().det1_dim_blob());
-  yolo_blobs_.det2_loc_blob =
-      inference_->get_blob(yolo_param_.net_param().det2_loc_blob());
-  yolo_blobs_.det2_obj_blob =
-      inference_->get_blob(yolo_param_.net_param().det2_obj_blob());
-  yolo_blobs_.det2_cls_blob =
-      inference_->get_blob(yolo_param_.net_param().det2_cls_blob());
-  yolo_blobs_.det2_ori_conf_blob =
-      inference_->get_blob(yolo_param_.net_param().det2_ori_conf_blob());
-  yolo_blobs_.det2_ori_blob =
-      inference_->get_blob(yolo_param_.net_param().det2_ori_blob());
-  yolo_blobs_.det2_dim_blob =
-      inference_->get_blob(yolo_param_.net_param().det2_dim_blob());
-  yolo_blobs_.det3_loc_blob =
-      inference_->get_blob(yolo_param_.net_param().det3_loc_blob());
-  yolo_blobs_.det3_obj_blob =
-      inference_->get_blob(yolo_param_.net_param().det3_obj_blob());
-  yolo_blobs_.det3_cls_blob =
-      inference_->get_blob(yolo_param_.net_param().det3_cls_blob());
-  yolo_blobs_.det3_ori_conf_blob =
-      inference_->get_blob(yolo_param_.net_param().det3_ori_conf_blob());
-  yolo_blobs_.det3_ori_blob =
-      inference_->get_blob(yolo_param_.net_param().det3_ori_blob());
-  yolo_blobs_.det3_dim_blob =
-      inference_->get_blob(yolo_param_.net_param().det3_dim_blob());
+yolo_blobs_.region_output_blob = inference_->get_blob(yolo_param_.net_param().region_output_blob());
+//   yolo_blobs_.det1_loc_blob =
+//       inference_->get_blob(yolo_param_.net_param().det1_loc_blob());
+//   yolo_blobs_.det1_obj_blob =
+//       inference_->get_blob(yolo_param_.net_param().det1_obj_blob());
+//   yolo_blobs_.det1_cls_blob =
+//       inference_->get_blob(yolo_param_.net_param().det1_cls_blob());
+//   yolo_blobs_.det1_ori_conf_blob =
+//       inference_->get_blob(yolo_param_.net_param().det1_ori_conf_blob());
+//   yolo_blobs_.det1_ori_blob =
+//       inference_->get_blob(yolo_param_.net_param().det1_ori_blob());
+//   yolo_blobs_.det1_dim_blob =
+//       inference_->get_blob(yolo_param_.net_param().det1_dim_blob());
+//   yolo_blobs_.det2_loc_blob =
+//       inference_->get_blob(yolo_param_.net_param().det2_loc_blob());
+//   yolo_blobs_.det2_obj_blob =
+//       inference_->get_blob(yolo_param_.net_param().det2_obj_blob());
+//   yolo_blobs_.det2_cls_blob =
+//       inference_->get_blob(yolo_param_.net_param().det2_cls_blob());
+//   yolo_blobs_.det2_ori_conf_blob =
+//       inference_->get_blob(yolo_param_.net_param().det2_ori_conf_blob());
+//   yolo_blobs_.det2_ori_blob =
+//       inference_->get_blob(yolo_param_.net_param().det2_ori_blob());
+//   yolo_blobs_.det2_dim_blob =
+//       inference_->get_blob(yolo_param_.net_param().det2_dim_blob());
+//   yolo_blobs_.det3_loc_blob =
+//       inference_->get_blob(yolo_param_.net_param().det3_loc_blob());
+//   yolo_blobs_.det3_obj_blob =
+//       inference_->get_blob(yolo_param_.net_param().det3_obj_blob());
+//   yolo_blobs_.det3_cls_blob =
+//       inference_->get_blob(yolo_param_.net_param().det3_cls_blob());
+//   yolo_blobs_.det3_ori_conf_blob =
+//       inference_->get_blob(yolo_param_.net_param().det3_ori_conf_blob());
+//   yolo_blobs_.det3_ori_blob =
+//       inference_->get_blob(yolo_param_.net_param().det3_ori_blob());
+//   yolo_blobs_.det3_dim_blob =
+//       inference_->get_blob(yolo_param_.net_param().det3_dim_blob());
 
-  yolo_blobs_.lof_blob =
-      inference_->get_blob(yolo_param_.net_param().lof_blob());
-  yolo_blobs_.lor_blob =
-      inference_->get_blob(yolo_param_.net_param().lor_blob());
+//   yolo_blobs_.lof_blob =
+//       inference_->get_blob(yolo_param_.net_param().lof_blob());
+//   yolo_blobs_.lor_blob =
+//       inference_->get_blob(yolo_param_.net_param().lor_blob());
 
-  yolo_blobs_.brvis_blob =
-      inference_->get_blob(yolo_param_.net_param().brvis_blob());
-  yolo_blobs_.brswt_blob =
-      inference_->get_blob(yolo_param_.net_param().brswt_blob());
-  yolo_blobs_.ltvis_blob =
-      inference_->get_blob(yolo_param_.net_param().ltvis_blob());
-  yolo_blobs_.ltswt_blob =
-      inference_->get_blob(yolo_param_.net_param().ltswt_blob());
-  yolo_blobs_.rtvis_blob =
-      inference_->get_blob(yolo_param_.net_param().rtvis_blob());
-  yolo_blobs_.rtswt_blob =
-      inference_->get_blob(yolo_param_.net_param().rtswt_blob());
+//   yolo_blobs_.brvis_blob =
+//       inference_->get_blob(yolo_param_.net_param().brvis_blob());
+//   yolo_blobs_.brswt_blob =
+//       inference_->get_blob(yolo_param_.net_param().brswt_blob());
+//   yolo_blobs_.ltvis_blob =
+//       inference_->get_blob(yolo_param_.net_param().ltvis_blob());
+//   yolo_blobs_.ltswt_blob =
+//       inference_->get_blob(yolo_param_.net_param().ltswt_blob());
+//   yolo_blobs_.rtvis_blob =
+//       inference_->get_blob(yolo_param_.net_param().rtvis_blob());
+//   yolo_blobs_.rtswt_blob =
+//       inference_->get_blob(yolo_param_.net_param().rtswt_blob());
 
-  yolo_blobs_.area_id_blob =
-      inference_->get_blob(yolo_param_.net_param().area_id_blob());
-  yolo_blobs_.visible_ratio_blob =
-      inference_->get_blob(yolo_param_.net_param().visible_ratio_blob());
-  yolo_blobs_.cut_off_ratio_blob =
-      inference_->get_blob(yolo_param_.net_param().cut_off_ratio_blob());
+//   yolo_blobs_.area_id_blob =
+//       inference_->get_blob(yolo_param_.net_param().area_id_blob());
+//   yolo_blobs_.visible_ratio_blob =
+//       inference_->get_blob(yolo_param_.net_param().visible_ratio_blob());
+//   yolo_blobs_.cut_off_ratio_blob =
+//       inference_->get_blob(yolo_param_.net_param().cut_off_ratio_blob());
 }
 
 bool YoloObstacleDetector::Init(const ObstacleDetectorInitOptions &options) {
+    AERROR << "YoloObstacleDetector::Init begin";
   gpu_id_ = options.gpu_id;
   BASE_CUDA_CHECK(cudaSetDevice(gpu_id_));
   BASE_CUDA_CHECK(cudaStreamCreate(&stream_));
@@ -297,10 +299,14 @@ bool YoloObstacleDetector::Init(const ObstacleDetectorInitOptions &options) {
   AERROR << types_.size();
   CHECK(expands_.size() == types_.size());
   
+  AERROR << "InitYoloBlob begin";
   InitYoloBlob(yolo_param_.net_param());
+  AERROR << "InitYoloBlob end";
   if (!InitFeatureExtractor(model_root)) {
+      AERROR << "InitFeatureExtractor fail: " << model_root;
     return false;
   }
+  AERROR <<  "YoloObstacleDetector::Init finish.";
   return true;
 }
 
@@ -313,9 +319,12 @@ bool YoloObstacleDetector::InitFeatureExtractor(const std::string &root_dir) {
   feat_options.feat_blob = inference_->get_blob(feat_blob_name);
   feat_options.input_height = height_;
   feat_options.input_width = width_;
+
   feature_extractor_.reset(BaseFeatureExtractorRegisterer::GetInstanceByName(
       "TrackingFeatureExtractor"));
+AERROR << "S2" << feat_options.conf_file << " " << feat_options.input_height  << " " <<  feat_options.input_width;
   if (!feature_extractor_->Init(feat_options)) {
+      AERROR << "S3";
     return false;
   }
   return true;
@@ -323,6 +332,7 @@ bool YoloObstacleDetector::InitFeatureExtractor(const std::string &root_dir) {
 
 bool YoloObstacleDetector::Detect(const ObstacleDetectorOptions &options,
                                   CameraFrame *frame) {
+    AERROR << "into yolo detect main function";
   if (frame == nullptr) {
     return false;
   }
@@ -332,29 +342,36 @@ bool YoloObstacleDetector::Detect(const ObstacleDetectorOptions &options,
     AERROR << "Failed to set device to " << gpu_id_;
     return false;
   }
-
+    // AERROR << "D1";
   auto input_blob = inference_->get_blob(yolo_param_.net_param().input_blob());
+//    AERROR << "D2";
   AINFO << "Start: " << static_cast<double>(timer.Toc()) * 0.001 << "ms";
   DataProvider::ImageOptions image_options;
   image_options.target_color = base::Color::BGR;
   image_options.crop_roi = base::RectI(
       0, offset_y_, static_cast<int>(base_camera_model_->get_width()),
       static_cast<int>(base_camera_model_->get_height()) - offset_y_);
+    //    AERROR << "D3";
   image_options.do_crop = true;
   frame->data_provider->GetImage(image_options, image_.get());
+  AERROR << "D4 " << image_->rows() << " " << image_->cols() << " " <<  yolo_param_.net_param().input_blob() << " " << frame->data_provider->src_width() << " " << frame->data_provider->src_height();
+
   AINFO << "GetImageBlob: " << static_cast<double>(timer.Toc()) * 0.001 << "ms";
+   
   inference::ResizeGPU(*image_, input_blob, frame->data_provider->src_width(),
                        0);
   AINFO << "Resize: " << static_cast<double>(timer.Toc()) * 0.001 << "ms";
 
   /////////////////////////// detection part ///////////////////////////
+  AERROR << "ready to detection part";
   inference_->Infer();
   AINFO << "Network Forward: " << static_cast<double>(timer.Toc()) * 0.001
         << "ms";
+    AERROR << "D4";
   get_objects_gpu(yolo_blobs_, stream_, types_, nms_, yolo_param_.model_param(),
                   light_vis_conf_threshold_, light_swt_conf_threshold_,
                   overlapped_.get(), idx_sm_.get(), &(frame->detected_objects));
-
+AERROR << "D5";
   AINFO << "GetObj: " << static_cast<double>(timer.Toc()) * 0.001 << "ms";
   filter_bbox(min_dims_, &(frame->detected_objects));
   FeatureExtractorOptions feat_options;
@@ -365,7 +382,7 @@ bool YoloObstacleDetector::Detect(const ObstacleDetectorOptions &options,
   recover_bbox(frame->data_provider->src_width(),
                frame->data_provider->src_height() - offset_y_, offset_y_,
                &frame->detected_objects);
-
+AERROR << "D6";
   // post processing
   int left_boundary =
       static_cast<int>(border_ratio_ * static_cast<float>(image_->cols()));
@@ -379,6 +396,7 @@ bool YoloObstacleDetector::Detect(const ObstacleDetectorOptions &options,
       obj->camera_supplement.area_id =
           get_area_id(obj->camera_supplement.visible_ratios);
     }
+    AERROR << "D7";
     // clear cut off ratios
     auto &box = obj->camera_supplement.box;
     if (box.xmin >= left_boundary) {
@@ -387,6 +405,7 @@ bool YoloObstacleDetector::Detect(const ObstacleDetectorOptions &options,
     if (box.xmax <= right_boundary) {
       obj->camera_supplement.cut_off_ratios[3] = 0;
     }
+    AERROR << "D8";
   }
   AINFO << "Post2: " << static_cast<double>(timer.Toc()) * 0.001 << "ms";
 

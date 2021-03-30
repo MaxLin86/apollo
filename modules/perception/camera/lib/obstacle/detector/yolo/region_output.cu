@@ -450,14 +450,19 @@ void get_objects_gpu(const YoloBlobs &yolo_blobs,
                      base::Blob<bool> *overlapped,
                      base::Blob<int> *idx_sm,
                      std::vector<base::ObjectPtr> *objects) {
+
+      AERROR << "into  gpu";
   bool multi_scale = false;
   if (yolo_blobs.det2_obj_blob){
     multi_scale = true;
   }
   int num_classes = types.size();
-  int batch = yolo_blobs.det1_obj_blob->shape(0);
-  int num_anchor = yolo_blobs.anchor_blob->shape(2);
+  // int batch = yolo_blobs.det1_obj_blob->shape(0);
+  // int num_anchor = yolo_blobs.anchor_blob->shape(2);
+  int batch = 1;
+  int num_anchor = 5;
   int num_anchor_per_scale = num_anchor;
+  AERROR << num_classes << " " << batch << " " << num_anchor << " " << num_anchor_per_scale;
   if (multi_scale){
     num_anchor_per_scale /= numScales;
   }

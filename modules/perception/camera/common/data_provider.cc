@@ -239,7 +239,9 @@ bool DataProvider::GetImageBlob(const DataProvider::ImageOptions &options,
 bool DataProvider::GetImage(const DataProvider::ImageOptions &options,
                             base::Image8U *image) {
   AINFO << "GetImage ...";
+  // AERROR << "INTO GET IMAGE";
   if (image == nullptr) {
+    // AERROR <<  "IMAGE IS NULLPTR";
     return false;
   }
   bool success = false;
@@ -260,14 +262,16 @@ bool DataProvider::GetImage(const DataProvider::ImageOptions &options,
       AERROR << "Unsupported Color: "
              << static_cast<uint8_t>(options.target_color);
   }
+  // AERROR << "GET IMAGRE" << success;
   if (!success) {
     return false;
   }
-
+  // AERROR << "DO CROP";
   if (options.do_crop) {
     AINFO << "\tcropping ...";
     *image = (*image)(options.crop_roi);
   }
+  // AERROR << "GET DONE";
   AINFO << "Done!";
   return true;
 }

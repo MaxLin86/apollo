@@ -37,6 +37,7 @@ using cyber::common::GetAbsolutePath;
 
 bool ObstacleCameraPerception::Init(
     const CameraPerceptionInitOptions &options) {
+      // AERROR << "___S1____";
   std::string work_root = "";
   if (options.use_cyber_work_root) {
     work_root = GetCyberWorkRoot();
@@ -52,6 +53,8 @@ bool ObstacleCameraPerception::Init(
   // Init detector
   CHECK(perception_param_.detector_param_size() > 0)
       << "Failed to init detector.";
+
+      // AERROR << "___S2____";
   // Init detector
   base::BaseCameraModelPtr model;
   for (int i = 0; i < perception_param_.detector_param_size(); ++i) {
@@ -79,7 +82,7 @@ bool ObstacleCameraPerception::Init(
              ->Init(detector_init_options))
        << "Failed to init: " << plugin_param.name();
   }
-
+// AERROR << "___S3____";
   // Init tracker
   CHECK(perception_param_.has_tracker_param()) << "Failed to init tracker.";
   {
@@ -97,6 +100,7 @@ bool ObstacleCameraPerception::Init(
     CHECK(tracker_->Init(tracker_init_options))
         << "Failed to init: " << plugin_param.name();
   }
+  // AERROR << "___S4____";
   // Init feature_extractor
   if (!perception_param_.has_feature_param()) {
     AINFO << "No feature config found.";
@@ -112,7 +116,7 @@ bool ObstacleCameraPerception::Init(
     CHECK(extractor_->Init(init_options))
         << "Failed to init: " << plugin_param.name();
   }
-
+// AERROR << "___S5____";
   lane_calibration_working_sensor_name_ =
       options.lane_calibration_working_sensor_name;
 #if 0
@@ -134,7 +138,7 @@ bool ObstacleCameraPerception::Init(
                      std::ofstream::out);
     }
   }
-
+// AERROR << "___S6____";
   // Init object template
   if (perception_param_.has_object_template_param()) {
     ObjectTemplateManagerInitOptions init_options;
@@ -144,6 +148,7 @@ bool ObstacleCameraPerception::Init(
     init_options.conf_file = plugin_param.config_file();
     CHECK(ObjectTemplateManager::Instance()->Init(init_options));
   }
+  // AERROR << "___S7____";
   return true;
 }
 #if 0

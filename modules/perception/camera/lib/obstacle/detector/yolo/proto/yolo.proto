@@ -84,6 +84,7 @@ message NetworkParam {
   optional string area_id_blob = 32 [default = "area_id_pred"];
   optional string visible_ratio_blob = 33 [default = "vis_pred"];
   optional string cut_off_ratio_blob = 34 [default = "cut_pred"];
+  optional string region_output_blob = 35[default="region_output_blob"];
 }
 
 message NMSParam {

@@ -72,8 +72,6 @@ void RTNet::addConvLayer(const LayerParameter &layer_param,
   nvinfer1::IConvolutionLayer *convLayer = nullptr;
   int size = conv.num_output() * param.kernel_w * param.kernel_h *
              inputs[0]->getDimensions().d[0];
-          
-  AERROR << "Conv layer debug: "<< inputs[0]->getName() << " " << inputs[0]->getDimensions().nbDims << " " <<  inputs[0]->getDimensions().d[0] << " " <<  inputs[0]->getDimensions().d[1] << " "<<  inputs[0]->getDimensions().d[2];
 
   auto wt = loadLayerWeights(conv.weight_filler().value(), size);
   nvinfer1::Weights bias_weight{nvinfer1::DataType::kFLOAT, nullptr, 0};
@@ -87,7 +85,6 @@ void RTNet::addConvLayer(const LayerParameter &layer_param,
       convLayer->setBiasWeights((*weight_map)[layer_param.name().c_str()][1]);
     }
   }
-  AERROR << "Conv layer debug: " << layer_param.name().c_str() << " " <<size << " " << param.kernel_w << " " << param.kernel_h <<" " << param.stride_h << " "<< param.padding_w <<" " << conv.num_output();
   std::vector<nvinfer1::Weights> lw;
   lw.resize(2);
   lw[0] = convLayer->getKernelWeights();
@@ -99,11 +96,6 @@ void RTNet::addConvLayer(const LayerParameter &layer_param,
   convLayer->setNbGroups(conv.group());
   convLayer->setName(layer_param.name().c_str());
   convLayer->setDilation(nvinfer1::DimsHW{param.dilation, param.dilation});
-  if (convLayer)
-    AERROR << "CONV NO EMPTY";
-  else
-    AERROR << "CONV EMPTY";
-   // CHECK THIS 
   ConstructMap(layer_param, convLayer, tensor_map, tensor_modify_map);
 
 #if LOAD_DEBUG
@@ -309,37 +301,13 @@ void RTNet::addBatchnormLayer(const LayerParameter &layer_param,
   BatchNormParameter param = layer_param.batch_norm_param();
 
   nvinfer1::Weights power{nvinfer1::DataType::kFLOAT, nullptr, 0};
-  AERROR << "STEP1";
-  AERROR << layer_param.name().c_str() << " " << layer_param.name().c_str()[0] << " " <<  layer_param.name().c_str()[1] << " " << weight_map->size() << " " << power.count << " " << net->getNbLayers () ;
-
-   nvinfer1::DataType typea = (*inputs[0]).getType();
-   int ptypea = int(typea);
-   AERROR << ptypea << " " <<  (*weight_map)[layer_param.name().c_str()][0].count << " " << (*weight_map)[layer_param.name().c_str()][1].count;
-
-  const float scaleParam = 0.0125f;
-     nvinfer1::Weights power2{nvinfer1::DataType::kFLOAT, nullptr, 0};
-     nvinfer1::Weights shift{nvinfer1::DataType::kFLOAT, nullptr, 0};
-     nvinfer1::Weights scale{nvinfer1::DataType::kFLOAT, &scaleParam, 1};
-  nvinfer1::IScaleLayer* scale_1 = net->addScale(*inputs[0], nvinfer1::ScaleMode::kUNIFORM, shift, scale, power2);
-   if (scale_1)
-    AERROR << "NO EMPTY";
-  else
-   AERROR << "EMPTY";
 
   nvinfer1::IScaleLayer *scaleLayer =
       net->addScale(*inputs[0], nvinfer1::ScaleMode::kCHANNEL,
                     (*weight_map)[layer_param.name().c_str()][0],
                     (*weight_map)[layer_param.name().c_str()][1], power);
-
-   AERROR << ptypea << " " <<  (*weight_map)[layer_param.name().c_str()][0].count << " " << (*weight_map)[layer_param.name().c_str()][0].count;
-  AERROR << layer_param.name().c_str() << " " << layer_param.name().c_str()[0] << " " <<  layer_param.name().c_str()[1] << " " << weight_map->size() << " " << power.count << " " << net->getNbLayers () ;
-  if (scaleLayer)
-    AERROR << "NO EMPTY";
-  else
-   AERROR << "EMPTY";
-  AERROR << "STEP2";
+                    
   scaleLayer->setName(layer_param.name().c_str());
-  AERROR << "STEP3";
   ConstructMap(layer_param, scaleLayer, tensor_map, tensor_modify_map);
 }
 void RTNet::addSoftmaxLayer(const LayerParameter &layer_param,
@@ -682,9 +650,19 @@ bool RTNet::Init(const std::map<std::string, std::vector<int>> &shapes) {
 
   builder_->setDebugSync(true);
 
+AERROR << "network info: " << network_->getNbLayers () << " " <<network_->getNbInputs() << " "<< network_->getNbOutputs();  
+AERROR << "S1 " << max_batch_size_ << " " <<workspaceSize_ << " " << gpu_id_ << " " << int8_mode ;
   nvinfer1::ICudaEngine *engine = builder_->buildCudaEngine(*network_);
+  if (!engine)
+    {
+        AERROR << "Unable to create engine";
+        return nullptr;
+    }
+  // AERROR << "S2";
   context_ = engine->createExecutionContext();
+  // AERROR << "S3" << input_names_.size() << " " << output_names_.size() << " " << buffers_.size() ;
   buffers_.resize(input_names_.size() + output_names_.size());
+  // AERROR << "S4";
   init_blob(&input_names_);
   init_blob(&output_names_);
   AERROR << " init renet finish";
@@ -744,8 +722,6 @@ void RTNet::parse_with_api(
   bool addFlag = addInput(tensor_dims_map, shapes, &tensor_map);
   // addINput 后 tensor_map 尺寸增加1
   AERROR << "add input flag: "<<addFlag <<" " <<  shapes.size() <<" " <<  tensor_dims_map.size()<<" "  << order.size() << " " << tensor_modify_map_.size() <<" " << tensor_map.size();
- AERROR << "CHECK:  ------" <<  tensor_map["data"]->getName() << " " << tensor_map["data"]->getDimensions ().nbDims;
-  
   AERROR << "order size: " << order.size();
   for (auto layer_param : order) {
     std::vector<nvinfer1::ITensor *> inputs;
@@ -758,30 +734,26 @@ void RTNet::parse_with_api(
       CHECK_NOTNULL(cur_tensor);
       inputs.push_back(cur_tensor);
       AERROR << "inputs push back: " << j <<" "<< name << " " <<  cur_tensor->getName() << " " <<cur_tensor->getDimensions ().nbDims;
-    }
-    AERROR << "input_size:  " << inputs.size() <<"  input0_name: "<< inputs[0]->getName() << "  lyaerparam_bottom_size: " << layer_param.bottom_size()<< " "<<"layer type: " << layer_param.type();
-    
+    } 
     addLayer(layer_param, inputs.data(), layer_param.bottom_size(),
              &weight_map_, network_, &tensor_map, &tensor_modify_map_);
-    AERROR << "CHECK:  ------" <<  tensor_map["data"]->getName() << " " << tensor_map["data"]->getDimensions().nbDims;
-     AERROR << "after add layer: " <<" " <<  shapes.size() <<" " <<  tensor_dims_map.size()<<" "  << order.size() << " " << tensor_modify_map_.size() <<" " << tensor_map.size();
-    
-    std::string name2 = tensor_modify_map_[layer_param.bottom(0)];
-      nvinfer1::ITensor* cur_tensor2 = tensor_map[name2];
-      AERROR << "after add laye tensor: " << name2 << " " <<  cur_tensor2->getName() << " " << cur_tensor2->getDimensions ().nbDims;
 
   }
-  AERROR << "I AM HERE!";
+  AERROR << "I AM HERE!"<< output_names_.size() << " " << tensor_modify_map_.size();
+    
+    std::map<std::string, std::string>::iterator itr;
+    for (itr = tensor_modify_map_.begin(); itr != tensor_modify_map_.end(); ++itr)
+      AERROR << itr->first << " " << itr->second;
 
-AERROR << output_names_.size();
   CHECK_NE(output_names_.size(), 0);
   std::sort(output_names_.begin(), output_names_.end());
-  for (auto name: output_names_)
-    AERROR << name;
   auto last = std::unique(output_names_.begin(), output_names_.end());
   output_names_.erase(last, output_names_.end());
+
   for (auto iter = output_names_.begin(); iter != output_names_.end();) {
+    AERROR << *iter << " " << tensor_modify_map_[*iter] ;
     if (tensor_map.find(tensor_modify_map_[*iter]) != tensor_map.end()) {
+      AERROR << "into mark output  " << *iter;
       network_->markOutput(*tensor_map[tensor_modify_map_[*iter]]);
       iter++;
     } else {
@@ -808,6 +780,7 @@ RTNet::~RTNet() {
 }
 
 void RTNet::Infer() {
+  AERROR << "into infer" << gpu_id_;
   BASE_CUDA_CHECK(cudaSetDevice(gpu_id_));
   BASE_CUDA_CHECK(cudaStreamSynchronize(stream_));
   for (auto name : input_names_) {
@@ -816,6 +789,7 @@ void RTNet::Infer() {
       blob->gpu_data();
     }
   }
+  AERROR << "FINISH GET ALL DATA";
   // If `out_blob->mutable_cpu_data()` is invoked outside,
   // HEAD will be set to CPU, and `out_blob->mutable_gpu_data()`
   // after `enqueue` will copy data from CPU to GPU,
@@ -828,6 +802,8 @@ void RTNet::Infer() {
       blob->gpu_data();
     }
   }
+  AERROR << "FINISH GET OUTPUT DATA";
+
   context_->enqueue(max_batch_size_, &buffers_[0], stream_, nullptr);
   BASE_CUDA_CHECK(cudaStreamSynchronize(stream_));
 
@@ -837,6 +813,7 @@ void RTNet::Infer() {
       blob->mutable_gpu_data();
     }
   }
+  AERROR << "FINISH RTNET INFER";
 }
 std::shared_ptr<apollo::perception::base::Blob<float>> RTNet::get_blob(
     const std::string &name) {

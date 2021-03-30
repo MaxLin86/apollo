@@ -770,11 +770,13 @@ int FusionCameraDetectionComponent::InitSensorInfo() {
 }
 
 int FusionCameraDetectionComponent::InitAlgorithmPlugin() {
+  AERROR << "------------------------------------MAIN-----------------------------";
   camera_obstacle_pipeline_.reset(new camera::ObstacleCameraPerception);
   if (!camera_obstacle_pipeline_->Init(camera_perception_init_options_)) {
     AERROR << "camera_obstacle_pipeline_->Init() failed";
     return cyber::FAIL;
   }
+  AERROR << "camera_obstacle_pipeline_->Init() succeed";
   AINFO << "camera_obstacle_pipeline_->Init() succeed";
   return cyber::SUCC;
 }

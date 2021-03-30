@@ -1,3 +1,4 @@
+#load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
@@ -50,6 +51,7 @@ cc_library(
         "//modules/perception/inference/paddlepaddle:paddle_net_lib",
         "//modules/perception/inference/tensorrt:rt_net",
         "//modules/perception/inference/utils:inference_util_lib",
+        
     ],
 )
 

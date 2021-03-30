@@ -35,8 +35,11 @@ model_param {
 
 net_param
 {
-  det1_loc_blob: "region"
+  #det1_loc_blob: "region"
   input_blob: "data"
+  #region_output_blob: "layer16-region"
+  feat_blob: "layer5-conv"
+  region_output_blob: "layer15-conv"
 }
 
 nms_param {

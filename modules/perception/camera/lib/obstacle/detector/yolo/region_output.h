@@ -108,6 +108,7 @@ struct YoloBlobs {
   std::shared_ptr<base::Blob<float>> res_cls_blob;
   std::shared_ptr<base::Blob<float>> anchor_blob;
   std::shared_ptr<base::Blob<float>> expand_blob;
+  std::shared_ptr<base::Blob<float>> region_output_blob;
 };
 struct MinDims {
   float min_2d_height = 0.0f;

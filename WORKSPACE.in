@@ -285,6 +285,7 @@ new_local_repository(
     path = "/usr/local/apollo/libtorch",
 )
 
+
 # PyTorch GPU
 new_local_repository(
     name = "pytorch_gpu",
