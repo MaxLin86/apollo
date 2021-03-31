@@ -20,6 +20,7 @@
 
 #include "modules/perception/inference/caffe/caffe_net.h"
 #include "modules/perception/inference/tensorrt/rt_net.h"
+// #include "modules/perception/inference/darknet/darknet_api.h"
 
 namespace apollo {
 namespace perception {

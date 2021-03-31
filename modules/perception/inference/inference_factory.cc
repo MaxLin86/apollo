@@ -19,6 +19,7 @@
 #include "modules/perception/inference/caffe/caffe_net.h"
 #include "modules/perception/inference/paddlepaddle/paddle_net.h"
 #include "modules/perception/inference/tensorrt/rt_net.h"
+#include "modules/perception/inference/darknet/darknet_api.h"
 
 namespace apollo {
 namespace perception {
@@ -38,6 +39,8 @@ Inference *CreateInferenceByName(const std::string &name,
     return new RTNet(proto_file, weight_file, outputs, inputs, model_root);
   } else if (name == "PaddleNet") {
     return new PaddleNet(proto_file, weight_file, outputs, inputs);
+  } else if (name == "DarkNet"){
+    return new DarkNet(proto_file, weight_file, outputs, inputs);
   }
   return nullptr;
 }

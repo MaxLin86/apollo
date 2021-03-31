@@ -70,19 +70,19 @@ cc_library(
     ],
 )
 
-cc_test(
-    name = "rt_net_test",
-    size = "small",
-    srcs = ["rt_net_test.cc"],
-    data = [
-        "//modules/perception/inference:inference_test_data",
-    ],
-    deps = [
-        ":rt_net",
-        "//modules/perception/inference:inference_factory_lib",
-        "@gtest//:main",
-    ],
-)
+#cc_test(
+#    name = "rt_net_test",
+#    size = "small",
+#    srcs = ["rt_net_test.cc"],
+#    data = [
+#        "//modules/perception/inference:inference_test_data",
+#    ],
+#    deps = [
+#        "//modules/perception/inference:inference_factory_lib",
+#        ":rt_net",
+#        "@gtest//:main",
+#    ],
+#)
 
 cc_library(
     name = "entropy_calibrator",
